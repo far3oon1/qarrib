@@ -2,9 +2,12 @@
 // The backend serves API + frontend from the SAME origin, so whenever the
 // page itself came over http(s) from the backend (port 5000, default ports,
 // Cloudflare tunnel https, Render https...) we use same-origin /api.
-// Only dev setups (file:// or Live Server :5500) fall back to host:5000.
+// A hosted static frontend may set window.QARRAB_API_URL before this script loads.
 var IS_DESKTOP = typeof window.desktopAPI !== 'undefined' || window.isDesktopApp === true || (typeof process !== 'undefined' && process.type === 'renderer');
 var API_BASE_URL = (function () {
+    if (typeof window.QARRAB_API_URL === 'string' && window.QARRAB_API_URL.trim()) {
+        return window.QARRAB_API_URL.replace(/\/$/, '') + '/api';
+    }
     if (IS_DESKTOP) {
         return '/api';
     }
