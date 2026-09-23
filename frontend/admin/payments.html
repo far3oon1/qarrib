@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>المدفوعات - أدمن</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        .page-header {
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            color: white;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .payments-summary {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            padding: 20px;
+        }
+        .summary-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .summary-value {
+            font-size: 24px;
+            font-weight: 800;
+            color: #2563eb;
+        }
+        .summary-label {
+            font-size: 13px;
+            color: #64748b;
+            margin-top: 4px;
+        }
+        .transactions-list {
+            padding: 0 20px 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="page-header">
+            <button class="back-btn" onclick="history.back()">→</button>
+            <div class="page-title">المدفوعات</div>
+        </div>
+
+        <div class="payments-summary" id="paymentsSummary">
+            <div class="summary-card">
+                <div class="summary-value" id="totalDeposits">0</div>
+                <div class="summary-label">إجمالي الشحن</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-value" id="totalPayments">0</div>
+                <div class="summary-label">إجمالي الدفع</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-value" id="totalEarnings">0</div>
+                <div class="summary-label">إجمالي الأرباح</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-value" id="totalFees">0</div>
+                <div class="summary-label">إجمالي العمولات</div>
+            </div>
+        </div>
+
+        <div class="transactions-list">
+            <h3 style="margin-bottom: 12px; padding: 0 4px;">طلبات الشحن المعلقة</h3>
+            <div id="topupsList">
+                <div class="loading"><div class="spinner"></div></div>
+            </div>
+        </div>
+
+        <div class="transactions-list">
+            <h3 style="margin-bottom: 12px; padding: 0 4px;">طلبات السحب من الممرضين (حوّل لرقم حسابه)</h3>
+            <div id="withdrawalsList">
+                <div class="loading"><div class="spinner"></div></div>
+            </div>
+        </div>
+
+        <div class="transactions-list">
+            <h3 style="margin-bottom: 12px; padding: 0 4px;">آخر العمليات</h3>
+            <div id="transactionsList">
+                <div class="loading"><div class="spinner"></div></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/notifications.js"></script>
+    <script>
+        if (!requireRole('admin')) redirectToLogin();
+
+        async function loadPayments() {
+            try {
+                const result = await api.getAdminPayments();
+                if (result.success) {
+                    const stats = result.data.stats;
+                    document.getElementById('totalDeposits').textContent = stats.totalDeposits + ' ج.م';
+                    document.getElementById('totalPayments').textContent = stats.totalPayments + ' ج.م';
+                    document.getElementById('totalEarnings').textContent = stats.totalEarnings + ' ج.م';
+                    document.getElementById('totalFees').textContent = stats.totalFees + ' ج.م';
+
+                    const container = document.getElementById('transactionsList');
+                    if (result.data.transactions.length > 0) {
+                        container.innerHTML = result.data.transactions.map(t => `
+                            <div class="transaction-item" style="background: white; border-radius: 12px; padding: 16px; margin-bottom: 8px;">
+                                <div class="transaction-info">
+                                    <h4>${t.description}</h4>
+                                    <p>${formatDate(t.createdAt)} | ${t.paymentMethod || 'N/A'}</p>
+                                </div>
+                                <div class="transaction-amount ${['deposit', 'earning', 'refund'].includes(t.type) ? 'positive' : 'negative'}">
+                                    ${['deposit', 'earning', 'refund'].includes(t.type) ? '+' : '-'} ${t.amount} ج.م
+                                </div>
+                            </div>
+                        `).join('');
+                    } else {
+                        container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">💰</div><p>لا توجد عمليات</p></div>`;
+                    }
+                }
+            } catch (error) {
+                showAlert('فشل تحميل المدفوعات', 'error');
+            }
+        }
+
+        async function loadTopups() {
+            try {
+                const result = await api.getAdminTopups();
+                const container = document.getElementById('topupsList');
+                if (result.success && result.data.length > 0) {
+                    container.innerHTML = result.data.map(t => `
+                        <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 16px; margin-bottom: 8px;">
+                            <div style="font-weight: 700;">${t.user ? t.user.name : ''} — ${t.amount} ج.م</div>
+                            <div style="font-size: 13px; color: #64748b;">${t.user ? t.user.phone : ''} | مرجع: ${t.reference || '—'} | ${formatDate(t.createdAt)}</div>
+                            <div style="display: flex; gap: 8px; margin-top: 10px;">
+                                <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="reviewTopup('${t.id}', 'approved')">✅ تأكيد (أضف الرصيد)</button>
+                                <button class="btn btn-danger btn-sm" style="flex:1;" onclick="reviewTopup('${t.id}', 'rejected')">❌ رفض</button>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">✅</div><p>لا توجد طلبات معلقة</p></div>`;
+                }
+            } catch (error) {
+                showAlert('فشل تحميل طلبات الشحن', 'error');
+            }
+        }
+
+        async function reviewTopup(id, action) {
+            try {
+                await api.reviewTopup(id, action);
+                showAlert(action === 'approved' ? 'تمت إضافة الرصيد' : 'تم الرفض');
+                loadTopups();
+                loadPayments();
+            } catch (error) {
+                showAlert('فشلت العملية', 'error');
+            }
+        }
+
+        async function loadWithdrawals() {
+            try {
+                const result = await api.getAdminWithdrawals();
+                const container = document.getElementById('withdrawalsList');
+                if (result.success && result.data.length > 0) {
+                    container.innerHTML = result.data.map(t => `
+                        <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; padding: 16px; margin-bottom: 8px;">
+                            <div style="font-weight: 700;">${t.user ? t.user.name : ''} — ${t.amount} ج.م</div>
+                            <div style="font-size: 13px; color: #64748b;">هاتف: ${t.user ? t.user.phone : ''} | طريقة: ${t.paymentMethod} | ${formatDate(t.createdAt)}</div>
+                            <div style="font-size: 14px; margin-top:6px;">💳 حوّل إلى: <b style="direction:ltr;">${t.user && t.user.payoutAccount ? t.user.payoutAccount : '— لم يضف رقمه بعد —'}</b> (${t.user && t.user.payoutMethod ? t.user.payoutMethod : ''})</div>
+                            <div style="font-size:12px;color:#94a3b8;">${t.description || ''}</div>
+                            <div style="display: flex; gap: 8px; margin-top: 10px;">
+                                <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="reviewWithdrawal('${t.id}', 'approved')">✅ تم التحويل (تأكيد)</button>
+                                <button class="btn btn-danger btn-sm" style="flex:1;" onclick="reviewWithdrawal('${t.id}', 'rejected')">❌ رفض وإرجاع الرصيد</button>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">✅</div><p>لا توجد طلبات سحب</p></div>`;
+                }
+            } catch (error) { showAlert('فشل تحميل السحب', 'error'); }
+        }
+
+        async function reviewWithdrawal(id, action) {
+            try {
+                await api.reviewWithdrawal(id, action);
+                showAlert(action === 'approved' ? 'تم تأكيد التحويل للممرض' : 'تم الرفض');
+                loadWithdrawals();
+            } catch (error) { showAlert('فشلت العملية', 'error'); }
+        }
+
+        loadTopups();
+        loadWithdrawals();
+        loadPayments();
+    </script>
+</body>
+</html>

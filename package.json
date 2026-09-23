@@ -1,0 +1,62 @@
+{
+  "name": "qarrib-desktop",
+  "version": "1.0.0-desktop",
+  "description": "Qarrib - Healthcare/Nursing On-Demand Platform (Desktop Application)",
+  "main": "desktop/main.js",
+  "author": "Qarrab Healthcare",
+  "scripts": {
+    "install:backend": "cd backend && npm install",
+    "start:backend": "cd backend && npm start",
+    "dev:backend": "cd backend && npm run dev",
+    "start": "node desktop/main.js",
+    "start:desktop": "electron . --desktop",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "install:desktop": "npm install electron electron-builder --save-dev"
+  },
+  "workspaces": [
+    "backend"
+  ],
+  "license": "MIT",
+  "build": {
+    "appId": "com.qarrib.desktop",
+    "productName": "Qarrab Healthcare",
+    "electronVersion": "44.4.5",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "desktop/main.js",
+      "desktop/preload.js",
+      "desktop/server.js",
+      "frontend/**/*",
+      "backend/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "extraResources": [
+      {
+        "from": "backend/",
+        "to": "backend"
+      },
+      {
+        "from": "frontend/",
+        "to": "frontend"
+      }
+    ]
+  },
+  "devDependencies": {
+    "electron": "^44.4.5",
+    "electron-builder": "^26.15.3"
+  }
+}

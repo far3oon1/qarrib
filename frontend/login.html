@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تسجيل الدخول - قرّب</title>
+    <link rel="stylesheet" href="css/main.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .login-wrapper {
+            width: 100%;
+            max-width: 420px;
+        }
+
+        .brand {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .brand-logo {
+            font-size: 48px;
+            font-weight: 900;
+            color: white;
+            text-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            letter-spacing: -1px;
+        }
+
+        .brand-tagline {
+            color: rgba(255,255,255,0.85);
+            font-size: 15px;
+            margin-top: 8px;
+        }
+
+        .login-card {
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+            overflow: hidden;
+        }
+
+        /* Role Tabs */
+        .role-tabs {
+            display: flex;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .role-tab {
+            flex: 1;
+            padding: 16px 8px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 700;
+            color: #94a3b8;
+            transition: all 0.3s ease;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .role-tab .tab-icon {
+            font-size: 22px;
+        }
+
+        .role-tab.active {
+            color: #2563eb;
+            background: white;
+        }
+
+        .role-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 20%;
+            right: 20%;
+            height: 3px;
+            background: #2563eb;
+            border-radius: 3px 3px 0 0;
+        }
+
+        .role-tab:hover:not(.active) {
+            color: #64748b;
+            background: #f1f5f9;
+        }
+
+        /* Login Forms */
+        .login-form {
+            padding: 32px 28px;
+            display: none;
+        }
+
+        .login-form.active {
+            display: block;
+            animation: fadeIn 0.4s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .form-header {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+
+        .form-header h2 {
+            color: #1e293b;
+            font-size: 22px;
+            margin-bottom: 6px;
+        }
+
+        .form-header p {
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 15px;
+            transition: all 0.3s;
+            background: #fafafa;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: #2563eb;
+            background: white;
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+        }
+
+        .input-field::placeholder {
+            color: #9ca3af;
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        }
+
+        .login-btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-patient {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: white;
+        }
+
+        .btn-patient:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .btn-nurse {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+
+        .btn-nurse:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .form-footer {
+            text-align: center;
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid #f1f5f9;
+        }
+
+        .form-footer p {
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        .form-footer a {
+            color: #2563eb;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .form-footer a:hover {
+            text-decoration: underline;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .alert.show {
+            display: block;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .alert-error {
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        .alert-success {
+            background: #f0fdf4;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+
+        .spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            display: none;
+        }
+
+        .spinner.show {
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 480px) {
+            .login-wrapper { max-width: 100%; }
+            .login-form { padding: 24px 20px; }
+            .role-tab { font-size: 12px; padding: 12px 4px; }
+            .role-tab .tab-icon { font-size: 18px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-wrapper">
+        <div class="brand">
+            <div class="brand-logo">قرّب</div>
+            <div class="brand-tagline">أقرب ممرض لك في أي وقت</div>
+        </div>
+
+        <div class="login-card">
+            <!-- Role Tabs -->
+            <div class="role-tabs">
+                <button class="role-tab active" onclick="switchRole(event, 'patient')">
+                    <span class="tab-icon">👤</span>
+                    <span>مريض</span>
+                </button>
+                <button class="role-tab" onclick="switchRole(event, 'nurse')">
+                    <span class="tab-icon">👨‍⚕️</span>
+                    <span>ممرض</span>
+                </button>
+            </div>
+
+            <!-- Patient Login Form -->
+            <div class="login-form active" id="form-patient">
+                <div class="form-header">
+                    <h2>👤 تسجيل دخول المريض</h2>
+                    <p>احصل على رعاية تمريضية في منزلك</p>
+                </div>
+
+                <div class="alert alert-error" id="alert-patient"></div>
+
+                <div class="input-group">
+                    <label class="input-label">البريد الإلكتروني</label>
+                    <input type="email" class="input-field" id="email-patient" placeholder="example@email.com" required>
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">كلمة المرور</label>
+                    <input type="password" class="input-field" id="password-patient" placeholder="••••••••" required>
+                </div>
+
+                <button class="login-btn btn-patient" id="btn-patient" onclick="login('patient')">
+                    <span class="spinner" id="spinner-patient"></span>
+                    <span>تسجيل الدخول</span>
+                </button>
+
+                <div class="form-footer">
+                    <p>ليس لديك حساب؟ <a href="register.html?role=patient">سجل كمريض</a></p>
+                </div>
+            </div>
+
+            <!-- Nurse Login Form -->
+            <div class="login-form" id="form-nurse">
+                <div class="form-header">
+                    <h2>👨‍⚕️ تسجيل دخول الممرض</h2>
+                    <p>قدم خدماتك واكسب المال</p>
+                </div>
+
+                <div class="alert alert-error" id="alert-nurse"></div>
+
+                <div class="input-group">
+                    <label class="input-label">البريد الإلكتروني</label>
+                    <input type="email" class="input-field" id="email-nurse" placeholder="example@email.com" required>
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">كلمة المرور</label>
+                    <input type="password" class="input-field" id="password-nurse" placeholder="••••••••" required>
+                </div>
+
+                <button class="login-btn btn-nurse" id="btn-nurse" onclick="login('nurse')">
+                    <span class="spinner" id="spinner-nurse"></span>
+                    <span>تسجيل الدخول</span>
+                </button>
+
+                <div class="form-footer">
+                    <p>ليس لديك حساب؟ <a href="register.html?role=nurse">سجل كممرض</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        // Auto-redirect if already logged in
+        if (isLoggedIn() && getRole()) {
+            redirectBasedOnRole();
+        } else if (isLoggedIn()) {
+            clearAuth();
+        }
+
+        function switchRole(e, role) {
+            document.querySelectorAll('.role-tab').forEach(function(tab) { tab.classList.remove('active'); });
+            document.querySelectorAll('.login-form').forEach(function(form) { form.classList.remove('active'); });
+            e.target.closest('.role-tab').classList.add('active');
+            document.getElementById('form-' + role).classList.add('active');
+            hideAlert(role);
+        }
+
+        function showAlert(role, message, type = 'error') {
+            const alert = document.getElementById('alert-' + role);
+            alert.textContent = message;
+            alert.className = 'alert alert-' + type + ' show';
+        }
+
+        function hideAlert(role) {
+            const alert = document.getElementById('alert-' + role);
+            alert.className = 'alert';
+            alert.textContent = '';
+        }
+
+        async function login(role) {
+            const email = document.getElementById('email-' + role).value.trim();
+            const password = document.getElementById('password-' + role).value;
+            const btn = document.getElementById('btn-' + role);
+            const spinner = document.getElementById('spinner-' + role);
+
+            if (!email || !password) {
+                showAlert(role, 'يرجى إدخال البريد الإلكتروني وكلمة المرور');
+                return;
+            }
+
+            btn.disabled = true;
+            spinner.classList.add('show');
+            hideAlert(role);
+
+            try {
+                const result = await api.login({ email, password });
+
+                if (result.success) {
+                    const userRole = result.data.user.role;
+
+                    if (role === 'nurse' && userRole !== 'nurse') {
+                        showAlert(role, 'هذا الحساب ليس حساب ممرض');
+                        clearAuth();
+                        return;
+                    }
+
+                    if (role === 'patient' && userRole !== 'patient') {
+                        showAlert(role, 'هذا الحساب ليس حساب مريض');
+                        clearAuth();
+                        return;
+                    }
+
+                    setUser(result.data.user);
+                    showAlert(role, 'تم تسجيل الدخول بنجاح! جاري التحويل...', 'success');
+
+                    setTimeout(() => {
+                        redirectBasedOnRole();
+                    }, 800);
+                } else {
+                    showAlert(role, result.message || 'فشل تسجيل الدخول');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showAlert(role, error.message || 'حدث خطأ في الاتصال بالسيرفر');
+            } finally {
+                btn.disabled = false;
+                spinner.classList.remove('show');
+            }
+        }
+
+        // Enter key support
+        ['patient', 'nurse'].forEach(role => {
+            document.getElementById('password-' + role).addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') login(role);
+            });
+        });
+    </script>
+</body>
+</html>

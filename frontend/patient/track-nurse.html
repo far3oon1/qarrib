@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تتبع الممرض - قرّب</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin=""/>
+    <style>
+        .track-container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        #map {
+            flex: 1;
+            width: 100%;
+            z-index: 1;
+        }
+        .nurse-info-bar {
+            background: white;
+            padding: 16px 20px;
+            border-radius: 20px 20px 0 0;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
+            z-index: 1000;
+            position: relative;
+        }
+        .nurse-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .nurse-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #10b981, #059669);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+        }
+        .nurse-details h3 {
+            font-size: 16px;
+            margin-bottom: 2px;
+        }
+        .nurse-details p {
+            font-size: 13px;
+            color: #64748b;
+        }
+        .nurse-actions {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+        .nurse-action {
+            padding: 10px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .nurse-action:hover {
+            transform: translateY(-1px);
+        }
+        .action-call {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+        .action-chat {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .action-cancel {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .distance-info {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-radius: 8px;
+            padding: 8px 12px;
+            margin-bottom: 12px;
+            font-size: 13px;
+            color: #166534;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .back-btn {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            z-index: 1000;
+            background: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .loading-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255,255,255,0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+        .loading-overlay.hidden {
+            display: none;
+        }
+        .geo-denied {
+            background: #fef3c7;
+            border: 1px solid #fde68a;
+            border-radius: 12px;
+            padding: 12px;
+            margin: 8px;
+            font-size: 13px;
+            color: #92400e;
+            text-align: center;
+        }
+        .order-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container track-container">
+        <button class="back-btn" onclick="history.back()">←</button>
+        <div id="map" style="background:#e2e8f0;"></div>
+        <div class="loading-overlay" id="loadingOverlay">
+            <div class="spinner" style="width:50px;height:50px;border-width:5px;"></div>
+            <p style="margin-top:16px;color:#64748b;">جاري تحميل الخريطة...</p>
+        </div>
+        <div class="nurse-info-bar">
+            <div class="distance-info" id="distanceInfo" style="display:none;">
+                📍 المسافة: <strong id="distanceValue">--</strong> كم | ⏱️ الوصول: <strong id="etaValue">--</strong> دقيقة
+            </div>
+            <div id="geoDenied" class="geo-denied" style="display:none;">
+                ⚠️ تم رفض إذن الموقع. استخدم الموقع الافتراضي.
+            </div>
+            <div class="nurse-header">
+                <div class="nurse-avatar">👨‍⚕️</div>
+                <div class="nurse-details">
+                    <h3 id="nurseName">جاري التحميل...</h3>
+                    <p id="nurseInfo">...</p>
+                </div>
+            </div>
+            <div class="nurse-actions">
+                <button class="nurse-action action-call" id="callBtn">📞 اتصال</button>
+                <button class="nurse-action action-chat" id="chatBtn">💬 رسالة</button>
+                <button class="nurse-action action-cancel" id="cancelBtn">❌ إلغاء</button>
+            </div>
+            <div id="offersSection" style="margin-top:12px;"></div>
+            <div id="paySection" style="margin-top:12px;"></div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script>
+        if (!requireRole('patient')) redirectToLogin();
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const orderId = urlParams.get('order');
+
+        if (!orderId) {
+            showAlert('رقم الطلب مطلوب - اختر طلبًا أولاً', 'error');
+            window.location.href = 'dashboard.html';
+        }
+
+        let map, patientMarker, nurseMarker, routeLine;
+        let socket;
+        let patientLocation = null;
+        let nurseLocation = null;
+        let cachedIcons = null;
+        var mapInitialized = false;
+
+        function initMap() {
+            if (mapInitialized) return cachedIcons;
+            mapInitialized = true;
+            const defaultLat = 30.0444;
+            const defaultLng = 31.2357;
+
+            map = L.map('map').setView([defaultLat, defaultLng], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(map);
+
+            const patientIcon = L.divIcon({
+                className: 'custom-marker',
+                html: '<div style="background:#2563eb;width:30px;height:30px;border-radius:50%;border:3px solid white;box-shadow:0 0 0 4px rgba(37,99,235,0.3);display:flex;align-items:center;justify-content:center;font-size:16px;">🏠</div>',
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
+            });
+
+            const nurseIcon = L.divIcon({
+                className: 'custom-marker',
+                html: '<div style="background:#10b981;width:30px;height:30px;border-radius:50%;border:3px solid white;box-shadow:0 0 0 4px rgba(16,185,129,0.3);display:flex;align-items:center;justify-content:center;font-size:16px;">👨‍⚕️</div>',
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
+            });
+
+            patientMarker = L.marker([defaultLat, defaultLng], { icon: patientIcon })
+                .addTo(map)
+                .bindPopup('موقعك');
+
+            cachedIcons = { patientIcon, nurseIcon };
+            return cachedIcons;
+        }
+
+        function updatePatientPosition(lat, lng) {
+            patientLocation = { lat: lat, lng: lng };
+            if (patientMarker) {
+                patientMarker.setLatLng([lat, lng]);
+            }
+            if (socket && socket.connected) {
+                socket.emit('update_location', { lat, lng, orderId });
+            }
+            updateDistance();
+        }
+
+        function updateNurseLocation(lat, lng) {
+            nurseLocation = { lat, lng };
+            const icons = initMap();
+
+            if (!nurseMarker) {
+                nurseMarker = L.marker([lat, lng], { icon: icons.nurseIcon })
+                    .addTo(map)
+                    .bindPopup('الممرض');
+            } else {
+                nurseMarker.setLatLng([lat, lng]);
+            }
+
+            if (patientLocation && routeLine) {
+                routeLine.setLatLngs([[patientLocation.lat, patientLocation.lng], [lat, lng]]);
+            } else if (patientLocation) {
+                routeLine = L.polyline([[patientLocation.lat, patientLocation.lng], [lat, lng]], {
+                    color: '#2563eb', weight: 4, opacity: 0.7, dashArray: '10, 10'
+                }).addTo(map);
+            }
+
+            if (patientLocation && nurseLocation) {
+                const bounds = L.latLngBounds([patientLocation, nurseLocation]);
+                map.fitBounds(bounds, { padding: [50, 50] });
+            }
+            updateDistance();
+        }
+
+        function updateDistance() {
+            if (!patientLocation || !nurseLocation) return;
+            const distance = calculateDistance(patientLocation.lat, patientLocation.lng, nurseLocation.lat, nurseLocation.lng);
+            const eta = Math.ceil(distance / 0.5);
+            document.getElementById('distanceInfo').style.display = 'flex';
+            document.getElementById('distanceValue').textContent = distance.toFixed(1);
+            document.getElementById('etaValue').textContent = eta;
+        }
+
+        function calculateDistance(lat1, lng1, lat2, lng2) {
+            const R = 6371;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLng = (lng2 - lng1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        }
+
+        function renderOffers(order) {
+            const box = document.getElementById('offersSection');
+            const offers = (order.offers || []).filter(o => o.status === 'pending_review');
+            if (!order.hasPrice && offers.length === 0) {
+                box.innerHTML = '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:12px;font-size:14px;">⏳ بانتظار سعر الممرض...</div>';
+                return;
+            }
+            if (order.hasPrice) {
+                box.innerHTML = '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:12px;font-size:14px;color:#166534;">💰 السعر المتفق عليه: <strong>' + order.amount + ' جنيه</strong></div>';
+                return;
+            }
+            box.innerHTML = '<div style="font-weight:700;margin-bottom:8px;">عروض الأسعار (الممرض يقترح):</div>' + offers.map(o =>
+                '<div style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">' +
+                    '<div><strong>' + o.price + ' جنيه</strong><div style="font-size:12px;color:#64748b;">' + (o.nurse ? o.nurse.name : '') + '</div></div>' +
+                    '<button class="btn btn-secondary btn-sm" onclick="approveOffer(\'' + o.id + '\')">موافقة ✅</button>' +
+                '</div>'
+            ).join('');
+        }
+
+        async function approveOffer(offerId) {
+            try {
+                const r = await api.approveOffer(orderId, offerId);
+                if (r.success) { showAlert('تمت الموافقة على السعر!'); loadOrder(); }
+            } catch (e) { showAlert(e.message || 'فشلت الموافقة', 'error'); }
+        }
+
+        function renderPay(order) {
+            const box = document.getElementById('paySection');
+            if (!order.hasPrice || order.escrowStatus === 'held' || order.escrowStatus === 'released') {
+                box.innerHTML = '';
+                return;
+            }
+            box.innerHTML = '<div style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:12px;"><div style="font-weight:700;margin-bottom:8px;">💳 الدفع (' + order.amount + ' جنيه)</div>' +
+                '<button class="btn btn-primary btn-sm" style="width:100%;margin-bottom:8px;" onclick="payWallet()">ادفع من المحفظة</button>' +
+                '<div style="font-size:13px;color:#64748b;margin-bottom:6px;">أو حوّل انستا باي إلى <strong id="payOwner" style="direction:ltr;display:inline-block;">...</strong></div>' +
+                '<div style="display:flex;gap:8px;"><input id="payRef" class="form-input" placeholder="رقم العملية" style="flex:1;"><button class="btn btn-secondary btn-sm" onclick="payInstapay()">تأكيد التحويل</button></div></div>';
+            api.getOwnerAccount().then(function(r) {
+                if (r.success) document.getElementById('payOwner').textContent = r.data.instapay;
+            }).catch(function() {});
+        }
+
+        function copyPayOwner() {
+            const t = document.getElementById('payOwner').textContent;
+            if (navigator.clipboard) navigator.clipboard.writeText(t).then(function() { showAlert('تم نسخ الرقم', 'success'); });
+        }
+
+        async function payWallet() {
+            try {
+                const r = await api.payManual(orderId, { method: 'wallet' });
+                if (r.success) { showAlert('تم الدفع وحجز المبلغ!'); loadOrder(); }
+            } catch (e) { showAlert(e.message || 'فشل الدفع', 'error'); }
+        }
+
+        async function payInstapay() {
+            const ref = document.getElementById('payRef').value.trim();
+            try {
+                const r = await api.payManual(orderId, { method: 'instapay', reference: ref });
+                if (r.success) { showAlert('تم تسجيل الدفع!'); loadOrder(); }
+            } catch (e) { showAlert(e.message || 'فشل الدفع', 'error'); }
+        }
+
+        async function loadOrder() {
+            try {
+                const result = await api.getOrder(orderId);
+                if (result.success) {
+                    const order = result.data;
+                    if (order.nurse) {
+                        document.getElementById('nurseName').textContent = order.nurse.name;
+                        document.getElementById('nurseInfo').textContent = '⭐ ' + (order.nurse.rating || 'جديد') + ' | ' + order.serviceType;
+                        document.getElementById('callBtn').onclick = function() { window.location.href = 'tel:' + order.nurse.phone; };
+                        document.getElementById('chatBtn').onclick = function() { window.location.href = 'chat-room.html?order=' + orderId + '&nurse=' + order.nurse.id; };
+                        document.getElementById('cancelBtn').onclick = async function() {
+                            if (order.status === 'completed') { showAlert('الطلب تم إنجازه ولا يمكن إلغاؤه'); return; }
+                            if (confirm('هل أنت متأكد من إلغاء الطلب؟')) {
+                                await api.cancelOrder(orderId, 'Cancelled by patient');
+                                showAlert('تم إلغاء الطلب - سيتم استرجاع المبلغ');
+                                window.location.href = 'dashboard.html';
+                            }
+                        };
+                        if (order.status === 'completed') {
+                            document.getElementById('cancelBtn').textContent = 'تم الإنجاز ✅';
+                            document.getElementById('cancelBtn').disabled = true;
+                            document.getElementById('cancelBtn').style.opacity = '0.5';
+                        }
+                    }
+                    if (order.location && order.location.lat != null) {
+                        patientLocation = { lat: order.location.lat, lng: order.location.lng };
+                        if (patientMarker) patientMarker.setLatLng([patientLocation.lat, patientLocation.lng]);
+                        map.setView([patientLocation.lat, patientLocation.lng], 15);
+                    }
+                    renderOffers(order);
+                    renderPay(order);
+                }
+            } catch (error) {
+                console.error('Load order error:', error);
+            }
+        }
+
+        function setupSocket() {
+            if (socket) { try { socket.disconnect(); } catch (e) {} }
+            socket = io({ auth: { token: localStorage.getItem('token') } });
+
+            socket.on('connect', function() {
+                console.log('Socket connected');
+                socket.emit('subscribe_location', { orderId: orderId });
+            });
+
+            socket.on('connect_error', function(err) {
+                console.log('Socket connection error:', err);
+            });
+
+            socket.on('location_update', function(data) {
+                if (data.role === 'nurse') {
+                    updateNurseLocation(data.lat, data.lng);
+                }
+            });
+
+            socket.on('disconnect', function() {
+                console.log('Socket disconnected');
+            });
+        }
+
+        function init() {
+            initMap();
+            loadOrder();
+            setupSocket();
+
+            // Start watching patient location
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    function(position) {
+                        updatePatientPosition(position.coords.latitude, position.coords.longitude);
+                        navigator.geolocation.watchPosition(function(pos) {
+                            updatePatientPosition(pos.coords.latitude, pos.coords.longitude);
+                        }, function() {}, { enableHighAccuracy: false, timeout: 15000, maximumAge: 5000 });
+                    },
+                    function(error) {
+                        document.getElementById('geoDenied').style.display = 'block';
+                        document.getElementById('loadingOverlay').classList.add('hidden');
+                        // Default to Cairo
+                        updatePatientPosition(30.0444, 31.2357);
+                    },
+                    { enableHighAccuracy: false, timeout: 15000, maximumAge: 5000 }
+                );
+            } else {
+                document.getElementById('geoDenied').style.display = 'block';
+                document.getElementById('loadingOverlay').classList.add('hidden');
+                updatePatientPosition(30.0444, 31.2357);
+            }
+
+            document.getElementById('loadingOverlay').classList.add('hidden');
+        }
+
+        init();
+    </script>
+</body>
+</html>

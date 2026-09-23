@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>العروض - قرّب</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        .page-header {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: white;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .back-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+        }
+        .page-title { font-size: 20px; font-weight: 700; }
+        .offers-container { padding: 20px; }
+        .order-card {
+            background: white; border-radius: 16px; padding: 20px;
+            margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .order-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .offers-list { margin-top: 12px; }
+        .offer-item {
+            background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 16px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;
+        }
+        .offer-info { flex: 1; }
+        .offer-price { font-size: 22px; font-weight: 800; color: #2563eb; }
+        .offer-name { font-weight: 700; margin-bottom: 4px; }
+        .offer-detail { font-size: 13px; color: #64748b; }
+        .offer-status { font-size: 12px; padding: 4px 12px; border-radius: 20px; font-weight: 600; }
+        .status-pending { background: #fef3c7; color: #92400e; }
+        .status-approved { background: #d1fae5; color: #065f46; }
+        .btn-sm { padding: 8px 16px; font-size: 14px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; }
+        .btn-success-sm { background: #10b981; color: white; }
+        .empty-state { text-align: center; padding: 60px 20px; color: #64748b; }
+        .empty-state-icon { font-size: 64px; margin-bottom: 16px; opacity: 0.5; }
+        .order-details { font-size: 14px; color: #64748b; line-height: 1.8; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="page-header">
+            <button class="back-btn" onclick="history.back()">→</button>
+            <div class="page-title">عروض الممرضات</div>
+        </div>
+        <div class="offers-container" id="offersContainer">
+            <div class="loading"><div class="spinner"></div></div>
+        </div>
+    </div>
+    <nav class="bottom-nav">
+        <a href="dashboard.html" class="nav-item"><span class="nav-icon">🏠</span><span>الرئيسية</span></a>
+        <a href="offers.html" class="nav-item active"><span class="nav-icon">💰</span><span>العروض</span></a>
+        <a href="wallet.html" class="nav-item"><span class="nav-icon">💳</span><span>المحفظة</span></a>
+        <a href="chat.html" class="nav-item"><span class="nav-icon">💬</span><span>الشات</span></a>
+    </nav>
+</div>
+<script src="../js/api.js"></script>
+<script src="../js/auth.js"></script>
+<script>
+    if (!requireRole('patient')) redirectToLogin();
+
+    (async function() {
+        try {
+            const result = await api.getOrdersWithOffers();
+            const container = document.getElementById('offersContainer');
+            if (!result.success) { container.innerHTML = '<div class="empty-state"><p>فشل التحميل</p></div>'; return; }
+
+            const orders = (result.data || []).filter(function(o) {
+                return o.status === 'offers_received' || o.status === 'assigned';
+            });
+
+            if (orders.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📋</div><p>لا توجد طلبات بها عروض من ممرضات</p></div>';
+                return;
+            }
+
+            container.innerHTML = orders.map(function(order) {
+                var offers = (order.offers || []).filter(function(o) { return o.status === 'pending_review'; });
+                var isAssigned = order.status === 'assigned';
+                return '<div class="order-card">' +
+                    '<div class="order-header">' +
+                        '<span style="font-weight:700;">طلب #' + order.id.slice(0,8) + '</span>' +
+                        '<span class="offer-status ' + (isAssigned ? 'status-approved' : 'status-pending') + '">' + (isAssigned ? 'مقبول' : 'في الانتظار') + '</span>' +
+                    '</div>' +
+                    '<div class="order-details">' +
+                        '<strong>الخدمة:</strong> ' + order.serviceType + '<br>' +
+                        '<strong>العنوان:</strong> ' + (order.address || 'لم يحدد') + '<br>' +
+                        '<strong>تاريخ الطلب:</strong> ' + formatDate(order.createdAt) +
+                    '</div>' +
+                    '<div class="offers-list">' +
+                        '<div style="font-weight:700;margin-bottom:8px;color:#2563eb;">عروض الأسعار من الممرضات:</div>' +
+                        (offers.length > 0 ? offers.map(function(o) {
+                            return '<div class="offer-item">' +
+                                '<div class="offer-info">' +
+                                    '<div class="offer-name">' + (o.nurse ? o.nurse.name : 'ممرض') + '</div>' +
+                                    '<div class="offer-detail">' + (o.nurse ? (o.nurse.specialization || '') : '') + ' ⭐ ' + (o.nurse ? o.nurse.rating || 0 : '') + '</div>' +
+                                    '<div class="offer-detail">' + formatDate(o.createdAt) + '</div>' +
+                                '</div>' +
+                                '<div style="text-align:center;">' +
+                                    '<div class="offer-price">' + o.price + ' ج.م</div>' +
+                                    (isAssigned ? '<button class="btn btn-success-sm btn-sm" style="margin-top:8px;opacity:0.6;" disabled>تم القبول ✅</button>' :
+                                      '<button class="btn btn-success-sm btn-sm" style="margin-top:8px;" onclick="approveOffer(\'' + order.id + '\',\'' + o.id + '\')">قبول السعر ✅</button>') +
+                                '</div>' +
+                            '</div>';
+                        }).join('') : '<div style="color:#94a3b8;font-size:14px;">بانتظار عروض الممرضات...</div>') +
+                    '</div>' +
+                '</div>';
+            }).join('');
+        } catch (error) {
+            document.getElementById('offersContainer').innerHTML = '<div class="empty-state"><p>فشل التحميل</p></div>';
+        }
+    })();
+
+    async function approveOffer(orderId, offerId) {
+        if (!confirm('هل تريد قبول هذا السعر؟')) return;
+        try {
+            var r = await api.approveOffer(orderId, offerId);
+            if (r.success) { showAlert('تم قبول السعر!'); location.reload(); }
+        } catch (e) { showAlert(e.message || 'فشلت الموافقة', 'error'); }
+    }
+</script>
+</body>
+</html>

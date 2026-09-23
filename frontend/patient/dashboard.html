@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة التحكم - مريض</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        .welcome-header {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: white;
+            padding: 24px 20px;
+            border-radius: 0 0 24px 24px;
+        }
+        .welcome-text {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        .welcome-name {
+            font-size: 24px;
+            font-weight: 800;
+            margin-top: 4px;
+        }
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            padding: 20px;
+        }
+        .header-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .header-actions button {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 999px;
+            cursor: pointer;
+        }
+        .quick-action {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-decoration: none;
+            color: #1e293b;
+            transition: all 0.3s;
+        }
+        .quick-action:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .quick-action-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+        .quick-action-title {
+            font-weight: 700;
+            font-size: 14px;
+        }
+        .section {
+            padding: 0 20px 20px;
+        }
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .section-title {
+            font-size: 18px;
+            font-weight: 700;
+        }
+        .order-item {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border-right: 4px solid #e2e8f0;
+        }
+        .order-item.pending { border-right-color: #f59e0b; }
+        .order-item.accepted { border-right-color: #3b82f6; }
+        .order-item.in_progress { border-right-color: #10b981; }
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .order-service {
+            font-weight: 700;
+        }
+        .order-meta {
+            display: flex;
+            gap: 16px;
+            font-size: 13px;
+            color: #64748b;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="welcome-header">
+            <div class="header-actions">
+                <div class="welcome-text">مرحباً بك</div>
+                <button type="button" onclick="logout()">خروج</button>
+            </div>
+            <div class="welcome-name" id="userName">...</div>
+            <div style="margin-top: 12px; font-size: 14px; opacity: 0.9;">
+                الرصيد: <span id="walletBalance">0</span> جنيه
+            </div>
+        </div>
+
+        <div class="quick-actions">
+            <a href="dashboard.html" class="quick-action">
+                <div class="quick-action-icon">🏠</div>
+                <div class="quick-action-title">الرئيسية</div>
+            </a>
+            <a href="offers.html" class="quick-action">
+                <div class="quick-action-icon">💰</div>
+                <div class="quick-action-title">عروض الممرضات</div>
+            </a>
+            <a href="request-service.html" class="quick-action">
+                <div class="quick-action-icon">➕</div>
+                <div class="quick-action-title">طلب</div>
+            </a>
+            <a href="wallet.html" class="quick-action">
+                <div class="quick-action-icon">💳</div>
+                <div class="quick-action-title">المحفظة</div>
+            </a>
+            <a href="track-nurse.html" class="quick-action">
+                <div class="quick-action-icon">📍</div>
+                <div class="quick-action-title">تتبع الممرض</div>
+            </a>
+            <a href="chat.html" class="quick-action">
+                <div class="quick-action-icon">💬</div>
+                <div class="quick-action-title">الشات</div>
+            </a>
+        </div>
+
+        <div class="section">
+            <div class="section-header">
+                <div class="section-title">الطلبات النشطة</div>
+                <a href="#" style="color: #2563eb; font-size: 14px;">الكل</a>
+            </div>
+            <div id="activeOrders">
+                <div class="loading"><div class="spinner"></div></div>
+            </div>
+        </div>
+
+        <nav class="bottom-nav">
+            <a href="dashboard.html" class="nav-item active">
+                <span class="nav-icon">🏠</span>
+                <span>الرئيسية</span>
+            </a>
+            <a href="request-service.html" class="nav-item">
+                <span class="nav-icon">➕</span>
+                <span>طلب</span>
+            </a>
+            <a href="wallet.html" class="nav-item">
+                <span class="nav-icon">💳</span>
+                <span>المحفظة</span>
+            </a>
+            <a href="chat.html" class="nav-item">
+                <span class="nav-icon">💬</span>
+                <span>الشات</span>
+            </a>
+        </nav>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script>
+        if (!requireRole('patient')) {
+            redirectToLogin();
+        }
+
+        async function loadDashboard() {
+            try {
+                const result = await api.getPatientDashboard();
+                if (result.success) {
+                    const data = result.data;
+                    document.getElementById('userName').textContent = data.user.name;
+                    document.getElementById('walletBalance').textContent = data.user.walletBalance;
+
+                    const ordersContainer = document.getElementById('activeOrders');
+                    if (data.activeOrders.length === 0) {
+                        ordersContainer.innerHTML = `
+                            <div class="empty-state">
+                                <div class="empty-state-icon">📋</div>
+                                <p>لا توجد طلبات نشطة</p>
+                                <a href="request-service.html" class="btn btn-primary btn-sm" style="width: auto; margin-top: 12px;">اطلب الآن</a>
+                            </div>
+                        `;
+                    } else {
+                        ordersContainer.innerHTML = data.activeOrders.map(order => `
+                            <div class="order-item ${order.status}">
+                                <div class="order-header">
+                                    <span class="order-service">${order.serviceType}</span>
+                                    <span class="badge badge-${order.status}">${getStatusText(order.status)}</span>
+                                </div>
+                                <div class="order-meta">
+                                    <span>💰 ${order.amount} جنيه</span>
+                                    <span>📅 ${formatDate(order.createdAt)}</span>
+                                </div>
+                                <div style="margin-top: 8px; font-size: 13px; color: #64748b;">
+                                    📍 ${order.address}
+                                </div>
+                            </div>
+                        `).join('');
+                    }
+                }
+            } catch (error) {
+                showAlert('فشل تحميل البيانات', 'error');
+            }
+        }
+
+        function getStatusText(status) {
+            const statusMap = {
+                'pending': 'قيد الانتظار',
+                'accepted': 'مقبول',
+                'in_progress': 'جاري التنفيذ',
+                'completed': 'مكتمل',
+                'cancelled': 'ملغي'
+            };
+            return statusMap[status] || status;
+        }
+
+        loadDashboard();
+    </script>
+</body>
+</html>

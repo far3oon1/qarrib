@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>المستخدمين - أدمن</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        .page-header {
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            color: white;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .back-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+        }
+        .filter-bar {
+            padding: 16px 20px;
+            display: flex;
+            gap: 8px;
+        }
+        .filter-btn {
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid #e2e8f0;
+            background: white;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .filter-btn.active {
+            background: #2563eb;
+            color: white;
+            border-color: #2563eb;
+        }
+        .user-list {
+            padding: 0 20px 20px;
+        }
+        .user-item {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .user-info h4 {
+            font-size: 15px;
+            margin-bottom: 4px;
+        }
+        .user-info p {
+            font-size: 12px;
+            color: #64748b;
+        }
+        .user-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .user-actions button {
+            padding: 6px 12px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="page-header">
+            <button class="back-btn" onclick="history.back()">→</button>
+            <div class="page-title">المستخدمين</div>
+        </div>
+
+        <div class="filter-bar">
+            <button class="filter-btn active" onclick="filterUsers('all')">الكل</button>
+            <button class="filter-btn" onclick="filterUsers('patient')">مرضى</button>
+            <button class="filter-btn" onclick="filterUsers('nurse')">ممرضين</button>
+        </div>
+
+        <div class="user-list" id="userList">
+            <div class="loading"><div class="spinner"></div></div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script>
+        if (!requireRole('admin')) redirectToLogin();
+
+        async function loadUsers(role = '') {
+            try {
+                const query = role ? `?role=${role}` : '';
+                const result = await api.getAdminUsers(query);
+                const container = document.getElementById('userList');
+
+                if (result.success && result.data.length > 0) {
+                    container.innerHTML = result.data.map(user => `
+                        <div class="user-item">
+                            <div class="user-info">
+                                <h4>${user.name} ${user.role === 'nurse' ? (user.isVerified ? '✅' : '⏳') : ''}</h4>
+                                <p>${user.email} | ${user.phone} | ${user.role}</p>
+                            </div>
+                            <div class="user-actions">
+                                <button class="btn-sm" style="background: ${user.isActive ? '#fee2e2' : '#d1fae5'}; color: ${user.isActive ? '#991b1b' : '#065f46'};"
+                                    onclick="toggleUser('${user.id}', ${!user.isActive})">
+                                    ${user.isActive ? 'تعطيل' : 'تفعيل'}
+                                </button>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">👥</div><p>لا يوجد مستخدمين</p></div>`;
+                }
+            } catch (error) {
+                showAlert('فشل تحميل المستخدمين', 'error');
+            }
+        }
+
+        async function toggleUser(userId, isActive) {
+            try {
+                await api.updateAdminUser(userId, { isActive });
+                showAlert(isActive ? 'تم تفعيل المستخدم' : 'تم تعطيل المستخدم');
+                loadUsers();
+            } catch (error) {
+                showAlert('فشل التحديث', 'error');
+            }
+        }
+
+        function filterUsers(role) {
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            loadUsers(role === 'all' ? '' : role);
+        }
+
+        loadUsers();
+    </script>
+</body>
+</html>

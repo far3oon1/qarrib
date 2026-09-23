@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الطلبات - أدمن</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        .page-header {
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            color: white;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .orders-container {
+            padding: 20px;
+        }
+        .order-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .order-details {
+            font-size: 14px;
+            color: #64748b;
+            line-height: 1.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="page-header">
+            <button class="back-btn" onclick="history.back()">→</button>
+            <div class="page-title">جميع الطلبات</div>
+        </div>
+
+        <div class="filter-bar" style="padding: 16px 20px; display: flex; gap: 8px;">
+            <button class="filter-btn active" onclick="filterOrders('')">الكل</button>
+            <button class="filter-btn" onclick="filterOrders('pending')">قيد الانتظار</button>
+            <button class="filter-btn" onclick="filterOrders('in_progress')">جاري</button>
+            <button class="filter-btn" onclick="filterOrders('completed')">مكتمل</button>
+        </div>
+
+        <div class="orders-container" id="ordersList">
+            <div class="loading"><div class="spinner"></div></div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/notifications.js"></script>
+    <script>
+        if (!requireRole('admin')) redirectToLogin();
+
+        async function loadOrders(status = '') {
+            try {
+                const query = status ? `?status=${status}` : '';
+                const result = await api.getAdminOrders(query);
+                const container = document.getElementById('ordersList');
+
+                if (result.success && result.data.length > 0) {
+                    container.innerHTML = result.data.map(order => `
+                        <div class="order-card">
+                            <div class="order-header">
+                                <span style="font-weight: 700;">#${order.id.slice(0,8)}</span>
+                                <span class="badge badge-${order.status}">${getStatusText(order.status)}</span>
+                            </div>
+                            <div class="order-details">
+                                <strong>الخدمة:</strong> ${order.serviceType}<br>
+                                <strong>المريض:</strong> ${order.patient?.name || 'Unknown'}<br>
+                                <strong>الممرض:</strong> ${order.nurse?.name || 'غير محدد'}<br>
+                                <strong>المبلغ:</strong> ${order.amount} ج.م<br>
+                                <strong>العمولة:</strong> ${order.platformFee} ج.م<br>
+                                <strong>تأكيد الممرض:</strong> ${order.nurseConfirmed ? '✅' : '⏳'} |
+                                <strong>تأكيد المريض:</strong> ${order.patientConfirmed ? '✅' : '⏳'}<br>
+                                <strong>التاريخ:</strong> ${formatDate(order.createdAt)}
+                            </div>
+                            <div style="display:flex;gap:8px;margin-top:8px;">
+                                <button class="btn btn-outline btn-sm" style="flex:1;" onclick="viewOffers('${order.id}')">عروض السعر / قبول 💰</button>
+                                <button class="btn btn-outline btn-sm" style="flex:1;" onclick="window.location.href='chat-room.html?order=${order.id}'">شات 💬</button>
+                            </div>
+                            <div id="offers-${order.id}" style="margin-top:8px;"></div>
+                            ${(order.nurseConfirmed && order.status !== 'completed' && order.status !== 'cancelled') ? `
+                                <button class="btn btn-secondary btn-sm" style="width:100%;margin-top:8px;" onclick="approveCompletion('${order.id}')">تأكيد الإنجاز وتحويل المبلغ للممرض ✅</button>
+                            ` : ''}
+                        </div>
+                    `).join('');
+                } else {
+                    container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📋</div><p>لا توجد طلبات</p></div>`;
+                }
+            } catch (error) {
+                showAlert('فشل تحميل الطلبات', 'error');
+            }
+        }
+
+        function getStatusText(status) {
+            const map = { 'pending': 'قيد الانتظار', 'accepted': 'مقبول', 'in_progress': 'جاري', 'completed': 'مكتمل', 'cancelled': 'ملغي' };
+            return map[status] || status;
+        }
+
+        function filterOrders(status) {
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            loadOrders(status);
+        }
+
+        async function approveCompletion(orderId) {
+            if (!confirm('تأكيد إنجاز الخدمة وتحويل المبلغ للممرض؟')) return;
+            try {
+                const result = await api.completeOrderAdmin(orderId);
+                showAlert(result.message || 'تم التحويل');
+                loadOrders();
+            } catch (error) {
+                showAlert(error.message || 'فشلت العملية', 'error');
+            }
+        }
+
+        async function viewOffers(orderId) {
+            var box = document.getElementById('offers-' + orderId);
+            box.innerHTML = 'جاري التحميل...';
+            try {
+                var r = await fetch(API_BASE_URL + '/admin/orders/' + orderId, { headers: api.getHeaders() }).then(function(x){return x.json();});
+                var order = (r.data && r.data.order) || {};
+                var offers = order.offers || [];
+                if (!offers.length) { box.innerHTML = '<div style="font-size:13px;color:#94a3b8;">لا توجد عروض بعد — بانتظار سعر الممرض</div>'; return; }
+                box.innerHTML = offers.map(function(o){
+                    var oid = o._id || o.id;
+                    return '<div style="background:#f8fafc;border-radius:10px;padding:10px;margin-bottom:6px;font-size:13px;">'
+                        + '💰 ' + o.price + ' ج.م — ' + (o.nurse && o.nurse.fullName ? o.nurse.fullName : 'ممرض')
+                        + ' (' + o.status + ') '
+                        + (o.status === 'pending_review' ? '<button class="btn btn-secondary btn-sm" onclick="adminApprove(\''+orderId+'\',\''+oid+'\')">قبول السعر → اطلب من المريض الدفع ✅</button>' : '')
+                        + '</div>';
+                }).join('');
+            } catch(e){ box.innerHTML = 'فشل التحميل'; }
+        }
+
+        async function adminApprove(orderId, offerId) {
+            if (!confirm('قبول سعر الممرض وإشعار المريض للدفع؟')) return;
+            try {
+                var r = await api.adminApproveOffer(orderId, offerId);
+                showAlert(r.message || 'تم القبول — تم إشعار المريض للدفع');
+                loadOrders();
+            } catch(e){ showAlert(e.message || 'فشل القبول', 'error'); }
+        }
+
+        loadOrders();
+    </script>
+</body>
+</html>

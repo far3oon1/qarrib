@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة التحكم - ممرض</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        .welcome-header {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            padding: 24px 20px;
+            border-radius: 0 0 24px 24px;
+        }
+        .status-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .toggle-switch {
+            width: 50px;
+            height: 26px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 13px;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .toggle-switch.active {
+            background: #22c55e;
+        }
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            background: white;
+            border-radius: 50%;
+            top: 2px;
+            right: 2px;
+            transition: all 0.3s;
+        }
+        .toggle-switch.active::after {
+            right: 26px;
+        }
+        .verification-banner {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            color: #92400e;
+            padding: 12px 16px;
+            border-radius: 12px;
+            margin: 16px 20px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .request-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .request-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .request-service {
+            font-weight: 700;
+            font-size: 16px;
+        }
+        .request-amount {
+            color: #2563eb;
+            font-weight: 700;
+            font-size: 18px;
+        }
+        .request-details {
+            color: #64748b;
+            font-size: 14px;
+            margin-bottom: 12px;
+        }
+        .request-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .request-actions .btn {
+            flex: 1;
+        }
+        .header-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .header-actions button {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 999px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="welcome-header">
+            <div class="header-actions">
+                <div class="welcome-text">مرحباً</div>
+                <button type="button" onclick="logout()">خروج</button>
+            </div>
+            <div class="welcome-name" id="userName">...</div>
+            <div class="status-toggle">
+                <span>الحالة:</span>
+                <div class="toggle-switch" id="statusToggle"></div>
+                <span id="statusText">غير متصل</span>
+            </div>
+        </div>
+
+        <div class="verification-banner" id="verificationBanner" style="display: none;">
+            ⚠️ حسابك قيد المراجعة. سيتم التواصل معك قريباً.
+        </div>
+
+        <div class="stats-grid" style="padding: 20px;">
+            <div class="stat-card">
+                <div class="stat-value" id="totalOrders">0</div>
+                <div class="stat-label">إجمالي الطلبات</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="earnings">0</div>
+                <div class="stat-label">الأرباح</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="rating">0</div>
+                <div class="stat-label">التقييم</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="walletBalance">0</div>
+                <div class="stat-label">المحفظة</div>
+            </div>
+        </div>
+
+        <div style="padding: 0 20px 20px;">
+            <div class="section-header" style="margin-bottom: 12px;">
+                <div class="section-title">طلبات متاحة</div>
+            </div>
+            <div id="availableRequests">
+                <div class="loading"><div class="spinner"></div></div>
+            </div>
+        </div>
+
+        <nav class="bottom-nav">
+            <a href="dashboard.html" class="nav-item active">
+                <span class="nav-icon">🏠</span>
+                <span>الرئيسية</span>
+            </a>
+            <a href="requests.html" class="nav-item">
+                <span class="nav-icon">📋</span>
+                <span>الطلبات</span>
+            </a>
+            <a href="wallet.html" class="nav-item">
+                <span class="nav-icon">💳</span>
+                <span>المحفظة</span>
+            </a>
+            <a href="chat.html" class="nav-item">
+                <span class="nav-icon">💬</span>
+                <span>الشات</span>
+            </a>
+        </nav>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script>
+        if (!requireRole('nurse')) redirectToLogin();
+
+        async function loadDashboard() {
+            try {
+                const result = await api.getNurseDashboard();
+                if (result.success) {
+                    const data = result.data;
+                    document.getElementById('userName').textContent = data.user.name;
+                    document.getElementById('totalOrders').textContent = data.stats.totalOrders;
+                    document.getElementById('earnings').textContent = data.stats.totalEarnings;
+                    document.getElementById('rating').textContent = data.user.rating || 'جديد';
+                    document.getElementById('walletBalance').textContent = data.user.walletBalance;
+
+                    if (!data.user.isVerified) {
+                        document.getElementById('verificationBanner').style.display = 'flex';
+                    }
+
+                    const toggle = document.getElementById('statusToggle');
+                    if (data.user.isOnline) {
+                        toggle.classList.add('active');
+                        document.getElementById('statusText').textContent = 'متصل';
+                    }
+
+                    toggle.addEventListener('click', async () => {
+                        const result = await api.toggleOnlineStatus();
+                        if (result.success) {
+                            toggle.classList.toggle('active');
+                            document.getElementById('statusText').textContent = 
+                                toggle.classList.contains('active') ? 'متصل' : 'غير متصل';
+                        }
+                    });
+                }
+            } catch (error) {
+                showAlert('فشل تحميل البيانات', 'error');
+            }
+        }
+
+        async function loadRequests() {
+            try {
+                const result = await api.getAvailableRequests();
+                const container = document.getElementById('availableRequests');
+
+                if (result.success && result.data.length > 0) {
+                    container.innerHTML = result.data.slice(0, 3).map(req => `
+                        <div class="request-card">
+                            <div class="request-header">
+                                <span class="request-service">${req.serviceType}</span>
+                                <span class="request-amount">${req.amount ? req.amount + ' ج.م' : 'السعر تقترحه أنت'}</span>
+                            </div>
+                            <div class="request-details">
+                                📍 ${req.address}<br>
+                                📝 ${req.description || 'لا يوجد وصف'}
+                            </div>
+                            <div class="request-actions">
+                                <button class="btn btn-primary btn-sm" onclick="acceptRequest('${req.id}')">قبول</button>
+                                <button class="btn btn-outline btn-sm" onclick="window.location.href='requests.html'">تفاصيل</button>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📋</div>
+                            <p>لا توجد طلبات متاحة حالياً</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Load requests error:', error);
+            }
+        }
+
+        async function acceptRequest(orderId) {
+            try {
+                const result = await api.acceptOrder(orderId);
+                if (result.success) {
+                    showAlert('تم قبول الطلب!');
+                    loadRequests();
+                }
+            } catch (error) {
+                showAlert(error.message || 'فشل قبول الطلب', 'error');
+            }
+        }
+
+        loadDashboard();
+        loadRequests();
+
+        let nurseSocket = null;
+        let nurseLocationWatcher = null;
+
+        function startNurseTracking(orderId) {
+            window.currentOrderId = orderId;
+            if (!orderId) return;
+
+            if (navigator.geolocation) {
+                nurseLocationWatcher = navigator.geolocation.watchPosition(
+                    function(position) {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+                        if (nurseSocket && nurseSocket.connected) {
+                            nurseSocket.emit('update_location', { lat, lng, orderId: orderId });
+                        }
+                    },
+                    function(error) { console.log('Nurse geo error:', error); },
+                    { enableHighAccuracy: false, timeout: 15000, maximumAge: 3000 }
+                );
+            }
+
+            nurseSocket = io({ auth: { token: localStorage.getItem('token') } });
+            nurseSocket.on('connect', function() {
+                nurseSocket.emit('subscribe_location', { orderId: orderId });
+            });
+            nurseSocket.on('connect_error', function(err) {
+                console.log('Nurse socket error:', err);
+                setTimeout(function() { startNurseTracking(orderId); }, 5000);
+            });
+            nurseSocket.on('location_update', function(data) {
+                if (data.role === 'patient') {
+                    console.log('Patient moved:', data.lat, data.lng);
+                }
+            });
+        }
+
+        (async function init() {
+            try {
+                const res = await api.getNurseDashboard();
+                if (res.success && res.data && res.data.activeOrders.length > 0) {
+                    const active = res.data.activeOrders.find(function(o) { return o.status === 'in_progress'; });
+                    if (active) { startNurseTracking(active.id); return; }
+                    const assigned = res.data.activeOrders.find(function(o) { return o.status === 'assigned'; });
+                    if (assigned) { startNurseTracking(assigned.id); return; }
+                }
+            } catch(e) { console.log('Nurse tracking init error:', e); }
+        })();
+    </script>
+</body>
+</html>

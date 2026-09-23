@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>المحفظة - ممرض</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        .page-header {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .back-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+        }
+        .page-title {
+            font-size: 20px;
+            font-weight: 700;
+        }
+        .wallet-section {
+            padding: 20px;
+        }
+        .wallet-balance {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+        .withdraw-section {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .transfer-section {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .transaction-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            background: white;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .transaction-info h4 {
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+        .transaction-info p {
+            font-size: 12px;
+            color: #64748b;
+        }
+        .transaction-amount {
+            font-weight: 700;
+            font-size: 16px;
+        }
+        .transaction-amount.positive {
+            color: #10b981;
+        }
+        .transaction-amount.negative {
+            color: #ef4444;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="page-header">
+            <button class="back-btn" onclick="history.back()">→</button>
+            <div class="page-title">المحفظة</div>
+        </div>
+
+        <div class="wallet-section">
+            <div class="wallet-balance">
+                <div class="wallet-balance-label">الرصيد المتاح</div>
+                <div class="wallet-balance-value" id="balance">0 جنيه</div>
+            </div>
+
+            <div class="withdraw-section">
+                <h3 style="margin-bottom: 16px;">💳 حساب استلام مستحقاتك</h3>
+                <div class="form-group">
+                    <label class="form-label">رقم الحساب / المحفظة (يستلم عليه الأدمن لك الفلوس)</label>
+                    <input type="text" class="form-input" id="payoutAccount" placeholder="مثال: 01xxxxxxxxx">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">نوع الحساب</label>
+                    <select class="form-input" id="payoutMethod">
+                        <option value="vodafone_cash">فودافون كاش</option>
+                        <option value="instapay">انستا باي</option>
+                        <option value="bank_transfer">تحويل بنكي</option>
+                    </select>
+                </div>
+                <button class="btn btn-outline" id="savePayoutBtn" style="width:100%;margin-bottom:12px;">حفظ رقم الحساب</button>
+                <h3 style="margin-bottom: 16px;">طلب سحب</h3>
+                <div class="form-group">
+                    <label class="form-label">المبلغ (جنيه)</label>
+                    <input type="number" class="form-input" id="withdrawAmount" placeholder="100" min="50">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">طريقة السحب</label>
+                    <select class="form-input" id="withdrawMethod">
+                        <option value="bank_transfer">تحويل بنكي</option>
+                        <option value="vodafone">فودافون كاش</option>
+                        <option value="instapay">انستا باي</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" id="withdrawBtn">طلب سحب</button>
+            </div>
+        </div>
+
+        <div class="transfer-section">
+            <h3 style="margin-bottom:16px;">التحويلات الواردة</h3>
+            <div id="transfersList">
+                <div class="loading"><div class="spinner"></div></div>
+            </div>
+        </div>
+
+        <div class="transaction-list" style="margin-top: 20px;">
+            <h3 style="margin-bottom: 12px;">آخر العمليات</h3>
+            <div id="transactions">
+                <div class="loading"><div class="spinner"></div></div>
+            </div>
+        </div>
+    </div>
+
+    <nav class="bottom-nav">
+        <a href="dashboard.html" class="nav-item">
+            <span class="nav-icon">🏠</span>
+            <span>الرئيسية</span>
+        </a>
+        <a href="requests.html" class="nav-item">
+            <span class="nav-icon">📋</span>
+            <span>الطلبات</span>
+        </a>
+        <a href="wallet.html" class="nav-item active">
+            <span class="nav-icon">💳</span>
+            <span>المحفظة</span>
+        </a>
+        <a href="chat.html" class="nav-item">
+            <span class="nav-icon">💬</span>
+            <span>الشات</span>
+        </a>
+    </nav>
+</div>
+
+<script src="../js/api.js"></script>
+<script src="../js/auth.js"></script>
+<script>
+    if (!requireRole('nurse')) redirectToLogin();
+
+    async function loadWallet() {
+        try {
+            const result = await api.getWallet();
+            if (result.success) {
+                document.getElementById('balance').textContent = result.data.balance + ' جنيه';
+
+                const container = document.getElementById('transactions');
+                if (result.data.transactions.length === 0) {
+                    container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📋</div><p>لا توجد عمليات</p></div>';
+                } else {
+                    container.innerHTML = result.data.transactions.map(t =>
+                        '<div class="transaction-item">' +
+                            '<div class="transaction-info">' +
+                                '<h4>' + t.description + '</h4>' +
+                                '<p>' + formatDate(t.createdAt) + '</p>' +
+                            '</div>' +
+                            '<div class="transaction-amount ' + (t.type === 'earning' ? 'positive' : 'negative') + '">' +
+                                (t.type === 'earning' ? '+' : '-') + ' ' + t.amount + ' جنيه' +
+                            '</div>' +
+                        '</div>'
+                    ).join('');
+                }
+            }
+        } catch (error) {
+            showAlert('فشل تحميل المحفظة', 'error');
+        }
+    }
+
+    async function loadTransfers() {
+        try {
+            const result = await api.nurseTransfers();
+            const container = document.getElementById('transfersList');
+            if (result.success && result.data.length > 0) {
+                container.innerHTML = result.data.map(t =>
+                    '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:16px;margin-bottom:8px;">' +
+                        '<div style="font-weight:700;">+' + t.amount + ' ج.م</div>' +
+                        '<div style="font-size:13px;color:#64748b;">' + t.description + '</div>' +
+                        '<div style="font-size:12px;color:#94a3b8;">' + formatDate(t.createdAt) + '</div>' +
+                        (t.order && t.order.orderNumber ? '<div style="font-size:12px;margin-top:4px;">طلب #: ' + t.order.orderNumber + '</div>' : '') +
+                    '</div>'
+                ).join('');
+            } else {
+                container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">💰</div><p>لا توجد تحويلات واردة</p></div>';
+            }
+        } catch (error) {
+            document.getElementById('transfersList').innerHTML = '<div class="empty-state"><p>فشل التحميل</p></div>';
+        }
+    }
+
+    document.getElementById('withdrawBtn').addEventListener('click', async () => {
+        const amount = parseFloat(document.getElementById('withdrawAmount').value);
+        const method = document.getElementById('withdrawMethod').value;
+        const payoutAccount = document.getElementById('payoutAccount').value.trim();
+        if (!payoutAccount) { showAlert('أدخل رقم حسابك أولاً ليحوّل لك الأدمن عليه', 'error'); return; }
+        if (!amount || amount < 50) { showAlert('Minimum withdrawal is 50 EGP', 'error'); return; }
+
+        const btn = document.getElementById('withdrawBtn');
+        btn.disabled = true;
+        btn.textContent = 'جاري المعالجة...';
+
+        try {
+            const result = await api.requestWithdrawal({ amount, method, payoutAccount });
+            if (result.success) {
+                showAlert('تم إرسال طلب السحب للأدمن! سيحوّل لك على ' + payoutAccount);
+                loadWallet();
+            }
+        } catch (error) {
+            showAlert(error.message || 'فشل طلب السحب', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'طلب سحب';
+        }
+    });
+
+    document.getElementById('savePayoutBtn').addEventListener('click', async () => {
+        var acc = document.getElementById('payoutAccount').value.trim();
+        var m = document.getElementById('payoutMethod').value;
+        if (!acc) { showAlert('أدخل الرقم', 'error'); return; }
+        try { await api.updateNurseProfile({ payoutAccount: acc, payoutMethod: m }); showAlert('تم حفظ رقم حسابك ✅'); }
+        catch(e){ showAlert(e.message || 'فشل الحفظ', 'error'); }
+    });
+
+    (async function preloadPayout(){
+        try { var me = await api.getMe(); var u = me.data && me.data.user; if (u && u.payoutAccount) document.getElementById('payoutAccount').value = u.payoutAccount; } catch(e){}
+    })();
+
+    loadWallet();
+    loadTransfers();
+</script>
+</body>
+</html>

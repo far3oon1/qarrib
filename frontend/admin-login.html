@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>وصول الأدمن - قرّب</title>
+    <link rel="stylesheet" href="css/main.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .admin-wrapper {
+            width: 100%;
+            max-width: 420px;
+            text-align: center;
+        }
+        .brand {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        .brand-logo {
+            font-size: 48px;
+            font-weight: 900;
+            color: white;
+            text-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            letter-spacing: -1px;
+        }
+        .brand-tagline {
+            color: rgba(255,255,255,0.6);
+            font-size: 14px;
+            margin-top: 8px;
+        }
+        .locked-badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 12px;
+            padding: 12px 24px;
+            margin-bottom: 24px;
+            color: rgba(255,255,255,0.6);
+            font-size: 13px;
+        }
+        .locked-badge span {
+            font-size: 24px;
+            display: block;
+            margin-bottom: 4px;
+        }
+        .admin-card {
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 24px;
+            padding: 32px;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+        }
+        .admin-card h2 {
+            color: white;
+            margin-bottom: 8px;
+            font-size: 20px;
+        }
+        .admin-card p {
+            color: rgba(255,255,255,0.5);
+            font-size: 13px;
+            margin-bottom: 24px;
+        }
+        .input-group {
+            margin-bottom: 16px;
+        }
+        .input-label {
+            display: block;
+            color: rgba(255,255,255,0.6);
+            font-size: 13px;
+            margin-bottom: 6px;
+            text-align: right;
+        }
+        .input-field {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 12px;
+            color: white;
+            font-size: 15px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        .input-field:focus {
+            border-color: #667eea;
+        }
+        .input-field::placeholder {
+            color: rgba(255,255,255,0.3);
+        }
+        .btn-admin-access {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 8px;
+            transition: opacity 0.3s;
+        }
+        .btn-admin-access:hover {
+            opacity: 0.9;
+        }
+        .btn-admin-access:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .alert {
+            padding: 12px 16px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            display: none;
+        }
+        .alert-error {
+            background: rgba(239,68,68,0.15);
+            border: 1px solid rgba(239,68,68,0.3);
+            color: #fca5a5;
+        }
+        .alert-success {
+            background: rgba(34,197,94,0.15);
+            border: 1px solid rgba(34,197,94,0.3);
+            color: #86efac;
+        }
+        .alert.show {
+            display: block;
+        }
+        .spinner {
+            display: none;
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+        .spinner.show {
+            display: inline-block;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .footer-text {
+            color: rgba(255,255,255,0.3);
+            font-size: 11px;
+            margin-top: 16px;
+        }
+        .secret-hint {
+            color: rgba(255,255,255,0.25);
+            font-size: 11px;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-wrapper">
+        <div class="brand">
+            <div class="brand-logo">قرّب</div>
+            <div class="brand-tagline">لوحة تحكم الأدمن</div>
+        </div>
+
+        <div class="admin-card">
+            <div class="locked-badge">
+                <span>🔒</span>
+                وصول محمي - مسؤول فقط
+            </div>
+
+            <h2>🔐 تسجيل دخول الأدمن</h2>
+            <p>أدخل رمز الوصول وكلمة المرور للدخول إلى لوحة التحكم</p>
+
+            <div class="alert alert-error" id="alert-error"></div>
+            <div class="alert alert-success" id="alert-success"></div>
+
+            <div class="input-group">
+                <label class="input-label">رمز الوصول</label>
+                <input type="text" class="input-field" id="secret-key" placeholder="أدخل رمز الوصول السري">
+            </div>
+
+            <div class="input-group">
+                <label class="input-label">البريد الإلكتروني</label>
+                <input type="email" class="input-field" id="email-admin" placeholder="admin@qarrab.com">
+            </div>
+
+            <div class="input-group">
+                <label class="input-label">كلمة المرور</label>
+                <input type="password" class="input-field" id="password-admin" placeholder="••••••••">
+            </div>
+
+            <button class="btn-admin-access" id="btn-admin-access" onclick="adminLogin()">
+                <span>🔓 دخول كأدمن</span>
+                <span class="spinner" id="spinner-admin"></span>
+            </button>
+
+            <div class="secret-hint" id="secret-hint" style="display:none;">
+                ⚠️ رمز الوصول غير صحيح
+            </div>
+
+            <p class="footer-text">غير مصرح بالدخول لهذا القسم</p>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script>
+        function showAlert(elId, message, type = 'error') {
+            const el = document.getElementById(elId);
+            el.textContent = message;
+            el.className = 'alert alert-' + type + ' show';
+            setTimeout(function() { el.className = 'alert alert-' + type; }, 5000);
+        }
+
+        async function adminLogin() {
+            const secretKey = document.getElementById('secret-key').value.trim();
+            const email = document.getElementById('email-admin').value.trim();
+            const password = document.getElementById('password-admin').value;
+            const btn = document.getElementById('btn-admin-access');
+            const spinner = document.getElementById('spinner-admin');
+
+            if (!secretKey) {
+                showAlert('alert-error', 'يرجى إدخال رمز الوصول');
+                return;
+            }
+            if (!email || !password) {
+                showAlert('alert-error', 'يرجى إدخال البريد الإلكتروني وكلمة المرور');
+                return;
+            }
+
+            btn.disabled = true;
+            spinner.classList.add('show');
+            document.getElementById('alert-error').className = 'alert alert-error';
+            document.getElementById('alert-success').className = 'alert alert-success';
+
+            try {
+                const result = await api.adminLogin({ email, password, secretKey });
+
+                if (result.success) {
+                    showAlert('alert-success', 'تم تسجيل الدخول بنجاح! جاري التحويل...', 'success');
+                    setTimeout(function() {
+                        window.location.href = '/admin/dashboard.html';
+                    }, 1000);
+                } else {
+                    showAlert('alert-error', result.message || 'فشل تسجيل الدخول');
+                }
+            } catch (error) {
+                showAlert('alert-error', error.message || 'حدث خطأ في الاتصال بالسيرفر');
+            } finally {
+                btn.disabled = false;
+                spinner.classList.remove('show');
+            }
+        }
+
+        document.getElementById('password-admin').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') adminLogin();
+        });
+    </script>
+</body>
+</html>

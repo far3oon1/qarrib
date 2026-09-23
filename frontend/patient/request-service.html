@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>طلب خدمة - قرّب</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        .page-header {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: white;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .back-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+        }
+        .page-title {
+            font-size: 20px;
+            font-weight: 700;
+        }
+        .form-container {
+            padding: 20px;
+        }
+        .service-types {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .service-type {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .service-type:hover,
+        .service-type.selected {
+            border-color: #2563eb;
+            background: #dbeafe;
+        }
+        .service-type-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+        .service-type-name {
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .map-preview {
+            width: 100%;
+            height: 200px;
+            background: #e2e8f0;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="page-header">
+            <button class="back-btn" onclick="history.back()">→</button>
+            <div class="page-title">طلب خدمة تمريض</div>
+        </div>
+
+        <div class="form-container">
+            <form id="requestForm">
+                <div class="form-group">
+                    <label class="form-label">نوع الخدمة</label>
+                    <div class="service-types">
+                        <div class="service-type" data-value="injection">
+                            <div class="service-type-icon">💉</div>
+                            <div class="service-type-name">حقن ومحاليل</div>
+                        </div>
+                        <div class="service-type" data-value="wound">
+                            <div class="service-type-icon">🩹</div>
+                            <div class="service-type-name">تغيير جروح</div>
+                        </div>
+                        <div class="service-type" data-value="checkup">
+                            <div class="service-type-icon">🩺</div>
+                            <div class="service-type-name">فحص طبي</div>
+                        </div>
+                        <div class="service-type" data-value="elderly">
+                            <div class="service-type-icon">👴</div>
+                            <div class="service-type-name">رعاية مسنين</div>
+                        </div>
+                        <div class="service-type" data-value="iv">
+                            <div class="service-type-icon">💊</div>
+                            <div class="service-type-name">تركيب محاليل</div>
+                        </div>
+                        <div class="service-type" data-value="other">
+                            <div class="service-type-icon">🏥</div>
+                            <div class="service-type-name">أخرى</div>
+                        </div>
+                    </div>
+                    <input type="hidden" id="serviceType" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">تفاصيل إضافية</label>
+                    <textarea class="form-input" id="description" rows="3" placeholder="اشرح الحالة المرضية..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">العنوان بالتفصيل</label>
+                    <input type="text" class="form-input" id="address" placeholder="الشارع، العمارة، الشقة..." required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">الموقع على الخريطة</label>
+                    <div class="map-preview" id="mapPreview">
+                        <div>
+                            <div style="font-size: 32px; margin-bottom: 8px;">📍</div>
+                            <button type="button" class="btn btn-sm btn-outline" onclick="getLocation()" style="width: auto;">
+                                تحديد موقعي
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group" style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 12px;">
+                    <div style="font-size: 14px; color: #166534;">💰 السعر يحدده الممرض — ستصلك عروض الأسعار للموافقة عليها قبل الدفع.</div>
+                </div>
+
+                <button type="submit" class="btn btn-primary" id="submitBtn">إرسال الطلب</button>
+            </form>
+        </div>
+
+        <nav class="bottom-nav">
+            <a href="dashboard.html" class="nav-item">
+                <span class="nav-icon">🏠</span>
+                <span>الرئيسية</span>
+            </a>
+            <a href="request-service.html" class="nav-item active">
+                <span class="nav-icon">➕</span>
+                <span>طلب</span>
+            </a>
+            <a href="wallet.html" class="nav-item">
+                <span class="nav-icon">💳</span>
+                <span>المحفظة</span>
+            </a>
+            <a href="chat.html" class="nav-item">
+                <span class="nav-icon">💬</span>
+                <span>الشات</span>
+            </a>
+        </nav>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script>
+        if (!requireRole('patient')) redirectToLogin();
+
+        let userLocation = null;
+
+        // Service type selection
+        document.querySelectorAll('.service-type').forEach(type => {
+            type.addEventListener('click', () => {
+                document.querySelectorAll('.service-type').forEach(t => t.classList.remove('selected'));
+                type.classList.add('selected');
+                document.getElementById('serviceType').value = type.dataset.value;
+            });
+        });
+
+        // Get location
+        function getLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        userLocation = {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude
+                        };
+                        document.getElementById('mapPreview').innerHTML = `
+                            <div style="text-align: center;">
+                                <div style="font-size: 32px;">✅</div>
+                                <p>تم تحديد الموقع</p>
+                                <p style="font-size: 12px; color: #64748b;">
+                                    ${userLocation.lat.toFixed(4)}, ${userLocation.lng.toFixed(4)}
+                                </p>
+                            </div>
+                        `;
+                    },
+                    (error) => {
+                        showAlert('فشل تحديد الموقع. يرجى التأكد من تفعيل GPS', 'error');
+                    }
+                );
+            } else {
+                showAlert('المتصفح لا يدعم تحديد الموقع', 'error');
+            }
+        }
+
+        // Form submission
+        document.getElementById('requestForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+            btn.textContent = 'جاري الإرسال...';
+
+            const serviceType = document.getElementById('serviceType').value;
+            if (!serviceType) {
+                showAlert('يرجى اختيار نوع الخدمة', 'error');
+                btn.disabled = false;
+                btn.textContent = 'إرسال الطلب';
+                return;
+            }
+
+            const orderData = {
+                serviceType,
+                description: document.getElementById('description').value.trim(),
+                address: document.getElementById('address').value.trim(),
+                location: userLocation
+            };
+
+            if (!orderData.address) {
+                showAlert('يرجى إدخال العنوان بالتفصيل حتى يصل إليك الممرض', 'error');
+                btn.disabled = false;
+                btn.textContent = 'إرسال الطلب';
+                return;
+            }
+
+            try {
+                const result = await api.createOrder(orderData);
+
+                if (result.success) {
+                    showAlert('تم إرسال الطلب بنجاح! سيصلك سعر الممرض قريباً.');
+                    setTimeout(() => window.location.href = 'dashboard.html', 1500);
+                }
+            } catch (error) {
+                showAlert(error.message || 'فشل إرسال الطلب', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'إرسال الطلب';
+            }
+        });
+
+        loadWallet();
+    </script>
+</body>
+</html>

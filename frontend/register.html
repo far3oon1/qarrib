@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إنشاء حساب - قرّب</title>
+    <link rel="stylesheet" href="css/main.css">
+    <style>
+        .register-container {
+            min-height: 100vh;
+            padding: 20px;
+            background: #f1f5f9;
+        }
+        .register-box {
+            background: white;
+            border-radius: 24px;
+            padding: 32px 24px;
+            margin-top: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .register-logo {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .register-logo h1 {
+            color: #2563eb;
+            font-size: 32px;
+        }
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+        .step-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #e2e8f0;
+            transition: all 0.3s;
+        }
+        .step-dot.active {
+            background: #2563eb;
+            width: 32px;
+            border-radius: 6px;
+        }
+        .form-step {
+            display: none;
+        }
+        .form-step.active {
+            display: block;
+        }
+        .form-link {
+            text-align: center;
+            margin-top: 20px;
+            color: #64748b;
+        }
+        .form-link a {
+            color: #2563eb;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .file-upload {
+            border: 2px dashed #e2e8f0;
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .file-upload:hover {
+            border-color: #2563eb;
+            background: #dbeafe;
+        }
+        .file-upload input {
+            display: none;
+        }
+        .file-upload-icon {
+            font-size: 40px;
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container register-container">
+        <div class="register-box">
+            <div class="register-logo">
+                <h1>قرّب</h1>
+                <p id="subtitle">إنشاء حساب جديد</p>
+            </div>
+
+            <div class="step-indicator" id="stepIndicator">
+                <div class="step-dot active"></div>
+                <div class="step-dot"></div>
+                <div class="step-dot"></div>
+            </div>
+
+            <form id="registerForm">
+                <!-- Step 1: Basic Info -->
+                <div class="form-step active" data-step="1">
+                    <div class="form-group">
+                        <label class="form-label">الاسم الكامل</label>
+                        <input type="text" class="form-input" id="name" placeholder="محمد أحمد" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">الجنس</label>
+                        <select class="form-input" id="gender">
+                            <option value="">اختر الجنس</option>
+                            <option value="male">ذكر</option>
+                            <option value="female">أنثى</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">البريد الإلكتروني</label>
+                        <input type="email" class="form-input" id="email" placeholder="example@email.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">رقم الهاتف</label>
+                        <input type="tel" class="form-input" id="phone" placeholder="01xxxxxxxxx" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">كلمة المرور</label>
+                        <input type="password" class="form-input" id="password" placeholder="••••••••" required minlength="6">
+                    </div>
+                    <button type="button" class="btn btn-primary" onclick="nextStep()">التالي</button>
+                </div>
+
+                <!-- Step 2: Additional Info -->
+                <div class="form-step" data-step="2">
+                    <div class="form-group">
+                        <label class="form-label">الرقم القومي</label>
+                        <input type="text" class="form-input" id="nationalId" placeholder="14 رقم" maxlength="14" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">العنوان</label>
+                        <input type="text" class="form-input" id="address" placeholder="القاهرة، مصر الجديدة..." required>
+                    </div>
+
+                    <!-- Nurse-specific fields -->
+                    <div id="nurseFields" style="display: none;">
+                        <div class="form-group">
+                            <label class="form-label">رقم ترخيص المزاولة</label>
+                            <input type="text" class="form-input" id="licenseNumber" placeholder="رقم الترخيص">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">التخصص</label>
+                            <select class="form-input" id="specialization">
+                                <option value="">اختر التخصص</option>
+                                <option value="general">تمريض عام</option>
+                                <option value="icu">عناية مركزة</option>
+                                <option value="pediatric">تمريض أطفال</option>
+                                <option value="elderly">رعاية مسنين</option>
+                                <option value="wound">رعاية جروح</option>
+                                <option value="injection">حقن ومحاليل</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">سنوات الخبرة</label>
+                            <input type="number" class="form-input" id="yearsOfExperience" placeholder="0" min="0">
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 12px;">
+                        <button type="button" class="btn btn-outline" onclick="prevStep()">السابق</button>
+                        <button type="button" class="btn btn-primary" onclick="nextStep()">التالي</button>
+                    </div>
+                </div>
+
+                <!-- Step 3: Documents -->
+                <div class="form-step" data-step="3">
+                    <div class="form-group">
+                        <label class="form-label">صورة البطاقة الشخصية</label>
+                        <div class="file-upload" onclick="document.getElementById('idCard').click()">
+                            <div class="file-upload-icon">🪪</div>
+                            <p>اضغط لرفع صورة البطاقة</p>
+                            <p style="font-size: 12px; color: #64748b;">أي صورة أو ملف (حتى 10MB)</p>
+                            <input type="file" id="idCard">
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="licenseUpload" style="display: none;">
+                        <label class="form-label">صورة ترخيص المزاولة</label>
+                        <div class="file-upload" onclick="document.getElementById('license').click()">
+                            <div class="file-upload-icon">📄</div>
+                            <p>اضغط لرفع صورة الترخيص</p>
+                            <p style="font-size: 12px; color: #64748b;">أي صورة أو ملف (حتى 10MB)</p>
+                            <input type="file" id="license">
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 12px;">
+                        <button type="button" class="btn btn-outline" onclick="prevStep()">السابق</button>
+                        <button type="submit" class="btn btn-primary" id="submitBtn">إنشاء الحساب</button>
+                    </div>
+                </div>
+            </form>
+
+            <div class="form-link">
+                لديك حساب بالفعل؟ <a href="login.html">تسجيل الدخول</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const role = urlParams.get('role') || 'patient';
+        document.getElementById('subtitle').textContent = 
+            role === 'nurse' ? 'إنشاء حساب ممرض' : 'إنشاء حساب مريض';
+
+        if (role === 'nurse') {
+            document.getElementById('nurseFields').style.display = 'block';
+            document.getElementById('licenseUpload').style.display = 'block';
+        }
+
+        let currentStep = 1;
+        const totalSteps = 3;
+
+        function updateSteps() {
+            document.querySelectorAll('.step-dot').forEach((dot, index) => {
+                dot.classList.toggle('active', index < currentStep);
+            });
+            document.querySelectorAll('.form-step').forEach(step => {
+                step.classList.toggle('active', parseInt(step.dataset.step) === currentStep);
+            });
+        }
+
+        function nextStep() {
+            if (currentStep < totalSteps) {
+                currentStep++;
+                updateSteps();
+            }
+        }
+
+        function prevStep() {
+            if (currentStep > 1) {
+                currentStep--;
+                updateSteps();
+            }
+        }
+
+        // Form submission
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+            btn.textContent = 'جاري الإنشاء...';
+
+            // بنبني FormData عشان نرفع ملفات + بيانات مع بعض
+            const formData = new FormData();
+            const fullName = document.getElementById('name').value.trim();
+            formData.append('fullName', fullName);
+            formData.append('name', fullName);
+            formData.append('email', document.getElementById('email').value.trim());
+            formData.append('phone', document.getElementById('phone').value.trim());
+            formData.append('password', document.getElementById('password').value);
+            formData.append('nationalId', document.getElementById('nationalId').value.trim());
+            formData.append('governorate', 'Cairo');
+            formData.append('city', 'Cairo');
+            formData.append('address', document.getElementById('address').value.trim());
+            formData.append('role', role);
+            const genderVal = document.getElementById('gender').value;
+            if (genderVal) formData.append('gender', genderVal);
+
+            if (role === 'nurse') {
+                const spec = document.getElementById('specialization').value;
+                if (!spec) {
+                    showAlert('اختر التخصص من فضلك', 'error');
+                    btn.disabled = false;
+                    btn.textContent = 'إنشاء الحساب';
+                    return;
+                }
+                formData.append('specialization', spec);
+                formData.append('yearsOfExperience', document.getElementById('yearsOfExperience').value || '0');
+            }
+
+            // نضيف الصور للـ FormData حسب الـ role (متوافق مع multer.js)
+            const idCard = document.getElementById('idCard').files[0];
+            const license = document.getElementById('license').files[0];
+
+            // فحص حجم الملف قبل الرفع (الحد 10MB — يقبل أي نوع ملف)
+            const tooBig = [idCard, license].find(function (f) { return f && f.size > 10 * 1024 * 1024; });
+            if (tooBig) {
+                showAlert('حجم الملف كبير — الحد الأقصى 10MB', 'error');
+                btn.disabled = false;
+                btn.textContent = 'إنشاء الحساب';
+                return;
+            }
+
+            if (role === 'nurse') {
+                // للممرض: multer بيستنى 'idCardImage' و 'licenseImage'
+                if (idCard) {
+                    formData.append('idCardImage', idCard);
+                }
+                if (license) {
+                    formData.append('licenseImage', license);
+                }
+            } else {
+                // للمريض: multer بيستنى 'image'
+                if (idCard) {
+                    formData.append('image', idCard);
+                }
+            }
+
+            try {
+                // بنستخدم fetch مباشرة عشان FormData
+                const endpoint = role === 'nurse' ? '/auth/register/nurse' : '/auth/register/patient';
+                let response;
+                try {
+                    response = await fetch(`${API_BASE_URL}${endpoint}`, {
+                        method: 'POST',
+                        body: formData
+                        // ملاحظة: ممنوش نحط Content-Type header، الـ browser بيحطه لوحده مع boundary
+                    });
+                } catch (netErr) {
+                    throw new Error('تعذر الاتصال بالسيرفر (' + API_BASE_URL + ') — تأكد أن السيرفر شغال وافتح الموقع من نفس رابطه ثم حاول مجدداً');
+                }
+
+                let result = {};
+                try { result = await response.json(); } catch (e) { throw new Error('رد غير صالح من السيرفر'); }
+
+                if (!response.ok) {
+                    const details = (result.errors || []).map(function (x) { return x.message || x.field; }).join('، ');
+                    throw new Error((result.message || 'فشل إنشاء الحساب') + (details ? ': ' + details : ''));
+                }
+
+                if (result.success) {
+                    api.setToken(result.data.token);
+                    setUser(result.data.user);
+                    showAlert('تم إنشاء الحساب بنجاح!');
+                    setTimeout(() => redirectBasedOnRole(), 1500);
+                }
+            } catch (error) {
+                showAlert(error.message || 'فشل إنشاء الحساب', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'إنشاء الحساب';
+            }
+        });
+    </script>
+</body>
+</html>

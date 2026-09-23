@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>طلباتي - قرّب</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        .page-header {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .back-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+        }
+        .orders-container {
+            padding: 20px;
+        }
+        .order-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-right: 4px solid #e2e8f0;
+        }
+        .order-card.accepted { border-right-color: #3b82f6; }
+        .order-card.in_progress { border-right-color: #10b981; }
+        .order-card.completed { border-right-color: #059669; }
+        .order-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .order-actions .btn {
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="page-header">
+            <button class="back-btn" onclick="history.back()">→</button>
+            <div class="page-title">طلباتي</div>
+        </div>
+
+        <div class="orders-container" id="ordersList">
+            <div class="loading"><div class="spinner"></div></div>
+        </div>
+
+        <nav class="bottom-nav">
+            <a href="dashboard.html" class="nav-item">
+                <span class="nav-icon">🏠</span>
+                <span>الرئيسية</span>
+            </a>
+            <a href="requests.html" class="nav-item">
+                <span class="nav-icon">📋</span>
+                <span>الطلبات</span>
+            </a>
+            <a href="wallet.html" class="nav-item">
+                <span class="nav-icon">💳</span>
+                <span>المحفظة</span>
+            </a>
+            <a href="chat.html" class="nav-item">
+                <span class="nav-icon">💬</span>
+                <span>الشات</span>
+            </a>
+        </nav>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script>
+        if (!requireRole('nurse')) redirectToLogin();
+
+        async function loadOrders() {
+            try {
+                const result = await api.getNurseOrders();
+                const container = document.getElementById('ordersList');
+
+                if (result.success && result.data.length > 0) {
+                    container.innerHTML = result.data.map(order => `
+                        <div class="order-card ${order.status}">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <span style="font-weight: 700;">${order.serviceType}</span>
+                                <span class="badge badge-${order.status}">${getStatusText(order.status)}</span>
+                            </div>
+                            <div style="color: #64748b; font-size: 14px; margin-bottom: 8px;">
+                                💰 ${order.amount ? order.amount + ' ج.م' : 'لم يحدد السعر بعد'} | 📍 ${order.address}
+                            </div>
+                            ${(!order.hasPrice && (order.status === 'assigned' || order.status === 'open')) ? `
+                                <div style="display:flex;gap:8px;margin-bottom:8px;">
+                                    <input type="number" min="1" placeholder="سعرك بالجنيه" id="price-${order.id}" style="flex:1;padding:10px;border:2px solid#e2e8f0;border-radius:10px;">
+                                    <button class="btn btn-secondary btn-sm" onclick="suggestPrice('${order.id}')">اقتراح سعر 💰</button>
+                                </div>
+                            ` : ''}
+                            <div class="order-actions">
+                                ${order.status === 'assigned' ? `
+                                    <button class="btn btn-primary btn-sm" onclick="startService('${order.id}')">بدء الخدمة</button>
+                                ` : ''}
+                                ${order.status === 'in_progress' ? `
+                                    <button class="btn btn-secondary btn-sm" onclick="completeService('${order.id}')">تمت الخدمة ✅</button>
+                                ` : ''}
+                                ${order.status === 'completed' ? `
+                                    <button class="btn btn-success btn-sm" disabled>تم الإنجاز ✅</button>
+                                    <a href="wallet.html" class="btn btn-primary btn-sm">طلب سحب 💰</a>
+                                ` : ''}
+                                <button class="btn btn-outline btn-sm" onclick="window.location.href='chat-room.html?order=${order.id}'">شات</button>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📋</div>
+                            <p>لا توجد طلبات</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                showAlert('فشل تحميل الطلبات', 'error');
+            }
+        }
+
+        function getStatusText(status) {
+            const map = { 'pending': 'قيد الانتظار', 'accepted': 'مقبول', 'in_progress': 'جاري', 'completed': 'مكتمل', 'cancelled': 'ملغي' };
+            return map[status] || status;
+        }
+
+        async function suggestPrice(orderId) {
+            const input = document.getElementById('price-' + orderId);
+            const price = parseFloat(input.value);
+            if (!price || price <= 0) {
+                showAlert('أدخل سعراً صحيحاً أولاً', 'error');
+                return;
+            }
+            try {
+                const result = await api.submitOffer(orderId, price, '');
+                if (result.success) {
+                    showAlert('تم إرسال سعرك!');
+                    loadOrders();
+                }
+            } catch (error) {
+                showAlert(error.message || 'فشل إرسال السعر', 'error');
+            }
+        }
+
+        async function startService(orderId) {
+            try {
+                const result = await api.startService(orderId);
+                if (result.success) {
+                    showAlert('تم بدء الخدمة!');
+                    loadOrders();
+                }
+            } catch (error) {
+                showAlert(error.message, 'error');
+            }
+        }
+
+        async function completeService(orderId) {
+            try {
+                const result = await api.confirmOrder(orderId, 'nurse');
+                if (result.success) {
+                    showAlert('تم إرسال تأكيد الإنجاز للإدارة! سيصلك المبلغ بعد موافقتها.');
+                    loadOrders();
+                }
+            } catch (error) {
+                showAlert(error.message, 'error');
+            }
+        }
+
+        loadOrders();
+
+        let nurseOrderSocket = null;
+        let nurseOrderWatcher = null;
+
+        function startOrderTracking(orderId) {
+            window.currentOrderId = orderId;
+            if (!orderId) return;
+
+            if (navigator.geolocation) {
+                nurseOrderWatcher = navigator.geolocation.watchPosition(
+                    function(position) {
+                        if (nurseOrderSocket && nurseOrderSocket.connected) {
+                            nurseOrderSocket.emit('update_location', {
+                                lat: position.coords.latitude,
+                                lng: position.coords.longitude,
+                                orderId: orderId
+                            });
+                        }
+                    },
+                    function() {},
+                    { enableHighAccuracy: false, timeout: 15000, maximumAge: 3000 }
+                );
+            }
+
+            nurseOrderSocket = io({ auth: { token: localStorage.getItem('token') } });
+            nurseOrderSocket.on('connect', function() {
+                nurseOrderSocket.emit('subscribe_location', { orderId: orderId });
+            });
+            nurseOrderSocket.on('connect_error', function() {
+                setTimeout(function() { startOrderTracking(orderId); }, 5000);
+            });
+        }
+
+        (async function init() {
+            try {
+                const res = await api.getNurseOrders();
+                if (res.success && res.data.length > 0) {
+                    const active = res.data.find(function(o) { return o.status === 'in_progress'; });
+                    if (active) { startOrderTracking(active.id); return; }
+                }
+            } catch(e) {}
+        })();
+    </script>
+</body>
+</html>

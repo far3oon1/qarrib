@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>محادثة - قرّب</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        .chat-header {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: white;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .back-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+        }
+        .chat-user-info h3 {
+            font-size: 16px;
+        }
+        .chat-user-info p {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+        .chat-container {
+            height: calc(100vh - 120px);
+            display: flex;
+            flex-direction: column;
+        }
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            background: #f8fafc;
+        }
+        .message {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 16px;
+            font-size: 14px;
+            line-height: 1.5;
+            word-wrap: break-word;
+        }
+        .message.sent {
+            align-self: flex-end;
+            background: #2563eb;
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+        .message.received {
+            align-self: flex-start;
+            background: white;
+            color: #1e293b;
+            border-bottom-left-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .message-time {
+            font-size: 11px;
+            opacity: 0.7;
+            margin-top: 4px;
+        }
+        .message-location {
+            background: rgba(255,255,255,0.2);
+            padding: 8px;
+            border-radius: 8px;
+            margin-top: 4px;
+            cursor: pointer;
+        }
+        .chat-input-area {
+            padding: 12px 16px;
+            background: white;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .chat-input {
+            flex: 1;
+            padding: 10px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 24px;
+            font-size: 14px;
+            outline: none;
+        }
+        .chat-input:focus {
+            border-color: #2563eb;
+        }
+        .chat-action-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: none;
+            background: #f1f5f9;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .chat-send-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: none;
+            background: #2563eb;
+            color: white;
+            cursor: pointer;
+            font-size: 18px;
+        }
+        .typing-indicator {
+            font-size: 12px;
+            color: #64748b;
+            padding: 0 16px;
+            height: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="chat-header">
+            <button class="back-btn" onclick="history.back()">→</button>
+            <div class="chat-user-info">
+                <h3 id="chatTitle">محادثة</h3>
+                <p id="chatStatus">متصل</p>
+            </div>
+        </div>
+
+        <div class="chat-container">
+            <div class="chat-messages" id="chatMessages">
+                <div class="loading"><div class="spinner"></div></div>
+            </div>
+            <div class="typing-indicator" id="typingIndicator"></div>
+            <div class="chat-input-area">
+                <button class="chat-action-btn" onclick="shareLocation()">📍</button>
+                <input type="text" class="chat-input" id="messageInput" placeholder="اكتب رسالة...">
+                <button class="chat-send-btn" onclick="sendMessage()">➤</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script>
+        if (!requireRole('nurse')) redirectToLogin();
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const orderId = urlParams.get('order');
+        const nurseId = urlParams.get('nurse');
+
+        if (!orderId) {
+            showAlert('رقم الطلب مطلوب', 'error');
+            window.location.href = 'chat.html';
+        }
+
+        let socket;
+        const messagesContainer = document.getElementById('chatMessages');
+        const messageInput = document.getElementById('messageInput');
+
+        async function loadMessages() {
+            try {
+                const result = await api.getChatMessages(orderId);
+                if (result.success) {
+                    renderMessages(result.data);
+                }
+            } catch (error) {
+                console.error('Load messages error:', error);
+            }
+        }
+
+        function renderMessages(messages) {
+            if (messages.length === 0) {
+                messagesContainer.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">💬</div>
+                        <p>ابدأ المحادثة</p>
+                    </div>
+                `;
+                return;
+            }
+
+            messagesContainer.innerHTML = messages.map(msg => `
+                <div class="message ${msg.senderId === getUser().id ? 'sent' : 'received'}">
+                    ${msg.type === 'location' 
+                        ? `<div class="message-location" onclick="window.open('https://maps.google.com/?q=${msg.location.lat},${msg.location.lng}')">
+                            📍 موقع مشارك
+                           </div>`
+                        : msg.content
+                    }
+                    <div class="message-time">${new Date(msg.createdAt).toLocaleTimeString('ar-EG', {hour: '2-digit', minute: '2-digit'})}</div>
+                </div>
+            `).join('');
+
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const content = messageInput.value.trim();
+            if (!content) return;
+
+            messageInput.value = '';
+
+            try {
+                await api.sendMessage(orderId, content);
+                // Message will be received via socket
+            } catch (error) {
+                showAlert('فشل إرسال الرسالة', 'error');
+            }
+        }
+
+        async function shareLocation() {
+            if (!navigator.geolocation) {
+                showAlert('المتصفح لا يدعم تحديد الموقع', 'error');
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(async (position) => {
+                try {
+                    await api.sendLocation(orderId, position.coords.latitude, position.coords.longitude);
+                } catch (error) {
+                    showAlert('فشل مشاركة الموقع', 'error');
+                }
+            }, () => {
+                showAlert('فشل تحديد الموقع', 'error');
+            });
+        }
+
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        // Initialize Socket.IO
+        function initSocket() {
+            socket = io({
+                auth: { token: localStorage.getItem('token') }
+            });
+
+            socket.on('connect', () => {
+                socket.emit('join_chat', { orderId });
+            });
+
+            socket.on('new_message', (message) => {
+                loadMessages();
+            });
+
+            socket.on('typing', (data) => {
+                const indicator = document.getElementById('typingIndicator');
+                if (data.isTyping) {
+                    indicator.textContent = 'يكتب الآن...';
+                } else {
+                    indicator.textContent = '';
+                }
+            });
+        }
+
+        loadMessages();
+        initSocket();
+    </script>
+</body>
+</html>

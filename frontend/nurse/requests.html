@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الطلبات المتاحة - قرّب</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        .page-header {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .back-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+        }
+        .page-title {
+            font-size: 20px;
+            font-weight: 700;
+        }
+        .requests-container {
+            padding: 20px;
+        }
+        .request-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .request-service {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .request-amount {
+            color: #2563eb;
+            font-size: 24px;
+            font-weight: 800;
+            margin-bottom: 12px;
+        }
+        .request-detail {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            color: #64748b;
+            font-size: 14px;
+        }
+        .request-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+        }
+        .request-actions .btn {
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="page-header">
+            <button class="back-btn" onclick="history.back()">→</button>
+            <div class="page-title">الطلبات المتاحة</div>
+        </div>
+
+        <div class="requests-container" id="requestsList">
+            <div class="loading"><div class="spinner"></div></div>
+        </div>
+
+        <nav class="bottom-nav">
+            <a href="dashboard.html" class="nav-item">
+                <span class="nav-icon">🏠</span>
+                <span>الرئيسية</span>
+            </a>
+            <a href="requests.html" class="nav-item active">
+                <span class="nav-icon">📋</span>
+                <span>الطلبات</span>
+            </a>
+            <a href="wallet.html" class="nav-item">
+                <span class="nav-icon">💳</span>
+                <span>المحفظة</span>
+            </a>
+            <a href="chat.html" class="nav-item">
+                <span class="nav-icon">💬</span>
+                <span>الشات</span>
+            </a>
+        </nav>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script>
+        if (!requireRole('nurse')) redirectToLogin();
+
+        async function loadRequests() {
+            try {
+                const result = await api.getAvailableRequests();
+                const container = document.getElementById('requestsList');
+
+                if (result.success && result.data.length > 0) {
+                    container.innerHTML = result.data.map(req => `
+                        <div class="request-card">
+                            <div class="request-service">${req.serviceType}</div>
+                            <div class="request-amount">${req.amount ? req.amount + ' ج.م' : 'السعر تقترحه أنت'}</div>
+                            <div class="request-detail">📍 ${req.address}</div>
+                            <div class="request-detail">📝 ${req.description || 'لا يوجد وصف'}</div>
+                            <div class="request-detail">⏰ ${formatDate(req.createdAt)}</div>
+                            ${req.hasMyOffer ? `
+                                <div style="background:#f0fdf4;border:1px solid#bbf7d0;border-radius:10px;padding:10px;font-size:14px;color:#166534;">✅ أرسلت سعرك: ${req.myOfferPrice} ج.م — بانتظار الموافقة</div>
+                            ` : `
+                            <div style="display:flex;gap:8px;margin-bottom:8px;">
+                                <input type="number" min="1" placeholder="سعرك بالجنيه" id="price-${req.id}" style="flex:1;padding:10px;border:2px solid#e2e8f0;border-radius:10px;">
+                                <button class="btn btn-secondary" onclick="suggestPrice('${req.id}')">اقتراح سعر 💰</button>
+                            </div>
+                            `}
+                            <div class="request-actions">
+                                <button class="btn btn-primary" onclick="acceptRequest('${req.id}')">قبول الطلب</button>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📋</div>
+                            <p>لا توجد طلبات متاحة حالياً</p>
+                            <p style="font-size: 14px; margin-top: 8px;">تأكد من أنك متصل لتظهر لك الطلبات</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                showAlert('فشل تحميل الطلبات', 'error');
+            }
+        }
+
+        async function suggestPrice(orderId) {
+            const input = document.getElementById('price-' + orderId);
+            const price = parseFloat(input.value);
+            if (!price || price <= 0) {
+                showAlert('أدخل سعراً صحيحاً أولاً', 'error');
+                return;
+            }
+            try {
+                const result = await api.submitOffer(orderId, price, '');
+                if (result.success) {
+                    showAlert('تم إرسال سعرك! بانتظار موافقة المريض.');
+                    loadRequests();
+                }
+            } catch (error) {
+                showAlert(error.message || 'فشل إرسال السعر', 'error');
+            }
+        }
+
+        async function acceptRequest(orderId) {
+            try {
+                const result = await api.acceptOrder(orderId);
+                if (result.success) {
+                    showAlert('تم قبول الطلب بنجاح!');
+                    setTimeout(() => window.location.href = 'my-orders.html', 1000);
+                }
+            } catch (error) {
+                showAlert(error.message || 'فشل قبول الطلب', 'error');
+            }
+        }
+
+        loadRequests();
+    </script>
+</body>
+</html>

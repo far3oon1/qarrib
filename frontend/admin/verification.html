@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>التوثيق - أدمن</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        .page-header {
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            color: white;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .verification-list {
+            padding: 20px;
+        }
+        .verification-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .verification-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .doc-image {
+            width: 100%;
+            height: 200px;
+            background: #f1f5f9;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+            margin-bottom: 12px;
+            overflow: hidden;
+        }
+        .doc-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .verification-actions {
+            display: flex;
+            gap: 12px;
+        }
+        .verification-actions .btn {
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="page-header">
+            <button class="back-btn" onclick="history.back()">→</button>
+            <div class="page-title">طلبات التوثيق</div>
+        </div>
+
+        <div class="verification-list" id="verificationList">
+            <div class="loading"><div class="spinner"></div></div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script>
+        if (!requireRole('admin')) redirectToLogin();
+
+        async function loadVerifications() {
+            try {
+                const result = await api.getPendingVerifications();
+                const container = document.getElementById('verificationList');
+
+                if (result.success && result.data.length > 0) {
+                    container.innerHTML = result.data.map(doc => `
+                        <div class="verification-card">
+                            <div class="verification-header">
+                                <div>
+                                    <h3 style="font-size: 16px;">${doc.user?.name || 'Unknown'}</h3>
+                                    <p style="font-size: 13px; color: #64748b;">${doc.type === 'nursing_license' ? 'ترخيص مزاولة' : 'بطاقة شخصية'}</p>
+                                </div>
+                                <span class="badge badge-pending">قيد المراجعة</span>
+                            </div>
+                            <div class="doc-image">
+                                ${doc.fileUrl ? `<img src="..${doc.fileUrl}" alt="Document" onerror="this.parentElement.innerHTML='📄 لا يمكن عرض الملف'">` : '📄 لا يوجد ملف'}
+                            </div>
+                            <div style="margin-bottom: 12px; font-size: 14px;">
+                                <strong>رقم المستند:</strong> ${doc.documentNumber || 'غير متوفر'}<br>
+                                <strong>التخصص:</strong> ${doc.user?.specialization || 'غير متوفر'}
+                            </div>
+                            <div class="verification-actions">
+                                <button class="btn btn-secondary" onclick="verifyDoc('${doc.id}', 'approved')">✅ موافقة</button>
+                                <button class="btn btn-danger" onclick="verifyDoc('${doc.id}', 'rejected')">❌ رفض</button>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">✅</div><p>لا توجد طلبات بانتظار التوثيق</p></div>`;
+                }
+            } catch (error) {
+                showAlert('فشل تحميل الطلبات', 'error');
+            }
+        }
+
+        async function verifyDoc(docId, status) {
+            const notes = status === 'rejected' ? prompt('سبب الرفض:') : '';
+            try {
+                await api.verifyDocument(docId, status, notes);
+                showAlert(status === 'approved' ? 'تم التوثيق بنجاح' : 'تم الرفض');
+                loadVerifications();
+            } catch (error) {
+                showAlert('فشل التوثيق', 'error');
+            }
+        }
+
+        loadVerifications();
+    </script>
+</body>
+</html>

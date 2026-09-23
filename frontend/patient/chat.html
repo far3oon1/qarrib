@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الرسائل - قرّب</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        .chat-list {
+            padding: 16px;
+        }
+        .chat-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+            background: white;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            text-decoration: none;
+            color: #1e293b;
+        }
+        .chat-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .chat-info {
+            flex: 1;
+        }
+        .chat-name {
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        .chat-preview {
+            font-size: 13px;
+            color: #64748b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .chat-meta {
+            text-align: left;
+        }
+        .chat-time {
+            font-size: 12px;
+            color: #94a3b8;
+        }
+        .unread-badge {
+            background: #ef4444;
+            color: white;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-top: 4px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="header">
+            <div class="header-content">
+                <div class="logo">الرسائل</div>
+            </div>
+        </div>
+
+        <div class="chat-list" id="chatList">
+            <div class="loading"><div class="spinner"></div></div>
+        </div>
+
+        <nav class="bottom-nav">
+            <a href="dashboard.html" class="nav-item">
+                <span class="nav-icon">🏠</span>
+                <span>الرئيسية</span>
+            </a>
+            <a href="request-service.html" class="nav-item">
+                <span class="nav-icon">➕</span>
+                <span>طلب</span>
+            </a>
+            <a href="wallet.html" class="nav-item">
+                <span class="nav-icon">💳</span>
+                <span>المحفظة</span>
+            </a>
+            <a href="chat.html" class="nav-item active">
+                <span class="nav-icon">💬</span>
+                <span>الشات</span>
+            </a>
+        </nav>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script>
+        if (!requireRole('patient')) redirectToLogin();
+
+        async function loadChats() {
+            try {
+                const result = await api.getPatientOrders();
+                if (result.success) {
+                    const orders = result.data.filter(o => o.nurseId);
+                    const chatList = document.getElementById('chatList');
+
+                    if (orders.length === 0) {
+                        chatList.innerHTML = `
+                            <div class="empty-state">
+                                <div class="empty-state-icon">💬</div>
+                                <p>لا توجد محادثات</p>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    chatList.innerHTML = orders.map(order => `
+                        <a href="chat-room.html?order=${order.id}&nurse=${order.nurseId}" class="chat-item">
+                            <div class="chat-avatar">👨‍⚕️</div>
+                            <div class="chat-info">
+                                <div class="chat-name">ممرض - طلب #${order.id.slice(0, 6)}</div>
+                                <div class="chat-preview">${order.serviceType} - ${getStatusText(order.status)}</div>
+                            </div>
+                            <div class="chat-meta">
+                                <div class="chat-time">${formatDate(order.createdAt)}</div>
+                            </div>
+                        </a>
+                    `).join('');
+                }
+            } catch (error) {
+                showAlert('فشل تحميل المحادثات', 'error');
+            }
+        }
+
+        function getStatusText(status) {
+            const map = { 'pending': 'قيد الانتظار', 'accepted': 'مقبول', 'in_progress': 'جاري', 'completed': 'مكتمل', 'cancelled': 'ملغي' };
+            return map[status] || status;
+        }
+
+        loadChats();
+    </script>
+</body>
+</html>

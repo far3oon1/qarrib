@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>غرفة الشات - أدمن</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        .chat-header { background:#0f172a;color:white;padding:14px 16px;display:flex;align-items:center;gap:10px; }
+        #msgs { padding:16px; padding-bottom:90px; }
+        .msg { max-width:80%;padding:10px 14px;border-radius:14px;margin-bottom:8px;font-size:14px; }
+        .mine { background:#2563eb;color:white;margin-inline-start:auto; }
+        .theirs { background:white; }
+        .meta { font-size:10px;opacity:.7;margin-top:4px; }
+        .composer { position:fixed;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;background:white;padding:10px;display:flex;gap:8px;border-top:1px solid #e2e8f0; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="chat-header"><button onclick="history.back()" style="background:rgba(255,255,255,.2);border:none;color:white;border-radius:50%;width:36px;height:36px;cursor:pointer;">→</button><div id="title" style="font-weight:700;">شات الطلب</div></div>
+        <div id="msgs"><div class="loading"><div class="spinner"></div></div></div>
+        <div class="composer"><input id="input" class="form-input" style="flex:1;" placeholder="اكتب رسالة للممرض/المريض..."><button class="btn btn-primary" onclick="send()">إرسال</button></div>
+    </div>
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+        if (!requireRole('admin')) redirectToLogin();
+        var orderId = new URLSearchParams(location.search).get('order');
+        var socket = null;
+        try {
+            socket = io({ auth: { token: localStorage.getItem('token') } });
+            socket.emit('join_chat', { orderId: orderId });
+            socket.on('new_message', function(){ load(true); });
+        } catch(e){}
+        async function load(silent){
+            try {
+                var r = await api.getChatMessages(orderId);
+                var msgs = r.data || [];
+                document.getElementById('title').textContent = 'شات الطلب #' + String(orderId).slice(0,6);
+                document.getElementById('msgs').innerHTML = msgs.map(function(m){
+                    var mine = String(m.senderId||m.sender) === String(getUser() && getUser().id);
+                    return '<div class="msg '+(mine?'mine':'theirs')+'">'+(m.content||'')+'<div class="meta">'+(m.senderRole||'')+' • '+formatDate(m.createdAt)+'</div></div>';
+                }).join('') || '<p style="color:#94a3b8;">لا توجد رسائل — ابدأ المناقشة مع الممرض</p>';
+                if(!silent) window.scrollTo(0, document.body.scrollHeight);
+            } catch(e){ if(!silent) showAlert('فشل تحميل الرسائل','error'); }
+        }
+        async function send(){
+            var v = document.getElementById('input').value.trim();
+            if(!v) return;
+            document.getElementById('input').value = '';
+            try { await api.sendMessage(orderId, v); load(); } catch(e){ showAlert('فشل الإرسال','error'); }
+        }
+        document.getElementById('input').addEventListener('keydown', function(e){ if(e.key==='Enter') send(); });
+        load(); setInterval(function(){ load(true); }, 8000);
+    </script>
+</body>
+</html>
