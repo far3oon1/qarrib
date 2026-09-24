@@ -17,9 +17,9 @@ services:
       - key: MONGODB_URI
         sync: true
       - key: JWT_SECRET
-        generateValue: true
+        value: qarrab_super_secret_key_change_me
       - key: JWT_REFRESH_SECRET
-        generateValue: true
+        value: qarrab_refresh_secret_change_me
       - key: ADMIN_DEFAULT_EMAIL
         value: admin@qarrab.com
       - key: ADMIN_DEFAULT_PASSWORD
