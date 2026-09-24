@@ -2,8 +2,9 @@ services:
   - type: web
     name: qarrib
     runtime: node
-    buildCommand: npm --prefix backend install
-    startCommand: npm --prefix backend start
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
     healthCheckPath: /health
     autoDeploy: true
     envVars:
@@ -14,6 +15,7 @@ services:
       - key: OWNER_INSTAPAY_NUMBER
         value: "01150209401"
       - key: MONGODB_URI
+        value: "PLACEHOLDER_SET_IN_DASHBOARD"
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET
