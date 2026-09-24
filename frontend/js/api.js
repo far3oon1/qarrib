@@ -254,7 +254,7 @@ API.prototype.transferBalance = function (data) {
   return this.request('POST', '/wallet/transfer', data);
 };
 API.prototype.nurseTransfers = function () {
-  return this.request('GET', '/nurse/transfers');
+    return this.request('GET', '/nurses/transfers');
 };
 
 // Chat
