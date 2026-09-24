@@ -56,6 +56,7 @@
         </div>
     </div>
 
+    <script>window.QARRAB_API_URL = "https://qarrib.onrender.com";</script>
     <script src="../js/api.js"></script>
     <script src="../js/auth.js"></script>
     <script src="../js/notifications.js"></script>
@@ -129,7 +130,10 @@
             var box = document.getElementById('offers-' + orderId);
             box.innerHTML = 'جاري التحميل...';
             try {
-                var r = await fetch(API_BASE_URL + '/admin/orders/' + orderId, { headers: api.getHeaders() }).then(function(x){return x.json();});
+                var resp = await fetch(API_BASE_URL + '/admin/orders/' + orderId, { headers: api.getHeaders() });
+                var body = await resp.text();
+                var r;
+                try { r = JSON.parse(body); } catch(e) { throw new Error('API returned HTML from ' + resp.url + '. Check that the backend URL and port are correct.'); }
                 var order = (r.data && r.data.order) || {};
                 var offers = order.offers || [];
                 if (!offers.length) { box.innerHTML = '<div style="font-size:13px;color:#94a3b8;">لا توجد عروض بعد — بانتظار سعر الممرض</div>'; return; }

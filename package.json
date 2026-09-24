@@ -29,7 +29,6 @@
     "files": [
       "desktop/main.js",
       "desktop/preload.js",
-      "desktop/server.js",
       "frontend/**/*",
       "backend/**/*",
       "package.json"

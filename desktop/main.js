@@ -36,9 +36,12 @@ function startBackend() {
       env: runtimeEnv
     });
 
+    let backendReady = false;
+
     backendProcess.stdout.on('data', (data) => {
       console.log(`[Backend] ${data}`);
       if (data.toString().includes('Qarrab API running')) {
+        backendReady = true;
         isReady = true;
         resolve();
       }
@@ -47,21 +50,25 @@ function startBackend() {
     backendProcess.stderr.on('data', (data) => {
       console.error(`[Backend Error] ${data}`);
       if (data.toString().includes('EADDRINUSE')) {
-        isReady = true;
-        resolve();
+        reject(new Error(`Port ${getBackendPort()} is already in use — another Qarrib server is running. Close the other window or use a different PORT.`));
       }
     });
 
     backendProcess.on('close', (code) => {
       console.log(`Backend process exited with code ${code}`);
+      if (!backendReady && code !== 0) {
+        reject(new Error(`Backend process exited with code ${code}`));
+      }
     });
 
     setTimeout(() => {
-      if (!isReady) {
-        isReady = true;
-        resolve();
+      if (!backendReady) {
+        if (backendProcess && !backendProcess.killed) {
+          backendProcess.kill();
+        }
+        reject(new Error('Backend failed to start within the timeout period'));
       }
-    }, 5000);
+    }, 10000);
   });
 }
 
@@ -110,14 +117,27 @@ function createWindow() {
 
 async function setupApp() {
   await app.whenReady();
-  if (!process.env.QARRAB_SERVER_URL) {
-    await startBackend();
+  try {
+    if (!process.env.QARRAB_SERVER_URL) {
+      await startBackend();
+    }
+    createWindow();
+  } catch (err) {
+    console.error('Failed to start backend:', err.message);
+    dialog.showErrorBox('Backend Error', err.message + '\n\nThe application cannot start without the backend server.');
+    app.quit();
   }
-  createWindow();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
+      if (!process.env.QARRAB_SERVER_URL) {
+        startBackend().then(createWindow).catch((err) => {
+          console.error('Failed to start backend:', err.message);
+          app.quit();
+        });
+      } else {
+        createWindow();
+      }
     }
   });
 }

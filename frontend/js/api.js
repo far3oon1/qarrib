@@ -71,7 +71,15 @@ API.prototype.request = function (method, endpoint, data, isFormData) {
         options.body = data;
     }
     return fetch(url, options).then(function (response) {
-        return response.json().then(function (result) {
+        return response.text().then(function (body) {
+            var result;
+            var contentType = response.headers.get('content-type') || '';
+            try {
+                result = body ? JSON.parse(body) : {};
+            } catch (parseError) {
+                var responseType = contentType.indexOf('text/html') !== -1 ? 'HTML' : 'invalid JSON';
+                throw new Error('API returned ' + responseType + ' from ' + response.url + '. Check that the backend URL and port are correct.');
+            }
             if (!response.ok) {
                 throw new Error((result && result.message) || 'Request failed');
             }
