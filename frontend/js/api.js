@@ -17,7 +17,10 @@ var API_BASE_URL = (function () {
     if (currentHost === 'localhost' || currentHost === '127.0.0.1' || currentHost === '0.0.0.0' || currentOrigin === 'http://localhost:5000' || currentOrigin === 'http://127.0.0.1:5000') {
         return currentOrigin ? currentOrigin + '/api' : 'http://localhost:5000/api';
     }
-    if (currentHost === 'qarrib.onrender.com' || currentHost.endsWith('.onrender.com') || currentHost.endsWith('.github.io')) {
+    if (currentHost.endsWith('.github.io')) {
+        return 'https://qarrib.onrender.com/api';
+    }
+    if (currentHost === 'qarrib.onrender.com' || currentHost.endsWith('.onrender.com')) {
         return currentOrigin ? currentOrigin + '/api' : 'https://qarrib.onrender.com/api';
     }
     if (protocol.indexOf('http') === 0) {
