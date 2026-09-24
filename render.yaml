@@ -14,16 +14,16 @@ services:
       - key: OWNER_INSTAPAY_NUMBER
         value: "01150209401"
       - key: MONGODB_URI
-        value: "REPLACE_WITH_MONGODB_ATLAS_URI"
+        generateValue: true
       - key: JWT_SECRET
-        value: "REPLACE_WITH_JWT_SECRET"
+        generateValue: true
       - key: JWT_REFRESH_SECRET
-        value: "REPLACE_WITH_JWT_REFRESH_SECRET"
+        generateValue: true
       - key: ADMIN_DEFAULT_EMAIL
         value: admin@qarrab.com
       - key: ADMIN_DEFAULT_PASSWORD
-        value: "REPLACE_WITH_ADMIN_PASSWORD"
+        generateValue: true
       - key: ADMIN_SECRET_KEY
-        value: "REPLACE_WITH_ADMIN_SECRET_KEY"
+        generateValue: true
       - key: CLIENT_URL
         value: "https://far3oon1.github.io/qarrib"
