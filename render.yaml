@@ -2,9 +2,9 @@ services:
   - type: web
     name: qarrib
     runtime: node
-    rootDir: backend
-    buildCommand: npm install
-    startCommand: npm start
+    rootDir: .
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
     healthCheckPath: /health
     autoDeploy: true
     envVars:
