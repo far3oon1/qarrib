@@ -28,4 +28,4 @@ services:
         sync: false
       - key: CLIENT_URL
         sync: false
-        value: "https://htb_developer.github.io/qarrib-project"
+        value: "https://far3oon1.github.io/qarrib"
