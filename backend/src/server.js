@@ -11,6 +11,7 @@ const IS_DESKTOP = process.argv.some((a) => a === '--desktop') || process.env.DE
 if (IS_DESKTOP) {
   require('dotenv').config({ path: path.resolve(__dirname, '..', '..', '.env') });
 } else {
+  require('dotenv').config({ path: path.resolve(process.cwd(), '.env') });
   require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 }
 
