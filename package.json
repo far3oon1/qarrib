@@ -15,9 +15,6 @@
     "build:mac": "electron-builder --mac",
     "install:desktop": "npm install electron electron-builder --save-dev"
   },
-  "workspaces": [
-    "backend"
-  ],
   "license": "MIT",
   "build": {
     "appId": "com.qarrib.desktop",
