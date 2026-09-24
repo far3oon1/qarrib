@@ -15,17 +15,17 @@ services:
       - key: OWNER_INSTAPAY_NUMBER
         value: "01150209401"
       - key: MONGODB_URI
-        sync: false
+        sync: true
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET
         generateValue: true
       - key: ADMIN_DEFAULT_EMAIL
-        sync: false
+        sync: true
       - key: ADMIN_DEFAULT_PASSWORD
-        sync: false
+        sync: true
       - key: ADMIN_SECRET_KEY
-        sync: false
+        sync: true
       - key: CLIENT_URL
         sync: false
         value: "https://far3oon1.github.io/qarrib"
