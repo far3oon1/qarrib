@@ -5,12 +5,17 @@ const helmet = require('helmet');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+const fs = require('fs');
 const VERSION = require(path.resolve(__dirname, '..', 'package.json')).version;
 const IS_DESKTOP = process.argv.some((a) => a === '--desktop') || process.env.DESKTOP_MODE === 'true';
 
 if (IS_DESKTOP) {
   require('dotenv').config({ path: path.resolve(__dirname, '..', '..', '.env') });
 }
+
+// Ensure required directories exist before logger
+try { fs.mkdirSync(path.join(__dirname, '..', '..', 'logs'), { recursive: true }); } catch (_) {}
+try { fs.mkdirSync(path.join(__dirname, '..', 'uploads', 'temp'), { recursive: true }); } catch (_) {}
 
 const connectDB = require('./config/database');
 const errorHandler = require('./middleware/errorHandler');
@@ -37,10 +42,6 @@ initializeSocket(server);
 
 // Connect to database (retried inside config)
 connectDB();
-
-// Ensure local upload tmp dir exists (Cloudinary is used when configured)
-const fs = require('fs');
-try { fs.mkdirSync(path.join(__dirname, '..', 'uploads', 'temp'), { recursive: true }); } catch (_) {}
 
 // Security middleware
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
