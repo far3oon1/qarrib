@@ -15,7 +15,6 @@ services:
       - key: OWNER_INSTAPAY_NUMBER
         value: "01150209401"
       - key: MONGODB_URI
-        sync: true
       - key: JWT_SECRET
         value: qarrab_super_secret_key_change_me
       - key: JWT_REFRESH_SECRET
