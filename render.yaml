@@ -2,8 +2,9 @@ services:
   - type: web
     name: qarrib
     runtime: node
-    buildCommand: npm --prefix backend install
-    startCommand: npm --prefix backend start
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
     healthCheckPath: /health
     autoDeploy: true
     envVars:
@@ -13,15 +14,17 @@ services:
         value: 7d
       - key: OWNER_INSTAPAY_NUMBER
         value: "01150209401"
+      - key: MONGODB_URI
+        sync: true
       - key: JWT_SECRET
-        value: qarrab_super_secret_key_change_me
+        generateValue: true
       - key: JWT_REFRESH_SECRET
-        value: qarrab_refresh_secret_change_me
+        generateValue: true
       - key: ADMIN_DEFAULT_EMAIL
         value: admin@qarrab.com
       - key: ADMIN_DEFAULT_PASSWORD
-        value: admin123
+        sync: true
       - key: ADMIN_SECRET_KEY
-        value: qarrab_admin_secret_key_change_me
+        generateValue: true
       - key: CLIENT_URL
         value: "https://far3oon1.github.io/qarrib"

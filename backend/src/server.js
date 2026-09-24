@@ -6,11 +6,22 @@ const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 const fs = require('fs');
+const dotenv = require('dotenv');
 const VERSION = require(path.resolve(__dirname, '..', 'package.json')).version;
 const IS_DESKTOP = process.argv.some((a) => a === '--desktop') || process.env.DESKTOP_MODE === 'true';
 
-if (IS_DESKTOP) {
-  require('dotenv').config({ path: path.resolve(__dirname, '..', '..', '.env') });
+const rootEnvPath = path.resolve(__dirname, '..', '..', '.env');
+const backendEnvPath = path.resolve(__dirname, '..', '.env');
+
+if (fs.existsSync(rootEnvPath)) {
+  dotenv.config({ path: rootEnvPath });
+}
+if (fs.existsSync(backendEnvPath)) {
+  dotenv.config({ path: backendEnvPath });
+}
+
+if (IS_DESKTOP && fs.existsSync(rootEnvPath)) {
+  dotenv.config({ path: rootEnvPath, override: true });
 }
 
 // Ensure required directories exist before logger
@@ -45,10 +56,15 @@ connectDB();
 
 // Security middleware
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
-const allowedOrigins = (process.env.CLIENT_URL || '*').split(',').map((s) => s.trim()).filter(Boolean);
+const configuredOrigins = (process.env.CLIENT_URL || '*').split(',').map((s) => s.trim()).filter(Boolean);
+const allowedOrigins = new Set(configuredOrigins);
+const isLocalOrigin = (origin) => typeof origin === 'string' && /^(https?:\/\/)?(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?$/.test(origin.replace(/\/$/, ''));
+const isPublicHostedOrigin = (origin) => typeof origin === 'string' && /^(https?:\/\/)?([\w-]+\.)?(onrender\.com|github\.io)(:\d+)?$/.test(origin.replace(/\/$/, ''));
 app.use(cors({
   origin: (origin, cb) => {
-    if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) return cb(null, true);
+    if (!origin || allowedOrigins.has('*') || allowedOrigins.has(origin) || isLocalOrigin(origin) || isPublicHostedOrigin(origin)) {
+      return cb(null, true);
+    }
     return cb(null, false);
   },
   credentials: true

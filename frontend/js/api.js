@@ -5,21 +5,31 @@
 // A hosted static frontend may set window.QARRAB_API_URL before this script loads.
 var IS_DESKTOP = typeof window.desktopAPI !== 'undefined' || window.isDesktopApp === true || (typeof process !== 'undefined' && process.type === 'renderer');
 var API_BASE_URL = (function () {
-    if (typeof window.QARRAB_API_URL === 'string' && window.QARRAB_API_URL.trim()) {
-        return window.QARRAB_API_URL.replace(/\/$/, '') + '/api';
-    }
+    var configuredUrl = typeof window.QARRAB_API_URL === 'string' ? window.QARRAB_API_URL.trim() : '';
+    var currentHost = (window.location && window.location.hostname) ? window.location.hostname.toLowerCase() : '';
+    var currentOrigin = window.location && window.location.origin ? window.location.origin : '';
+    var protocol = String(window.location && window.location.protocol ? window.location.protocol : '');
+
+    // Prefer same-origin requests whenever the frontend is served by the backend itself.
     if (IS_DESKTOP) {
         return '/api';
     }
-    var protocol = String(window.location.protocol || '');
-    var isHttp = protocol.indexOf('http') === 0;
-    if (isHttp) {
+    if (currentHost === 'localhost' || currentHost === '127.0.0.1' || currentHost === '0.0.0.0' || currentOrigin === 'http://localhost:5000' || currentOrigin === 'http://127.0.0.1:5000') {
+        return currentOrigin ? currentOrigin + '/api' : 'http://localhost:5000/api';
+    }
+    if (currentHost === 'qarrib.onrender.com' || currentHost.endsWith('.onrender.com') || currentHost.endsWith('.github.io')) {
+        return currentOrigin ? currentOrigin + '/api' : 'https://qarrib.onrender.com/api';
+    }
+    if (protocol.indexOf('http') === 0) {
         var port = String(window.location.port || '');
         if (port === '' || port === '5000') {
-            return window.location.origin + '/api';
+            return (currentOrigin || 'http://localhost:5000') + '/api';
         }
         var host = window.location.hostname || 'localhost';
         return protocol + '//' + host + ':5000/api';
+    }
+    if (configuredUrl) {
+        return configuredUrl.replace(/\/$/, '') + '/api';
     }
     return 'http://localhost:5000/api';
 })();
