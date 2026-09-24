@@ -27,5 +27,4 @@ services:
       - key: ADMIN_SECRET_KEY
         sync: false
       - key: CLIENT_URL
-        sync: false
-        value: "https://far3oon1.github.io/qarrib"
+        sync: true
