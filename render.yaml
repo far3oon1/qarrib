@@ -15,7 +15,6 @@ services:
       - key: OWNER_INSTAPAY_NUMBER
         value: "01150209401"
       - key: MONGODB_URI
-        sync: true
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET
