@@ -3,12 +3,13 @@ const mongoose = require('mongoose');
 const connectDB = async (retries = 10) => {
   const uri = process.env.MONGODB_URI;
 
-  if (!uri) {
+if (!uri) {
     console.error('❌ MONGODB_URI is not defined!');
-    console.error('Please check your .env file exists and contains:');
+    console.error('Please check your .env file or Render environment variables and add:');
     console.error('  MONGODB_URI=mongodb://127.0.0.1:27017/qarrab_db');
-    process.exit(1);
-  }
+    console.error('Server starting without database. /health will answer but API routes will fail.');
+    return null;
+}
 
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
