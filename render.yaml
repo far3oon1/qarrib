@@ -23,7 +23,7 @@ services:
       - key: ADMIN_DEFAULT_EMAIL
         value: admin@qarrab.com
       - key: ADMIN_DEFAULT_PASSWORD
-        sync: true
+        generateValue: true
       - key: ADMIN_SECRET_KEY
         generateValue: true
       - key: CLIENT_URL
