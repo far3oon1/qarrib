@@ -1,0 +1,71 @@
+{
+  "name": "qarrib-desktop",
+  "version": "1.0.0-desktop",
+  "description": "Qarrib - Healthcare/Nursing On-Demand Platform (Desktop Application)",
+  "main": "desktop/main.js",
+  "author": "Qarrab Healthcare",
+  "scripts": {
+    "install:backend": "cd backend && npm install",
+    "start:backend": "cd backend && npm start",
+    "dev:backend": "cd backend && npm run dev",
+    "start": "node desktop/main.js",
+    "start:desktop": "electron . --desktop",
+    "mobile:bridge": "esbuild mobile-src/native-bridge.js --bundle --format=iife --target=es2020 --outfile=frontend/js/native-bridge.js",
+    "android:add": "cap add android",
+    "android:sync": "npm run mobile:bridge && cap sync android",
+    "android:apk": "npm run android:sync && cd android && gradlew.bat assembleDebug",
+    "android:release": "npm run android:sync && cd android && gradlew.bat assembleRelease",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "install:desktop": "npm install electron electron-builder --save-dev",
+    "postinstall": "cd backend && npm install && cd .. && npm install electron electron-builder --save-dev"
+  },
+  "license": "MIT",
+  "build": {
+    "appId": "com.qarrib.desktop",
+    "productName": "Qarrab Healthcare",
+    "electronVersion": "31.3.1",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "desktop/main.js",
+      "desktop/preload.js",
+      "frontend/**/*",
+      "backend/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "extraResources": [
+      {
+        "from": "backend/",
+        "to": "backend"
+      },
+      {
+        "from": "frontend/",
+        "to": "frontend"
+      }
+    ]
+  },
+  "devDependencies": {
+    "@capacitor/android": "^7.6.9",
+    "@capacitor/cli": "^7.6.9",
+    "electron": "^44.4.5",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.25.12"
+  },
+  "dependencies": {
+    "@capacitor/core": "^7.6.9",
+    "@capacitor/geolocation": "^7.1.8"
+  }
+}

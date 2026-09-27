@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تسجيل مريض - أدمن</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        .page-header { background: linear-gradient(135deg,#7C3AED,#6D28D9); color:white; padding:20px; display:flex; align-items:center; gap:12px; }
+        .page-title { font-size:24px; font-weight:800; }
+        .form-section { padding:20px; }
+        .form-card { background:white; border-radius:16px; padding:24px; margin-bottom:20px; box-shadow:0 2px 8px rgba(0,0,0,.1); }
+        .form-group { margin-bottom:16px; }
+        .form-label { display:block; font-weight:600; margin-bottom:8px; color:#374151; }
+        .form-input { width:100%; padding:12px 16px; border:2px solid #e2e8f0; border-radius:12px; font-size:16px; }
+        .form-input:focus { border-color:#2563eb; outline:none; }
+        .btn-primary { width:100%; padding:14px; background:#7C3AED; color:white; border:none; border-radius:12px; font-size:16px; font-weight:700; cursor:pointer; }
+        .btn-secondary { width:100%; padding:14px; background:#6B7280; color:white; border:none; border-radius:12px; font-size:16px; font-weight:700; cursor:pointer; margin-top:8px; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="page-header">
+            <button class="back-btn" onclick="history.back()">→</button>
+            <div class="page-title">👥 تسجيل مريض جديد</div>
+        </div>
+        <div class="form-section">
+            <div class="form-card">
+                <h3 style="margin-bottom:16px;">بيانات المريض</h3>
+                <div class="form-group"><label class="form-label">الاسم الكامل</label><input type="text" class="form-input" id="name" placeholder="أدخل الاسم"></div>
+                <div class="form-group"><label class="form-label">البريد الإلكتروني</label><input type="email" class="form-input" id="email" placeholder="example@email.com"></div>
+                <div class="form-group"><label class="form-label">رقم الهاتف</label><input type="tel" class="form-input" id="phone" placeholder="01xxxxxxxxx"></div>
+                <div class="form-group"><label class="form-label">كلمة المرور</label><input type="password" class="form-input" id="password" placeholder="••••••••"></div>
+                <div class="form-group"><label class="form-label">الرقم القومي</label><input type="text" class="form-input" id="nationalId" placeholder="14 رقم"></div>
+                <button class="btn-primary" onclick="registerPatient()">تسجيل المريض</button>
+            </div>
+        </div>
+    </div>
+    <script>window.QARRAB_API_URL = "https://qarrib.onrender.com";</script>
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script>
+        if (!requireRole('admin')) redirectToLogin();
+        async function registerPatient() {
+            const name = document.getElementById('name').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const phone = document.getElementById('phone').value.trim();
+            const password = document.getElementById('password').value;
+            const nationalId = document.getElementById('nationalId').value.trim();
+            if (!name || !email || !phone || !password) { showAlert('أكمل جميع الحقول','error'); return; }
+            try {
+                const r = await api.registerPatient({ name, email, phone, password, nationalId });
+                if (r.success) { showAlert('تم التسجيل بنجاح!'); setTimeout(() => window.location.href='manage-patients.html', 1500); }
+                else showAlert(r.message || 'فشل التسجيل','error');
+            } catch(e) { showAlert('فشل الاتصال','error'); }
+        }
+    </script>
+</body>
+</html>

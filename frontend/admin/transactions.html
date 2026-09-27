@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>المعاملات - أدمن</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        .page-header { background: linear-gradient(135deg,#059669,#047857); color:white; padding:20px; display:flex; align-items:center; gap:12px; }
+        .page-title { font-size:24px; font-weight:800; }
+        .stats-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; padding:20px; }
+        .stat-card { background:white; border-radius:12px; padding:20px; text-align:center; box-shadow:0 2px 8px rgba(0,0,0,.1); }
+        .stat-value { font-size:28px; font-weight:800; color:#1E40AF; }
+        .stat-label { font-size:12px; color:#64748b; margin-top:4px; }
+        .transactions-list { padding:0 20px 20px; }
+        .tx-item { background:white; border-radius:12px; padding:16px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 1px 3px rgba(0,0,0,.1); }
+        .tx-info h4 { font-size:14px; margin-bottom:4px; }
+        .tx-info p { font-size:12px; color:#64748b; }
+        .tx-amount { font-weight:700; font-size:16px; }
+        .tx-amount.positive { color:#059669; }
+        .tx-amount.negative { color:#DC2626; }
+        .empty-state { text-align:center; padding:60px 20px; color:#64748b; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="page-header">
+            <div class="page-title">💰 المعاملات</div>
+        </div>
+        <div class="stats-grid">
+            <div class="stat-card"><div class="stat-value" id="statRevenue">0</div><div class="stat-label">الإيرادات</div></div>
+            <div class="stat-card"><div class="stat-value" id="statFees">0</div><div class="stat-label">العمولات</div></div>
+            <div class="stat-card"><div class="stat-value" id="statNurseEarn">0</div><div class="stat-label">أرباح الممرضات</div></div>
+        </div>
+        <div class="transactions-list" id="txList"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+    <script>window.QARRAB_API_URL = "https://qarrib.onrender.com";</script>
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script>
+        if (!requireRole('admin')) redirectToLogin();
+        async function loadData() {
+            try {
+                const r = await api.getTransactions();
+                if (r.success) {
+                    const data = r.data;
+                    if (data.stats) {
+                        document.getElementById('statRevenue').textContent = 'Q' + (data.stats.revenue||0);
+                        document.getElementById('statFees').textContent = 'Q' + (data.stats.fees||0);
+                        document.getElementById('statNurseEarn').textContent = 'Q' + (data.stats.nurseEarnings||0);
+                    }
+                    const c = document.getElementById('txList');
+                    const txs = data.transactions || [];
+                    if (!txs.length) { c.innerHTML = '<div class="empty-state">لا توجد معاملات</div>'; return; }
+                    c.innerHTML = txs.map(t => {
+                        const isPos = t.type === 'credit' || t.type === 'deposit';
+                        return '<div class="tx-item"><div class="tx-info"><h4>' + (t.description||'Transaction') + '</h4><p>' + formatDate(t.createdAt) + '</p></div><div class="tx-amount ' + (isPos?'positive':'negative') + '">' + (isPos?'+':'-') + ' Q' + Math.abs(t.amount||0).toFixed(2) + '</div></div>';
+                    }).join('');
+                }
+            } catch(e) { showAlert('فشل','error'); }
+        }
+        loadData();
+    </script>
+</body>
+</html>

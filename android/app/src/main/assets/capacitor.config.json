@@ -1,0 +1,8 @@
+{
+	"appId": "com.qarrab.healthcare",
+	"appName": "Qarrab Healthcare",
+	"webDir": "frontend",
+	"server": {
+		"androidScheme": "https"
+	}
+}

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تعيين الأسعار - أدمن</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        .page-header { background: linear-gradient(135deg,#1E40AF,#1D4ED8); color:white; padding:20px; display:flex; align-items:center; gap:12px; }
+        .page-title { font-size:24px; font-weight:800; }
+        .back-btn { background:rgba(255,255,255,.2); border:none; color:white; width:40px; height:40px; border-radius:50%; cursor:pointer; font-size:20px; }
+        .prices-list { padding:20px; }
+        .price-card { background:white; border-radius:12px; padding:16px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 8px rgba(0,0,0,.1); }
+        .price-service { font-weight:700; font-size:16px; }
+        .price-value { font-size:18px; font-weight:800; color:#059669; }
+        .delete-btn { padding:6px 12px; background:#EF4444; color:white; border:none; border-radius:8px; cursor:pointer; font-size:12px; }
+        .form-section { padding:20px; }
+        .form-card { background:white; border-radius:16px; padding:20px; margin-bottom:20px; box-shadow:0 2px 8px rgba(0,0,0,.1); }
+        .form-group { margin-bottom:16px; }
+        .form-label { display:block; font-weight:600; margin-bottom:8px; color:#374151; }
+        .form-input { width:100%; padding:12px 16px; border:2px solid #e2e8f0; border-radius:12px; font-size:16px; }
+        .form-input:focus { border-color:#2563eb; outline:none; }
+        .services-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:16px; }
+        .service-chip { padding:12px; border-radius:20px; background:#F3F4F6; text-align:center; cursor:pointer; }
+        .service-chip.active { background:#1E40AF; color:white; }
+        .btn-primary { width:100%; padding:14px; background:#1E40AF; color:white; border:none; border-radius:12px; font-size:16px; font-weight:700; cursor:pointer; }
+        .empty-state { text-align:center; padding:60px 20px; color:#64748b; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="page-header">
+            <button class="back-btn" onclick="history.back()">→</button>
+            <div class="page-title">💵 تعيين الأسعار</div>
+        </div>
+        <div class="form-section">
+            <div class="form-card">
+                <h3 style="margin-bottom:16px;">تعيين سعر خدمة جديدة</h3>
+                <div class="form-group"><label class="form-label">اختر الخدمة</label>
+                    <div class="services-grid" id="servicesGrid">
+                        <div class="service-chip active" data-service="injection">💉 حقن</div>
+                        <div class="service-chip" data-service="wound">🩹 جروح</div>
+                        <div class="service-chip" data-service="checkup">🩺 فحص</div>
+                        <div class="service-chip" data-service="elderly">👴 مسنين</div>
+                        <div class="service-chip" data-service="iv">💊 محاليل</div>
+                        <div class="service-chip" data-service="physio">💪 علاج طبيعي</div>
+                        <div class="service-chip" data-service="other">🏥 أخرى</div>
+                    </div>
+                </div>
+                <div class="form-group"><label class="form-label">السعر (Q)</label><input type="number" class="form-input" id="priceInput" placeholder="أدخل السعر"></div>
+                <button class="btn-primary" onclick="setPrice()">تعيين السعر</button>
+            </div>
+        </div>
+        <div class="prices-list" id="pricesList"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+    <script>window.QARRAB_API_URL = "https://qarrib.onrender.com";</script>
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script>
+        if (!requireRole('admin')) redirectToLogin();
+        let selectedService = 'injection';
+        document.querySelectorAll('.service-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                document.querySelectorAll('.service-chip').forEach(c => c.classList.remove('active'));
+                chip.classList.add('active');
+                selectedService = chip.dataset.service;
+            });
+        });
+        async function setPrice() {
+            const price = document.getElementById('priceInput').value;
+            if (!price) { showAlert('أدخل السعر','error'); return; }
+            try {
+                const r = await api.setPrice({ serviceType: selectedService, price: parseFloat(price) });
+                if (r.success) { showAlert('تم التعيين'); loadPrices(); document.getElementById('priceInput').value = ''; }
+            } catch(e) { showAlert('فشل','error'); }
+        }
+        async function loadPrices() {
+            try {
+                const r = await api.getPrices();
+                const c = document.getElementById('pricesList');
+                const prices = r.success ? (r.data.prices || r.data) : [];
+                if (!prices.length) { c.innerHTML = '<div class="empty-state">لا توجد أسعار</div>'; return; }
+                c.innerHTML = prices.map(p => {
+                    const id = p._id || p.id;
+                    const serviceName = p.nameAr || p.serviceType || p.name || 'خدمة';
+                    const servicePrice = p.basePrice != null ? p.basePrice : (p.price || 0);
+                    return '<div class="price-card"><div><div class="price-service">' + serviceName + '</div></div><div style="display:flex;align-items:center;gap:12px;"><div class="price-value">' + servicePrice + ' ج.م</div><button class="delete-btn" onclick="deletePrice(\'' + id + '\')">إيقاف</button></div></div>';
+                }).join('');
+            } catch(e) {}
+        }
+        async function deletePrice(id) {
+            if (!confirm('حذف هذا السعر؟')) return;
+            try { await api.request('DELETE', '/admin/price/' + id, {}); showAlert('تم الحذف'); loadPrices(); } catch(e) { showAlert('فشل','error'); }
+        }
+        loadPrices();
+    </script>
+</body>
+</html>

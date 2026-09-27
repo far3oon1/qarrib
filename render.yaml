@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: qarrib
+    runtime: node
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: OWNER_INSTAPAY_NUMBER
+        value: "01150209401"
+      - key: MONGODB_URI
+        value: "mongodb+srv://ziad2000mahmoud_db_user:3BvBCNCBodVI21OD@cluster0.evhegjt.mongodb.net/"
+      - key: JWT_SECRET
+        value: "change_me_to_long_random_string"
+      - key: JWT_REFRESH_SECRET
+        value: "change_me_to_long_random_string_2"
+      - key: ADMIN_DEFAULT_EMAIL
+        value: admin@qarrab.com
+      - key: ADMIN_DEFAULT_PASSWORD
+        value: "change_me"
+      - key: ADMIN_SECRET_KEY
+        value: "change_me_to_secret_key"
+      - key: CLIENT_URL
+        value: "https://far3oon1.github.io/qarrib"
