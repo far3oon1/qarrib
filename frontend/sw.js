@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qarrib-mobile-v3';
+const CACHE_NAME = 'qarrib-mobile-v4';
 const APP_SHELL = [
   '/',
   '/login.html',
