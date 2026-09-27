@@ -26,6 +26,9 @@ var API_BASE_URL = (function () {
     if (currentHost === 'qarrib1.vercel.app' || currentHost.endsWith('.vercel.app')) {
         return 'https://qarrib.onrender.com/api';
     }
+    if (configuredUrl) {
+        return configuredUrl.replace(/\/$/, '') + '/api';
+    }
     if (protocol.indexOf('http') === 0) {
         var port = String(window.location.port || '');
         if (port === '' || port === '5000') {
@@ -33,9 +36,6 @@ var API_BASE_URL = (function () {
         }
         var host = window.location.hostname || 'localhost';
         return protocol + '//' + host + ':5000/api';
-    }
-    if (configuredUrl) {
-        return configuredUrl.replace(/\/$/, '') + '/api';
     }
     return 'http://localhost:5000/api';
 })();
