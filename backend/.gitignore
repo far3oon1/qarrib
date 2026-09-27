@@ -1,0 +1,11 @@
+node_modules/
+.env
+.env.local
+.env.*.local
+npm-debug.log*
+logs/*.log
+uploads/temp/*
+!uploads/temp/.gitkeep
+.DS_Store
+.vscode/
+.idea/

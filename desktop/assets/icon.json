@@ -1,0 +1,7 @@
+// Qarrab Desktop Icon Placeholder
+// Replace with actual .ico file for production
+module.exports = {
+  name: 'Qarrab Healthcare',
+  version: '1.0.0-desktop',
+  appId: 'com.qarrib.desktop'
+};

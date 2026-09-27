@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة الممرضات - أدمن</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        .page-header { background: linear-gradient(135deg,#059669,#047857); color:white; padding:20px; display:flex; align-items:center; justify-content:space-between; }
+        .page-title { font-size:24px; font-weight:800; }
+        .add-btn { background:white; color:#059669; border:none; padding:10px 20px; border-radius:12px; font-weight:700; cursor:pointer; }
+        .nurse-list { padding:20px; }
+        .nurse-card { background:white; border-radius:16px; padding:20px; margin-bottom:12px; box-shadow:0 2px 8px rgba(0,0,0,.1); display:flex; align-items:center; justify-content:space-between; }
+        .nurse-info { display:flex; align-items:center; gap:12px; }
+        .nurse-avatar { width:50px; height:50px; border-radius:50%; background:linear-gradient(135deg,#059669,#047857); display:flex; align-items:center; justify-content:center; color:white; font-size:24px; font-weight:700; }
+        .nurse-details h4 { font-size:16px; margin-bottom:4px; }
+        .nurse-details p { font-size:13px; color:#64748b; }
+        .nurse-actions { display:flex; gap:8px; }
+        .nurse-actions button { padding:6px 12px; border-radius:8px; border:none; cursor:pointer; font-size:12px; font-weight:600; }
+        .btn-online { background:#059669; color:white; }
+        .btn-offline { background:#EF4444; color:white; }
+        .btn-edit { background:#2563eb; color:white; }
+        .filter-bar { padding:16px 20px; display:flex; gap:8px; }
+        .filter-btn { padding:8px 16px; border-radius:20px; border:1px solid #e2e8f0; background:white; cursor:pointer; font-size:13px; }
+        .filter-btn.active { background:#059669; color:white; border-color:#059669; }
+        .empty-state { text-align:center; padding:60px 20px; color:#64748b; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="page-header">
+            <div class="page-title">👨‍⚕️ إدارة الممرضات</div>
+            <button class="add-btn" onclick="window.location.href='nurse-register.html'">➕ إضافة ممرضة</button>
+        </div>
+        <div class="filter-bar">
+            <button class="filter-btn active" onclick="filterNurses('all')">الكل</button>
+            <button class="filter-btn" onclick="filterNurses('online')">متصلين</button>
+            <button class="filter-btn" onclick="filterNurses('offline')">غير متصلين</button>
+        </div>
+        <div class="nurse-list" id="nurseList"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+    <script>window.QARRAB_API_URL = "https://qarrib.onrender.com";</script>
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script>
+        if (!requireRole('admin')) redirectToLogin();
+        let allNurses = [];
+        async function loadNurses() {
+            try {
+                const result = await api.getAllNurses();
+                if (result.success) {
+                    allNurses = result.data.nurses || result.data;
+                    renderNurses(allNurses);
+                }
+            } catch(e) { showAlert('فشل تحميل الممرضات','error'); }
+        }
+        function renderNurses(nurses) {
+            const c = document.getElementById('nurseList');
+            if (!nurses.length) { c.innerHTML = '<div class="empty-state"><div class="empty-state-icon">👨‍⚕️</div><p>لا توجد ممرضات</p></div>'; return; }
+            c.innerHTML = nurses.map(n => {
+                const id = n._id || n.id;
+                return '<div class="nurse-card">' +
+                    '<div class="nurse-info">' +
+                        '<div class="nurse-avatar">' + (n.name.charAt(0)) + '</div>' +
+                        '<div class="nurse-details"><h4>' + n.name + '</h4><p>' + n.email + '</p><p>ترخيص: ' + (n.licenceNumber||'N/A') + '</p><p>' + (n.isOnline?'🟢':'🔴') + ' ' + (n.isVerified?'✅':'⏳') + '</p></div>' +
+                    '</div>' +
+                    '<div class="nurse-actions">' +
+                        '<button class="btn-' + (n.isOnline?'offline':'online') + '" onclick="toggleStatus(\'' + id + '\',' + n.isOnline + ')">' + (n.isOnline?'Go Offline':'Go Online') + '</button>' +
+                        '<button class="btn-edit" onclick="alert(\'Edit ' + n.name + '\')">Edit</button>' +
+                    '</div></div>';
+            }).join('');
+        }
+        async function toggleStatus(id, currentOnline) {
+            try { await api.updateNurseStatus(id, !currentOnline); showAlert('تم التحديث'); loadNurses(); } catch(e) { showAlert('فشل','error'); }
+        }
+        function filterNurses(f) {
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            const filtered = f === 'all' ? allNurses : allNurses.filter(n => f === 'online' ? n.isOnline : !n.isOnline);
+            renderNurses(filtered);
+        }
+        loadNurses();
+    </script>
+</body>
+</html>

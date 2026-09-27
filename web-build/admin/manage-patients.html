@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة المرضى - أدمن</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        .page-header { background: linear-gradient(135deg,#7C3AED,#6D28D9); color:white; padding:20px; display:flex; align-items:center; justify-content:space-between; }
+        .page-title { font-size:24px; font-weight:800; }
+        .add-btn { background:white; color:#7C3AED; border:none; padding:10px 20px; border-radius:12px; font-weight:700; cursor:pointer; }
+        .patient-list { padding:20px; }
+        .patient-card { background:white; border-radius:16px; padding:20px; margin-bottom:12px; box-shadow:0 2px 8px rgba(0,0,0,.1); display:flex; align-items:center; justify-content:space-between; }
+        .patient-info { display:flex; align-items:center; gap:12px; }
+        .patient-avatar { width:50px; height:50px; border-radius:50%; background:linear-gradient(135deg,#7C3AED,#6D28D9); display:flex; align-items:center; justify-content:center; color:white; font-size:24px; font-weight:700; }
+        .patient-details h4 { font-size:16px; margin-bottom:4px; }
+        .patient-details p { font-size:13px; color:#64748b; }
+        .patient-actions { display:flex; gap:8px; }
+        .patient-actions button { padding:6px 12px; border-radius:8px; border:none; cursor:pointer; font-size:12px; font-weight:600; background:#7C3AED; color:white; }
+        .empty-state { text-align:center; padding:60px 20px; color:#64748b; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="page-header">
+            <div class="page-title">👥 إدارة المرضى</div>
+            <button class="add-btn" onclick="window.location.href='patient-register.html'">➕ إضافة مريض</button>
+        </div>
+        <div class="patient-list" id="patientList"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+    <script>window.QARRAB_API_URL = "https://qarrib.onrender.com";</script>
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script>
+        if (!requireRole('admin')) redirectToLogin();
+        async function loadPatients() {
+            try {
+                const result = await api.getAllPatients();
+                const c = document.getElementById('patientList');
+                const patients = result.success ? (result.data.patients || result.data) : [];
+                if (!patients.length) { c.innerHTML = '<div class="empty-state"><div class="empty-state-icon">👥</div><p>لا يوجد مرضى</p></div>'; return; }
+                c.innerHTML = patients.map(p => {
+                    const id = p._id || p.id;
+                    return '<div class="patient-card">' +
+                        '<div class="patient-info">' +
+                            '<div class="patient-avatar">' + (p.name.charAt(0)) + '</div>' +
+                            '<div class="patient-details"><h4>' + p.name + '</h4><p>' + p.email + '</p><p>الرصيد: $' + (p.balance||0) + ' | ' + (p.isVerified?'✅':'⏳') + '</p></div>' +
+                        '</div>' +
+                        '<div class="patient-actions"><button onclick="alert(\'Edit ' + p.name + '\')">Edit</button></div>' +
+                    '</div>';
+                }).join('');
+            } catch(e) { showAlert('فشل','error'); }
+        }
+        loadPatients();
+    </script>
+</body>
+</html>

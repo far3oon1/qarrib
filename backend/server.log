@@ -1,0 +1,7 @@
+
+> qarrab-api@1.0.0 start
+> node src/server.js
+
+[32minfo[39m: Qarrab API running on port 3000 {"timestamp":"2026-09-26 00:38:46"}
+[32minfo[39m: Environment: development {"timestamp":"2026-09-26 00:38:46"}
+✅ MongoDB Connected: 127.0.0.1

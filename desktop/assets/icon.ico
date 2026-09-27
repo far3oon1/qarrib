@@ -1,0 +1,6 @@
+// Placeholder icon - create a real .ico file for production
+// For now, we'll use a default Electron icon
+module.exports = {
+  name: 'Qarrab Healthcare',
+  appId: 'com.qarrib.desktop'
+};
