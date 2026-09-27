@@ -1,7 +1,1 @@
-@'
-{
-  "buildCommand": "echo 'Skipping build'",
-  "outputDirectory": "frontend",
-  "framework": null
-}
-'@ | Out-File -Encoding utf8 vercel.json
+﻿{"buildCommand":"echo skip","outputDirectory":"frontend","framework":null,"installCommand":"echo skip"}
