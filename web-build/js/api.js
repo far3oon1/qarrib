@@ -23,6 +23,9 @@ var API_BASE_URL = (function () {
     if (currentHost === 'qarrib.onrender.com' || currentHost.endsWith('.onrender.com')) {
         return currentOrigin ? currentOrigin + '/api' : 'https://qarrib.onrender.com/api';
     }
+    if (currentHost === 'qarrib1.vercel.app' || currentHost.endsWith('.vercel.app')) {
+        return 'https://qarrib.onrender.com/api';
+    }
     if (protocol.indexOf('http') === 0) {
         var port = String(window.location.port || '');
         if (port === '' || port === '5000') {

@@ -61,7 +61,7 @@ app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false 
 const configuredOrigins = (process.env.CLIENT_URL || '*').split(',').map((s) => s.trim()).filter(Boolean);
 const allowedOrigins = new Set(configuredOrigins);
 const isLocalOrigin = (origin) => typeof origin === 'string' && /^(https?:\/\/)?(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?$/.test(origin.replace(/\/$/, ''));
-const isPublicHostedOrigin = (origin) => typeof origin === 'string' && /^(https?:\/\/)?([\w-]+\.)?(onrender\.com|github\.io)(:\d+)?$/.test(origin.replace(/\/$/, ''));
+const isPublicHostedOrigin = (origin) => typeof origin === 'string' && /^(https?:\/\/)?([\w-]+\.)*(onrender\.com|github\.io|vercel\.app)(:\d+)?$/.test(origin.replace(/\/$/, ''));
 app.use(cors({
   origin: (origin, cb) => {
     if (!origin || allowedOrigins.has('*') || allowedOrigins.has(origin) || isLocalOrigin(origin) || isPublicHostedOrigin(origin)) {

@@ -7,8 +7,15 @@ let io = null;
 
 function initializeSocket(server) {
   const { Server } = require('socket.io');
+  const clientOrigins = new Set((process.env.CLIENT_URL || '*').split(',').map((s) => s.trim()).filter(Boolean));
+  const isAllowedSocketOrigin = (origin) => {
+    if (!origin || clientOrigins.has('*') || clientOrigins.has(origin)) return true;
+    var clean = String(origin).replace(/\/$/, '');
+    if (/^(https?:\/\/)?(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?$/.test(clean)) return true;
+    return /^(https?:\/\/)?([\w-]+\.)*(onrender\.com|github\.io|vercel\.app)(:\d+)?$/.test(clean);
+  };
   io = new Server(server, {
-    cors: { origin: process.env.CLIENT_URL || '*', methods: ['GET', 'POST'] }
+    cors: { origin: (origin, cb) => (isAllowedSocketOrigin(origin) ? cb(null, true) : cb(null, false)), methods: ['GET', 'POST'] }
   });
 
   io.use(async (socket, next) => {
