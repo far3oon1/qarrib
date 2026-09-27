@@ -7,7 +7,7 @@ let io = null;
 
 function initializeSocket(server) {
   const { Server } = require('socket.io');
-  const clientOrigins = new Set((process.env.CLIENT_URL || '*').split(',').map((s) => s.trim()).filter(Boolean));
+  const clientOrigins = new Set((process.env.CLIENT_URL || '*').split(',').map((s) => s.trim().replace(/\/+$/, '')).filter(Boolean));
   const isAllowedSocketOrigin = (origin) => {
     if (!origin || clientOrigins.has('*') || clientOrigins.has(origin)) return true;
     var clean = String(origin).replace(/\/$/, '');
