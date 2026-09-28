@@ -199,6 +199,10 @@
                                 lng: position.coords.longitude,
                                 orderId: orderId
                             });
+                        } else if (!window._lastNurseLocPost || Date.now() - window._lastNurseLocPost > 15000) {
+                            // REST fallback (throttled): used when websockets are unavailable (serverless hosting)
+                            window._lastNurseLocPost = Date.now();
+                            try { api.updateNurseLocation(position.coords.latitude, position.coords.longitude, orderId).catch(function() {}); } catch (e) {}
                         }
                     },
                     function() {},
@@ -206,7 +210,9 @@
                 );
             }
 
-            nurseOrderSocket = io({ auth: { token: localStorage.getItem('token') } });
+            if (typeof io === 'undefined') { nurseOrderSocket = null; return; }
+            try { nurseOrderSocket = io({ auth: { token: localStorage.getItem('token') } }); }
+            catch (e) { nurseOrderSocket = null; return; }
             nurseOrderSocket.on('connect', function() {
                 nurseOrderSocket.emit('subscribe_location', { orderId: orderId });
             });
