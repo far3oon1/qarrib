@@ -214,8 +214,8 @@
     </div>
 
 <script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
-<script src="js/api.js"></script>
-<script src="js/auth.js"></script>
+<script src="js/api.js?v=5"></script>
+<script src="js/auth.js?v=5"></script>
 <script>
         function showAlert(elId, message, type = 'error') {
             const el = document.getElementById(elId);
@@ -252,6 +252,12 @@
                     // Store the admin user — without this every admin page
                     // bounces back to login (looks like an instant logout).
                     if (result.data) setUser(result.data.user || result.data.admin || result.data);
+                    if (getRole() !== 'admin') {
+                        showAlert('alert-error', 'تعذر حفظ الجلسة في المتصفح — حدّث الصفحة (Ctrl+Shift+R) وحاول مجدداً');
+                        btn.disabled = false;
+                        spinner.classList.remove('show');
+                        return;
+                    }
                     showAlert('alert-success', 'تم تسجيل الدخول بنجاح! جاري التحويل...', 'success');
                     setTimeout(function() {
                         window.location.href = '/admin/dashboard.html';
