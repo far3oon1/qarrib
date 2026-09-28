@@ -14,7 +14,7 @@ services:
       - key: OWNER_INSTAPAY_NUMBER
         value: "01150209401"
       - key: MONGODB_URI
-        value: "mongodb+srv://ziad2000mahmoud_db_user:3BvBCNCBodVI21OD@cluster0.evhegjt.mongodb.net/"
+        value: "mongodb+srv://ziad2000mahmoud_db_user:u5gC1h40xFAf9XNc@cluster0.evhegjt.mongodb.net/"
       - key: JWT_SECRET
         value: "change_me_to_long_random_string"
       - key: JWT_REFRESH_SECRET
