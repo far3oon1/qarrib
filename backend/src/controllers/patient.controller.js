@@ -158,35 +158,38 @@ const requestService = asyncHandler(async (req, res) => {
   if (serviceType) {
     serviceDoc = await Service.findOne({ $or: [{ name: serviceType }, { nameAr: serviceType }], isActive: true });
   }
-  // Admin pricing comes first: never create unpriced services for nurses to take
-  const { assertAdminPriced } = require('../utils/adminPricing');
-  assertAdminPriced(serviceDoc, 'هذه الخدمة غير مسعرة بعد من الإدارة — لا يمكن إنشاء الطلب حالياً');
+  if (!serviceDoc) throw new ApiError(400, 'هذه الخدمة غير موجودة');
+  // Admin pricing comes first: unpriced requests wait in review (same as /orders/create)
+  const { adminPriceOf } = require('../utils/adminPricing');
+  const pricedService = serviceDoc.isActive !== false && adminPriceOf(serviceDoc) != null;
 
   const order = await Order.create({
     patient: patient._id, service: serviceDoc._id,
     description: (description || '').trim() || ('طلب خدمة: ' + serviceDoc.nameAr),
     location: { governorate: governorate || 'Cairo', city: city || 'Cairo', address: address || '', coordinates: { lat: plat, lng: plng } },
-    preferredDate: new Date(), preferredTime: 'anytime', status: 'open',
-    statusHistory: [{ status: 'open', changedBy: patient._id, notes: 'Request created' }]
+    preferredDate: new Date(), preferredTime: 'anytime', status: pricedService ? 'open' : 'under_review',
+    statusHistory: [{ status: pricedService ? 'open' : 'under_review', changedBy: patient._id, notes: 'Request created' }]
   });
 
-  const nurses = await User.find({ role: 'nurse', status: 'approved', isActive: true }).select('_id').limit(50);
-  for (const n of nurses) {
-    await Notification.create({ recipient: n._id, title: 'طلب جديد متاح', message: `طلب جديد: ${serviceDoc.nameAr}`, type: 'order', data: { orderId: order._id } });
+  const { notifyNewOrder } = require('../utils/notifyOrder');
+  if (pricedService) {
+    const { nurses } = await notifyNewOrder({ order, serviceDoc, gov: governorate || 'Cairo', amount: adminPriceOf(serviceDoc) });
+    emitToOrder(order._id, 'new_order', { orderId: order._id, governorate: governorate || 'Cairo' });
+    try {
+      const { emitToUser } = require('../sockets');
+      nurses.forEach((n) => emitToUser(String(n._id), 'notification', { title: 'طلب جديد متاح', orderId: order._id }));
+    } catch (_) { /* sockets optional */ }
+  } else {
+    const admins = await User.find({ role: 'admin' }).select('_id').limit(20);
+    for (const a of admins) {
+      await Notification.create({ recipient: a._id, title: 'طلب جديد يحتاج تسعير 💰', message: `طلب جديد #${order.orderNumber}: ${serviceDoc.nameAr} — حدد السعر ليظهر للممرضين`, type: 'order', data: { orderId: order._id } });
+    }
+    await Notification.create({ recipient: patient._id, title: 'طلبك قيد مراجعة الإدارة', message: `استلمنا طلبك (${serviceDoc.nameAr}) — الإدارة ستحدد السعر قريباً`, type: 'order', data: { orderId: order._id } });
   }
-  const admins = await User.find({ role: 'admin' }).select('_id').limit(20);
-  for (const a of admins) {
-    await Notification.create({ recipient: a._id, title: 'طلب خدمة جديد', message: `طلب جديد #${order.orderNumber}`, type: 'order', data: { orderId: order._id } });
-  }
-  emitToOrder(order._id, 'new_order', { orderId: order._id, governorate: governorate || 'Cairo' });
-  try {
-    const { emitToUser } = require('../sockets');
-    nurses.forEach((n) => emitToUser(String(n._id), 'notification', { title: 'طلب جديد متاح', orderId: order._id }));
-  } catch (_) { /* sockets optional */ }
 
   const populated = await Order.findById(order._id).populate('service', 'nameAr basePrice').populate('patient', 'fullName phone');
   const { shapeOrder } = require('../utils/orderShape');
-  ResponseHelper.success(res, shapeOrder(populated), 'Request created successfully', 201);
+  ResponseHelper.success(res, shapeOrder(populated), pricedService ? 'Request created successfully' : 'تم استلام طلبك — قيد مراجعة الإدارة لتحديد السعر', 201);
 });
 
 const giveFeedback = asyncHandler(async (req, res) => {

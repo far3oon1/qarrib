@@ -348,6 +348,9 @@ API.prototype.getAdminPayments = function () {
 API.prototype.completeOrderAdmin = function (id) {
     return this.request('POST', '/admin/orders/' + id + '/complete');
 };
+API.prototype.setOrderPrice = function (orderId, price) {
+    return this.request('POST', '/admin/orders/' + orderId + '/set-price', { price: price });
+};
 API.prototype.getVersion = function () {
     return this.request('GET', '/health');
 };

@@ -47,6 +47,7 @@
         <div class="filter-bar" style="padding: 16px 20px; display: flex; gap: 8px;">
             <button class="filter-btn active" onclick="filterOrders('')">الكل</button>
             <button class="filter-btn" onclick="filterOrders('pending')">قيد الانتظار</button>
+            <button class="filter-btn" onclick="filterOrders('under_review')">قيد مراجعة السعر 💰</button>
             <button class="filter-btn" onclick="filterOrders('in_progress')">جاري</button>
             <button class="filter-btn" onclick="filterOrders('completed')">مكتمل</button>
         </div>
@@ -90,6 +91,9 @@
                                 <button class="btn btn-outline btn-sm" style="flex:1;" onclick="viewOffers('${order.id}')">عروض السعر / قبول 💰</button>
                                 <button class="btn btn-outline btn-sm" style="flex:1;" onclick="window.location.href='chat-room.html?order=${order.id}'">شات 💬</button>
                             </div>
+                            ${order.status === 'under_review' ? `
+                                <button class="btn btn-secondary btn-sm" style="width:100%;margin-top:8px;" onclick="setOrderPrice('${order.id}')">💰 تحديد السعر وإتاحة الطلب للممرضين</button>
+                            ` : ''}
                             <div id="offers-${order.id}" style="margin-top:8px;"></div>
                             ${(order.nurseConfirmed && order.status !== 'completed' && order.status !== 'cancelled') ? `
                                 <button class="btn btn-secondary btn-sm" style="width:100%;margin-top:8px;" onclick="approveCompletion('${order.id}')">تأكيد الإنجاز وتحويل المبلغ للممرض ✅</button>
@@ -105,7 +109,7 @@
         }
 
         function getStatusText(status) {
-            const map = { 'pending': 'قيد الانتظار', 'accepted': 'مقبول', 'in_progress': 'جاري', 'completed': 'مكتمل', 'cancelled': 'ملغي' };
+            const map = { 'pending': 'قيد الانتظار', 'under_review': 'قيد مراجعة السعر', 'accepted': 'مقبول', 'in_progress': 'جاري', 'completed': 'مكتمل', 'cancelled': 'ملغي' };
             return map[status] || status;
         }
 
@@ -113,6 +117,20 @@
             document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
             event.target.classList.add('active');
             loadOrders(status);
+        }
+
+        async function setOrderPrice(orderId) {
+            const val = prompt('سعر الخدمة بالجنيه:', '');
+            if (val == null || val === '') return;
+            const price = parseFloat(val);
+            if (!price || price <= 0) { showAlert('أدخل سعراً صحيحاً أكبر من صفر', 'error'); return; }
+            try {
+                const result = await api.setOrderPrice(orderId, price);
+                showAlert(result.message || 'تم تحديد السعر');
+                loadOrders();
+            } catch (error) {
+                showAlert(error.message || 'فشل تحديد السعر', 'error');
+            }
         }
 
         async function approveCompletion(orderId) {
