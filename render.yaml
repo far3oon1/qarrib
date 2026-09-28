@@ -14,7 +14,7 @@ services:
       - key: OWNER_INSTAPAY_NUMBER
         value: "***REMOVED***"
       - key: MONGODB_URI
-        value: "mongodb+srv://***REMOVED***:3BvBCNCBodVI21OD@***REMOVED***/"
+        value: "mongodb+srv://***REMOVED***/"
       - key: JWT_SECRET
         value: "change_me_to_long_random_string"
       - key: JWT_REFRESH_SECRET
