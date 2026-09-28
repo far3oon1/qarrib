@@ -36,12 +36,10 @@ async function connectDB() {
   return cached.conn;
 }
 
-const serverless = require('serverless-http');
 const app = require('../backend/src/app');
 
-const handler = serverless(app);
-
 module.exports = async (req, res) => {
-  // TEMP BISECT: skip DB entirely to isolate the hang. Remove after diagnosis.
-  return handler(req, res);
+  // TEMP BISECT: express app exported directly (no serverless-http wrapper),
+  // DB bypassed — isolates whether the hang is in the wrapper layer.
+  return app(req, res);
 };
