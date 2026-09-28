@@ -156,7 +156,11 @@ const requestService = asyncHandler(async (req, res) => {
 
   let serviceDoc = null;
   if (serviceType) {
-    serviceDoc = await Service.findOne({ $or: [{ name: serviceType }, { nameAr: serviceType }], isActive: true });
+    const { resolveServiceType } = require('../utils/serviceCatalog');
+    const wanted = resolveServiceType(serviceType);
+    serviceDoc = wanted
+      ? await Service.findOne({ $or: [{ name: wanted.name }, { category: wanted.category }], isActive: true })
+      : await Service.findOne({ $or: [{ name: serviceType }, { nameAr: serviceType }], isActive: true });
   }
   if (!serviceDoc) throw new ApiError(400, 'هذه الخدمة غير موجودة');
   // Admin pricing comes first: unpriced requests wait in review (same as /orders/create)

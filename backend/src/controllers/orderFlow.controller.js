@@ -44,10 +44,17 @@ const createSimple = asyncHandler(async (req, res) => {
   if (service) {
     serviceDoc = await Service.findOne({ _id: service, isActive: true });
     if (!serviceDoc) throw new ApiError(404, 'Service not found');
-  } else if (serviceType) {
-    serviceDoc = await Service.findOne({ $or: [{ name: serviceType }, { nameAr: serviceType }], isActive: true });
   } else {
-    serviceDoc = await Service.findOne({ isActive: true });
+    // Resolve frontend keys (wound/elderly/iv/...) to catalog names first
+    const { resolveServiceType } = require('../utils/serviceCatalog');
+    const wanted = serviceType ? resolveServiceType(serviceType) : null;
+    if (wanted) {
+      serviceDoc = await Service.findOne({ $or: [{ name: wanted.name }, { category: wanted.category }], isActive: true });
+    } else if (serviceType) {
+      serviceDoc = await Service.findOne({ $or: [{ name: serviceType }, { nameAr: serviceType }], isActive: true });
+    } else {
+      serviceDoc = await Service.findOne({ isActive: true });
+    }
   }
   if (!serviceDoc) throw new ApiError(400, 'This service is not configured by the admin');
 
