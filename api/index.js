@@ -42,18 +42,6 @@ const app = require('../backend/src/app');
 const handler = serverless(app);
 
 module.exports = async (req, res) => {
-  const url = String((req && req.url) || '');
-  // Never let the database hold the request longer than a few seconds —
-  // serverless functions must answer fast even when MongoDB is unreachable.
-  const dbTimeout = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error('DB connect timeout')), 8000)
-  );
-  try {
-    await Promise.race([connectDB(), dbTimeout]);
-  } catch (err) {
-    // Stay up without a database for health checks (mirrors server.js,
-    // which keeps listening when MongoDB is unreachable).
-    if (url.indexOf('/health') === -1) throw err;
-  }
+  // TEMP BISECT: skip DB entirely to isolate the hang. Remove after diagnosis.
   return handler(req, res);
 };
