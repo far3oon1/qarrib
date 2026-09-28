@@ -49,10 +49,13 @@ module.exports = async (req, res) => {
     await Promise.race([connectDB(), dbTimeout]);
   } catch (err) {
     // Stay up without a database for health checks (mirrors server.js,
-    // which keeps listening when MongoDB is unreachable).
+    // which keeps listening when MongoDB is unreachable). Other routes get
+    // a clear 503 JSON instead of a function crash.
     // NOTE: the Express app is exported directly (no serverless-http
     // wrapper) — the wrapper hangs indefinitely on Vercel's Node runtime.
-    if (url.indexOf('/health') === -1) throw err;
+    if (url.indexOf('/health') === -1) {
+      return res.status(503).json({ success: false, message: 'Database unavailable, please try again shortly.' });
+    }
   }
   return app(req, res);
 };
