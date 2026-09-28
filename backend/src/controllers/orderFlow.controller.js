@@ -52,10 +52,9 @@ const createSimple = asyncHandler(async (req, res) => {
   if (!serviceDoc) throw new ApiError(400, 'This service is not configured by the admin');
 
   const finalAmount = Number(serviceDoc.basePrice);
-  if (!Number.isFinite(finalAmount) || finalAmount <= 0) {
-    throw new ApiError(400, 'The admin has not set a price for this service yet');
-  }
-  const priced = true;
+  // Admin pricing comes first: priced services open to nurses immediately,
+  // unpriced ones wait in review until the admin sets the price.
+  const priced = Number.isFinite(finalAmount) && finalAmount > 0;
 
   const method = paymentMethod || 'wallet';
   const patient = await User.findById(req.user.id);
@@ -78,7 +77,7 @@ const createSimple = asyncHandler(async (req, res) => {
     },
     preferredDate: preferredDate ? new Date(preferredDate) : new Date(),
     preferredTime: preferredTime || 'anytime',
-    status: 'open',
+    status: priced ? 'open' : 'under_review',
     finalPrice: priced ? finalAmount : null,
     commission,
     commissionRate: COMMISSION_RATE,
@@ -87,7 +86,7 @@ const createSimple = asyncHandler(async (req, res) => {
     paymentMethod: priced ? method : null,
     paymentStatus: 'pending',
     escrowStatus: 'none',
-    statusHistory: [{ status: 'open', changedBy: req.user.id, notes: 'Request created with admin-set service price' }]
+    statusHistory: [{ status: priced ? 'open' : 'under_review', changedBy: req.user.id, notes: priced ? 'Request created with admin-set service price' : 'Request created — waiting for admin to set the price' }]
   });
 
   if (method === 'wallet' && priced) {
@@ -105,43 +104,35 @@ const createSimple = asyncHandler(async (req, res) => {
     await order.save();
   }
 
-  // Notify nearest verified nurses first (in-app) + the rest + ALL admins + realtime push
-  const nearest = await findNearestNurses({ lat: plat, lng: plng, limit: 10 });
-  const nearestIds = nearest.map((x) => x.nurse._id);
-  for (const { nurse, distanceKm } of nearest) {
+  const { notifyNewOrder } = require('../utils/notifyOrder');
+  if (priced) {
+    // Priced: visible to nurses immediately (nearest first)
+    const { nurses, admins } = await notifyNewOrder({ order, serviceDoc, gov, amount: finalAmount });
+    emitOrder(order._id, 'new_order', { orderId: order._id, governorate: gov, amount: finalAmount });
+    try {
+      const { emitToUser } = require('../sockets');
+      nurses.forEach((n) => emitToUser(String(n._id), 'notification', { title: 'طلب جديد متاح', orderId: order._id }));
+      admins.forEach((a) => emitToUser(String(a._id), 'notification', { title: 'طلب خدمة جديد', orderId: order._id }));
+    } catch (_) { /* sockets optional */ }
+  } else {
+    // Unpriced: stays hidden from nurses until the admin sets the price
+    const admins = await User.find({ role: 'admin' }).select('_id').limit(20);
+    for (const a of admins) {
+      await Notification.create({
+        recipient: a._id, title: 'طلب جديد يحتاج تسعير 💰',
+        message: `طلب جديد #${order.orderNumber}: ${serviceDoc.nameAr} في ${gov} — حدد السعر ليظهر للممرضين`,
+        type: 'order', data: { orderId: order._id }
+      });
+    }
     await Notification.create({
-      recipient: nurse._id, title: 'طلب جديد قريب منك 📍',
-      message: `طلب جديد: ${serviceDoc.nameAr} في ${gov} — على بعد ${distanceKm.toFixed(1)} كم منك (السعر: ${finalAmount} ج.م)`,
-      type: 'order', data: { orderId: order._id, distanceKm: Math.round(distanceKm * 10) / 10 }
-    });
-  }
-  const nurses = nearest.map((x) => x.nurse).concat(
-    await User.find({ role: 'nurse', status: 'approved', isActive: true, _id: { $nin: nearestIds } }).select('_id').limit(50)
-  );
-  for (const n of nurses.slice(nearest.length)) {
-    await Notification.create({
-      recipient: n._id, title: 'طلب جديد متاح',
-      message: `طلب جديد: ${serviceDoc.nameAr} في ${gov} (السعر: ${finalAmount} ج.م)`,
+      recipient: patient._id, title: 'طلبك قيد مراجعة الإدارة',
+      message: `استلمنا طلبك (${serviceDoc.nameAr}) — الإدارة ستحدد السعر قريباً ثم يظهر لأقرب الممرضين`,
       type: 'order', data: { orderId: order._id }
     });
   }
-  const admins = await User.find({ role: 'admin' }).select('_id').limit(20);
-  for (const a of admins) {
-    await Notification.create({
-      recipient: a._id, title: 'طلب خدمة جديد',
-      message: `طلب جديد #${order.orderNumber}: ${serviceDoc.nameAr} في ${gov} — السعر محدد من الإدارة`,
-      type: 'order', data: { orderId: order._id }
-    });
-  }
-  emitOrder(order._id, 'new_order', { orderId: order._id, governorate: gov, amount: finalAmount });
-  try {
-    const { emitToUser } = require('../sockets');
-    nurses.forEach((n) => emitToUser(String(n._id), 'notification', { title: 'طلب جديد متاح', orderId: order._id }));
-    admins.forEach((a) => emitToUser(String(a._id), 'notification', { title: 'طلب خدمة جديد', orderId: order._id }));
-  } catch (_) { /* sockets optional */ }
 
   const populated = await Order.findById(order._id).populate('service', 'nameAr basePrice').populate('patient', 'fullName phone');
-  ResponseHelper.success(res, shapeOrder(populated), 'Request created successfully', 201);
+  ResponseHelper.success(res, shapeOrder(populated), priced ? 'Request created successfully' : 'تم استلام طلبك — قيد مراجعة الإدارة لتحديد السعر', 201);
 });
 
 // POST /api/orders/:id/accept (nurse, first-come)

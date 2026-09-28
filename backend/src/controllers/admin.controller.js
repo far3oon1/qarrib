@@ -346,6 +346,49 @@ const reviewOrderPrice = asyncHandler(async (req, res) => {
   }
 });
 
+// POST /admin/orders/:orderId/set-price {price, notes?}
+// Admin prices a patient request (usually under_review): sets finalPrice and
+// opens it to nurses (nearest first). This is the required step before any
+// nurse can accept the order.
+const setOrderPrice = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+  const price = Number(req.body.price);
+  const notes = req.body.notes || null;
+  if (!Number.isFinite(price) || price <= 0) throw new ApiError(400, 'السعر يجب أن يكون أكبر من صفر');
+
+  const order = await Order.findById(orderId).populate('service', 'nameAr basePrice');
+  if (!order) throw new ApiError(404, 'الطلب غير موجود');
+  if (!['under_review', 'open'].includes(order.status)) {
+    throw new ApiError(400, 'لا يمكن تسعير هذا الطلب في حالته الحالية');
+  }
+
+  const rate = Number(order.commissionRate) > 0 ? Number(order.commissionRate) : 10;
+  order.finalPrice = price;
+  order.commission = Math.round(price * (rate / 100) * 100) / 100;
+  order.nurseEarnings = Math.round((price - order.commission) * 100) / 100;
+  order.platformFee = order.commission;
+  order.status = 'open';
+  order.statusHistory.push({ status: 'open', changedBy: req.user.id, notes: notes || `Admin set price ${price}` });
+  await order.save();
+
+  await Notification.create({
+    recipient: order.patient, title: 'تم تحديد سعر طلبك 💰',
+    message: `حددت الإدارة سعر طلبك #${order.orderNumber}: ${price} ج.م — ظهر الآن لأقرب الممرضين`,
+    type: 'order', data: { orderId: order._id, finalPrice: price }
+  });
+
+  const { notifyNewOrder } = require('../utils/notifyOrder');
+  const gov = (order.location && order.location.governorate) || 'Cairo';
+  const { nurses } = await notifyNewOrder({ order, serviceDoc: order.service, gov, amount: price, skipAdmins: true });
+  try {
+    const { emitToOrder, emitToUser } = require('../sockets');
+    emitToOrder(String(order._id), 'order_update', { orderId: order._id, status: 'open', finalPrice: price });
+    nurses.forEach((n) => emitToUser(String(n._id), 'notification', { title: 'طلب جديد متاح', orderId: order._id }));
+  } catch (_) { /* sockets optional */ }
+
+  ResponseHelper.success(res, { orderId, status: 'open', finalPrice: price }, 'تم تحديد السعر وإتاحة الطلب للممرضين');
+});
+
 const updateOrderStatus = asyncHandler(async (req, res) => {
   const { orderId } = req.params;
   const { status, notes } = req.body;
@@ -699,7 +742,7 @@ const updateNurseStatus = asyncHandler(async (req, res) => {
 module.exports = {
   getDashboardStats, getPendingVerifications, getVerificationsCompat, getNurseVerificationDetails, verifyNurse,
   getAllUsers, getUserById, updateUser, deleteUser, resetUserPassword, toggleUserStatus,
-  getAllOrders, getOrderDetails, reviewOrderPrice, updateOrderStatus, getPaymentsStats,
+  getAllOrders, getOrderDetails, reviewOrderPrice, setOrderPrice, updateOrderStatus, getPaymentsStats,
   getPendingTopups, reviewTopup, completeOrder,
   getPendingWithdrawals, reviewWithdrawal, approveNurseOffer,
   getAdminEarnings, resetAllPayments,

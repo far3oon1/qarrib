@@ -29,6 +29,7 @@ router.post('/send-credentials/:userId', adminController.sendCredentials);
 router.put('/nurse-status/:nurseId', adminController.updateNurseStatus);
 router.get('/orders', adminController.getAllOrders);
 router.post('/orders/:orderId/complete', adminController.completeOrder);
+router.post('/orders/:orderId/set-price', adminController.setOrderPrice);
 router.get('/payments', adminController.getPaymentsStats);
 router.get('/topups', adminController.getPendingTopups);
 router.post('/topups/:topupId', adminController.reviewTopup);
