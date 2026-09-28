@@ -22,9 +22,9 @@ async function connectDB() {
     if (!uri) throw new Error('MONGODB_URI is not defined');
     cached.promise = mongoose
       .connect(uri, {
-        serverSelectionTimeoutMS: 10000,
-        connectTimeoutMS: 10000,
-        socketTimeoutMS: 45000
+        serverSelectionTimeoutMS: 5000,
+        connectTimeoutMS: 5000,
+        socketTimeoutMS: 20000
       })
       .then((m) => m)
       .catch((err) => {
@@ -43,8 +43,13 @@ const handler = serverless(app);
 
 module.exports = async (req, res) => {
   const url = String((req && req.url) || '');
+  // Never let the database hold the request longer than a few seconds —
+  // serverless functions must answer fast even when MongoDB is unreachable.
+  const dbTimeout = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('DB connect timeout')), 8000)
+  );
   try {
-    await connectDB();
+    await Promise.race([connectDB(), dbTimeout]);
   } catch (err) {
     // Stay up without a database for health checks (mirrors server.js,
     // which keeps listening when MongoDB is unreachable).
