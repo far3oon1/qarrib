@@ -4,8 +4,12 @@ function isLoggedIn() {
 }
 
 function getUser() {
-    const user = localStorage.getItem('user');
-    return user ? JSON.parse(user) : null;
+    try {
+        const user = localStorage.getItem('user');
+        return user ? JSON.parse(user) : null;
+    } catch (e) {
+        return null;
+    }
 }
 
 function getRole() {
@@ -14,6 +18,7 @@ function getRole() {
 }
 
 function setUser(user) {
+    if (!user) return;
     localStorage.setItem('user', JSON.stringify(user));
 }
 
@@ -107,7 +112,10 @@ document.addEventListener('DOMContentLoaded', async function() {
                 clearAuth();
             }
         } catch (error) {
-            if (error.message && error.message.indexOf('401') !== -1) {
+            // Log out only on real authentication failures (expired/invalid
+            // token, deleted user) — never on transient network/server errors.
+            var msg = String((error && error.message) || '').toLowerCase();
+            if (/(^|[^0-9])401([^0-9]|$)|unauthorized|no token|user not found|jwt expired|invalid token|invalid signature/.test(msg)) {
                 clearAuth();
             }
         }
