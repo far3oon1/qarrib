@@ -370,14 +370,21 @@
     </div>
 
 <script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
-<script src="js/api.js?v=5"></script>
-    <script src="js/auth.js?v=5"></script>
+<script src="js/api.js?v=6"></script>
+    <script src="js/auth.js?v=6"></script>
     <script>
-        // Auto-redirect if already logged in
+        // Auto-redirect if already logged in. If the token exists but the
+        // user profile is missing (older build, cleared storage), restore it
+        // from the server instead of wiping what may be a valid session.
         if (isLoggedIn() && getRole()) {
             redirectBasedOnRole();
         } else if (isLoggedIn()) {
-            clearAuth();
+            api.getMe().then(function(result) {
+                if (result.success && result.data) {
+                    setUser(result.data.user || result.data);
+                    if (getRole()) redirectBasedOnRole();
+                }
+            }).catch(function() {});
         }
 
         function switchRole(e, role) {
