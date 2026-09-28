@@ -39,7 +39,20 @@ async function connectDB() {
 const app = require('../backend/src/app');
 
 module.exports = async (req, res) => {
-  // TEMP BISECT: express app exported directly (no serverless-http wrapper),
-  // DB bypassed — isolates whether the hang is in the wrapper layer.
+  const url = String((req && req.url) || '');
+  // Never let the database hold the request longer than a few seconds —
+  // serverless functions must answer fast even when MongoDB is unreachable.
+  const dbTimeout = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('DB connect timeout')), 8000)
+  );
+  try {
+    await Promise.race([connectDB(), dbTimeout]);
+  } catch (err) {
+    // Stay up without a database for health checks (mirrors server.js,
+    // which keeps listening when MongoDB is unreachable).
+    // NOTE: the Express app is exported directly (no serverless-http
+    // wrapper) — the wrapper hangs indefinitely on Vercel's Node runtime.
+    if (url.indexOf('/health') === -1) throw err;
+  }
   return app(req, res);
 };
