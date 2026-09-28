@@ -135,7 +135,25 @@
                 </div>
 
                 <div class="form-group" style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 12px;">
-                    <div style="font-size: 14px; color: #166534;">💰 السعر يحدده الممرض — ستصلك عروض الأسعار للموافقة عليها قبل الدفع.</div>
+                    <div style="font-size: 14px; color: #166534;">💰 السعر تحدده الإدارة — يظهر لك قبل الدفع.</div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">طريقة الدفع</label>
+                    <div style="display:flex;gap:8px;">
+                        <label style="flex:1;background:white;border:2px solid #e2e8f0;border-radius:12px;padding:12px;text-align:center;cursor:pointer;">
+                            <input type="radio" name="payMethod" value="instapay" checked>
+                            <div style="font-size:20px;">📲</div>
+                            <div style="font-weight:700;">انستا باي</div>
+                            <div style="font-size:12px;color:#64748b;">ادفع لاحقاً بعد قبول الممرض</div>
+                        </label>
+                        <label style="flex:1;background:white;border:2px solid #e2e8f0;border-radius:12px;padding:12px;text-align:center;cursor:pointer;">
+                            <input type="radio" name="payMethod" value="wallet">
+                            <div style="font-size:20px;">💳</div>
+                            <div style="font-weight:700;">المحفظة</div>
+                            <div style="font-size:12px;color:#64748b;">رصيدك: <span id="walletBalance">0</span> ج.م</div>
+                        </label>
+                    </div>
                 </div>
 
                 <button type="submit" class="btn btn-primary" id="submitBtn">إرسال الطلب</button>
@@ -236,7 +254,8 @@
                 serviceType,
                 description: document.getElementById('description').value.trim(),
                 address: document.getElementById('address').value.trim(),
-                location: userLocation
+                location: userLocation,
+                paymentMethod: (document.querySelector('input[name="payMethod"]:checked') || {}).value || 'instapay'
             };
 
             if (!orderData.address) {
@@ -250,11 +269,18 @@
                 const result = await api.createOrder(orderData);
 
                 if (result.success) {
-                    showAlert('تم إرسال الطلب بنجاح! سيصلك سعر الممرض قريباً.');
+                    const st = result.data && result.data.status;
+                    showAlert(st === 'under_review' ? 'تم استلام طلبك — قيد مراجعة الإدارة لتحديد السعر' : 'تم إرسال الطلب بنجاح! أقرب الممرضين سيستلمونه الآن.');
                     setTimeout(() => window.location.href = 'dashboard.html', 1500);
                 }
             } catch (error) {
-                showAlert(error.message || 'فشل إرسال الطلب', 'error');
+                const msg = error.message || 'فشل إرسال الطلب';
+                if (msg.indexOf('Insufficient wallet balance') !== -1) {
+                    showAlert('رصيد محفظتك لا يكفي — اشحنها من صفحة المحفظة أو اختر الدفع بانستا باي', 'error');
+                    setTimeout(() => window.location.href = 'wallet.html', 2000);
+                } else {
+                    showAlert(msg, 'error');
+                }
             } finally {
                 btn.disabled = false;
                 btn.textContent = 'إرسال الطلب';
