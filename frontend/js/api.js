@@ -18,13 +18,14 @@ var API_BASE_URL = (function () {
         return currentOrigin ? currentOrigin + '/api' : 'http://localhost:5000/api';
     }
     if (currentHost.endsWith('.github.io')) {
-        return 'https://qarrib.onrender.com/api';
+        return 'https://qarrib1.vercel.app/api';
     }
     if (currentHost === 'qarrib.onrender.com' || currentHost.endsWith('.onrender.com')) {
         return currentOrigin ? currentOrigin + '/api' : 'https://qarrib.onrender.com/api';
     }
-    if (currentHost === 'qarrib1.vercel.app' || currentHost.endsWith('.vercel.app')) {
-        return 'https://qarrib.onrender.com/api';
+    if (currentHost.endsWith('.vercel.app')) {
+        // Frontend + API are served from the SAME Vercel deployment
+        return currentOrigin ? currentOrigin + '/api' : 'https://qarrib1.vercel.app/api';
     }
     if (configuredUrl) {
         return configuredUrl.replace(/\/$/, '') + '/api';
