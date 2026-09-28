@@ -248,6 +248,9 @@
                 const result = await api.adminLogin({ email, password, secretKey });
 
                 if (result.success) {
+                    // Store the admin user — without this every admin page
+                    // bounces back to login (looks like an instant logout).
+                    if (result.data) setUser(result.data.user || result.data.admin || result.data);
                     showAlert('alert-success', 'تم تسجيل الدخول بنجاح! جاري التحويل...', 'success');
                     setTimeout(function() {
                         window.location.href = '/admin/dashboard.html';
