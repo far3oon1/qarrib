@@ -214,9 +214,23 @@
             }
         }
 
+        // One-shot GPS refresh so nearest-first matching uses live location.
+        async function refreshMyLocation() {
+            try {
+                if (!navigator.geolocation) return null;
+                const pos = await new Promise(function(resolve, reject) {
+                    navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 });
+                });
+                const lat = pos.coords.latitude, lng = pos.coords.longitude;
+                try { await api.updateNurseLocation(lat, lng); } catch (e) {}
+                return { lat: lat, lng: lng };
+            } catch (e) { return null; }
+        }
+
         async function loadRequests() {
             try {
-                const result = await api.getAvailableRequests();
+                const loc = await refreshMyLocation();
+                const result = await api.getAvailableRequests(loc ? loc.lat : undefined, loc ? loc.lng : undefined);
                 const container = document.getElementById('availableRequests');
 
                 if (result.success && result.data.length > 0) {
@@ -224,10 +238,10 @@
                         <div class="request-card">
                             <div class="request-header">
                                 <span class="request-service">${req.serviceType}</span>
-                                <span class="request-amount">${req.amount ? req.amount + ' ج.م' : 'السعر تقترحه أنت'}</span>
+                                <span class="request-amount">${req.amount ? req.amount + ' ج.م' : 'السعر لم يحدده الأدمن بعد'}</span>
                             </div>
                             <div class="request-details">
-                                📍 ${req.address}<br>
+                                📍 ${req.address}${req.distanceKm != null ? ' — 📏 ' + req.distanceKm + ' كم' : ''}<br>
                                 📝 ${req.description || 'لا يوجد وصف'}
                             </div>
                             <div class="request-actions">

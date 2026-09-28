@@ -195,8 +195,9 @@ API.prototype.getNurseDashboard = function () {
 API.prototype.updateNurseProfile = function (data) {
     return this.request('PUT', '/nurses/profile', data);
 };
-API.prototype.getAvailableRequests = function () {
-    return this.request('GET', '/nurses/requests');
+API.prototype.getAvailableRequests = function (lat, lng) {
+    var q = (lat != null && lng != null) ? '?lat=' + encodeURIComponent(lat) + '&lng=' + encodeURIComponent(lng) : '';
+    return this.request('GET', '/nurses/requests' + q);
 };
 API.prototype.getNurseOrders = function () {
     return this.request('GET', '/nurses/orders');

@@ -7,6 +7,8 @@ const ApiError = require('../utils/ApiError');
 const ResponseHelper = require('../utils/response');
 const asyncHandler = require('../utils/asyncHandler');
 const { shapeOrder } = require('../utils/orderShape');
+const { assertAdminPriced } = require('../utils/adminPricing');
+const { findNearestNurses } = require('../utils/nearestNurses');
 
 const COMMISSION_RATE = 10;
 
@@ -103,12 +105,23 @@ const createSimple = asyncHandler(async (req, res) => {
     await order.save();
   }
 
-  // Notify verified nurses (in-app) + ALL admins + realtime push
-  const nurses = await User.find({ role: 'nurse', status: 'approved', isActive: true }).select('_id').limit(50);
-  for (const n of nurses) {
+  // Notify nearest verified nurses first (in-app) + the rest + ALL admins + realtime push
+  const nearest = await findNearestNurses({ lat: plat, lng: plng, limit: 10 });
+  const nearestIds = nearest.map((x) => x.nurse._id);
+  for (const { nurse, distanceKm } of nearest) {
+    await Notification.create({
+      recipient: nurse._id, title: 'طلب جديد قريب منك 📍',
+      message: `طلب جديد: ${serviceDoc.nameAr} في ${gov} — على بعد ${distanceKm.toFixed(1)} كم منك (السعر: ${finalAmount} ج.م)`,
+      type: 'order', data: { orderId: order._id, distanceKm: Math.round(distanceKm * 10) / 10 }
+    });
+  }
+  const nurses = nearest.map((x) => x.nurse).concat(
+    await User.find({ role: 'nurse', status: 'approved', isActive: true, _id: { $nin: nearestIds } }).select('_id').limit(50)
+  );
+  for (const n of nurses.slice(nearest.length)) {
     await Notification.create({
       recipient: n._id, title: 'طلب جديد متاح',
-      message: `طلب جديد: ${serviceDoc.nameAr} في ${gov}`,
+      message: `طلب جديد: ${serviceDoc.nameAr} في ${gov} (السعر: ${finalAmount} ج.م)`,
       type: 'order', data: { orderId: order._id }
     });
   }
@@ -141,6 +154,9 @@ const acceptOrder = asyncHandler(async (req, res) => {
   if (req.user.status !== 'approved' && req.user.status !== 'active') {
     throw new ApiError(403, 'Your account is not verified yet');
   }
+  // A nurse may not take any service before the admin sets its price
+  const acceptService = await Service.findById(order.service);
+  assertAdminPriced(acceptService);
   order.assignedNurse = req.user.id;
   order.status = 'assigned';
   order.acceptedAt = new Date();
@@ -305,6 +321,10 @@ const approveOffer = asyncHandler(async (req, res) => {
   const offer = order.offers.id(offerId);
   if (!offer) throw new ApiError(404, 'Offer not found');
   if (offer.status !== 'pending_review') throw new ApiError(400, 'Offer is not available');
+
+  // Assigning a nurse requires an admin-set service price first
+  const offerService = await Service.findById(order.service);
+  assertAdminPriced(offerService);
 
   offer.status = 'approved';
   offer.reviewedAt = new Date();

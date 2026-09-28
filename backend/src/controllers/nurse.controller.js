@@ -85,12 +85,22 @@ const getRequests = asyncHandler(async (req, res) => {
     .populate('patient', 'fullName')
     .sort({ createdAt: -1 })
     .limit(50);
-  const mine = req.user.location && req.user.location.coordinates ? req.user.location.coordinates : null;
+  // Fresh GPS from the app (query) wins over the stored location
+  const qlat = req.query.lat != null ? Number(req.query.lat) : NaN;
+  const qlng = req.query.lng != null ? Number(req.query.lng) : NaN;
+  const stored = req.user.location && req.user.location.coordinates ? req.user.location.coordinates : null;
+  const mine = (Number.isFinite(qlat) && Number.isFinite(qlng))
+    ? { lat: qlat, lng: qlng }
+    : (stored ? { lat: Number(stored.lat), lng: Number(stored.lng) } : null);
+  const { adminPriceOf } = require('../utils/adminPricing');
   const sorted = orders
+    // Unpriced services never reach nurses: admin prices first
+    .filter((o) => o.service && o.service.isActive !== false && adminPriceOf(o.service) != null)
     .map((o) => ({ order: o, d: mine && o.location && o.location.coordinates ? distanceKm(mine, o.location.coordinates) : Infinity }))
     .sort((a, b) => a.d - b.d)
     .map((x) => {
       const s = shapeOrder(x.order);
+      s.distanceKm = Number.isFinite(x.d) ? Math.round(x.d * 10) / 10 : null;
       const myOffer = (x.order.offers || []).find((o) => String(o.nurse) === String(req.user.id));
       s.hasMyOffer = !!myOffer;
       s.myOfferPrice = myOffer ? myOffer.price : null;
