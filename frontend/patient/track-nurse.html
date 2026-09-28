@@ -241,6 +241,10 @@
             }
             if (socket && socket.connected) {
                 socket.emit('update_location', { lat, lng, orderId });
+            } else if (!window._lastPatientLocPost || Date.now() - window._lastPatientLocPost > 15000) {
+                // REST fallback (throttled): used when websockets are unavailable (serverless hosting)
+                window._lastPatientLocPost = Date.now();
+                try { api.updateLocation(lat, lng).catch(function() {}); } catch (e) {}
             }
             updateDistance();
         }
@@ -381,15 +385,36 @@
                     }
                     renderOffers(order);
                     renderPay(order);
+                    if (order.nurseLiveLocation && order.nurseLiveLocation.lat != null && order.nurseLiveLocation.lng != null) {
+                        updateNurseLocation(order.nurseLiveLocation.lat, order.nurseLiveLocation.lng);
+                    }
                 }
             } catch (error) {
                 console.error('Load order error:', error);
             }
         }
 
+        var orderPollStarted = false;
+        function startOrderPolling() {
+            if (orderPollStarted) return;
+            orderPollStarted = true;
+            setInterval(function() { loadOrder(); }, 10000);
+        }
+
         function setupSocket() {
             if (socket) { try { socket.disconnect(); } catch (e) {} }
-            socket = io({ auth: { token: localStorage.getItem('token') } });
+            if (typeof io === 'undefined') {
+                // No websockets (serverless hosting): poll the order for live nurse location
+                startOrderPolling();
+                return;
+            }
+            try {
+                socket = io({ auth: { token: localStorage.getItem('token') } });
+            } catch (e) {
+                socket = null;
+                startOrderPolling();
+                return;
+            }
 
             socket.on('connect', function() {
                 console.log('Socket connected');

@@ -245,28 +245,50 @@
             if (e.key === 'Enter') sendMessage();
         });
 
-        // Initialize Socket.IO
+        // Initialize Socket.IO (realtime). On serverless hosting (Vercel)
+        // websockets are unavailable, so fall back to REST polling.
+        var chatPollStarted = false;
+        function startChatPolling() {
+            if (chatPollStarted) return;
+            chatPollStarted = true;
+            setInterval(loadMessages, 5000);
+        }
         function initSocket() {
-            socket = io({
-                auth: { token: localStorage.getItem('token') }
-            });
+            if (typeof io === 'undefined') {
+                startChatPolling();
+                return;
+            }
+            try {
+                socket = io({
+                    auth: { token: localStorage.getItem('token') }
+                });
 
-            socket.on('connect', () => {
-                socket.emit('join_chat', { orderId });
-            });
+                socket.on('connect', () => {
+                    socket.emit('join_chat', { orderId });
+                });
 
-            socket.on('new_message', (message) => {
-                loadMessages();
-            });
+                socket.on('new_message', (message) => {
+                    loadMessages();
+                });
 
-            socket.on('typing', (data) => {
-                const indicator = document.getElementById('typingIndicator');
-                if (data.isTyping) {
-                    indicator.textContent = 'يكتب الآن...';
-                } else {
-                    indicator.textContent = '';
-                }
-            });
+                socket.on('connect_error', () => {
+                    try { socket.disconnect(); } catch (e) {}
+                    socket = null;
+                    startChatPolling();
+                });
+
+                socket.on('typing', (data) => {
+                    const indicator = document.getElementById('typingIndicator');
+                    if (data.isTyping) {
+                        indicator.textContent = 'يكتب الآن...';
+                    } else {
+                        indicator.textContent = '';
+                    }
+                });
+            } catch (e) {
+                socket = null;
+                startChatPolling();
+            }
         }
 
         loadMessages();

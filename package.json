@@ -19,7 +19,8 @@
     "build:win": "electron-builder --win",
     "build:mac": "electron-builder --mac",
     "install:desktop": "npm install electron electron-builder --save-dev",
-    "postinstall": "cd backend && npm install && cd .. && npm install electron electron-builder --save-dev"
+    "setup:desktop": "cd backend && npm install && npm install electron electron-builder --save-dev",
+    "postinstall": "node -e \"if(process.env.VERCEL){console.log('Vercel build: skipping desktop bootstrap')}else{console.log('Desktop bootstrap skipped (run npm run setup:desktop to install desktop tooling)')}\""
   },
   "license": "MIT",
   "build": {
@@ -66,6 +67,22 @@
   },
   "dependencies": {
     "@capacitor/core": "^7.6.9",
-    "@capacitor/geolocation": "^7.1.8"
+    "@capacitor/geolocation": "^7.1.8",
+    "bcryptjs": "^2.4.3",
+    "cloudinary": "^2.2.0",
+    "compression": "^1.7.4",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.3.1",
+    "helmet": "^7.1.0",
+    "joi": "^17.13.1",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.4.1",
+    "multer": "^1.4.5-lts.1",
+    "nodemailer": "^6.9.13",
+    "serverless-http": "^2.1.0",
+    "uuid": "^9.0.1",
+    "winston": "^3.13.0"
   }
 }

@@ -1,13 +1,21 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const { v4: uuidv4 } = require('uuid');
 
+// Upload scratch space. Serverless functions (Vercel) have a read-only
+// filesystem except the OS temp dir, so uploads land in /tmp there and are
+// forwarded to Cloudinary within the same request (see utils/saveUpload.js).
+const uploadsBase = process.env.VERCEL === '1'
+  ? path.join(os.tmpdir(), 'qarrib-uploads')
+  : path.join(__dirname, '..', '..', 'uploads');
+
 // Absolute temp dir (works no matter where node is launched from)
-const tempDir = path.join(__dirname, '..', '..', 'uploads', 'temp');
+const tempDir = path.join(uploadsBase, 'temp');
 try { fs.mkdirSync(tempDir, { recursive: true }); } catch (_) {}
 // Persistent fallback dir (used when Cloudinary is not configured)
-const keepDir = path.join(__dirname, '..', '..', 'uploads', 'ids');
+const keepDir = path.join(uploadsBase, 'ids');
 try { fs.mkdirSync(keepDir, { recursive: true }); } catch (_) {}
 
 const storage = multer.diskStorage({

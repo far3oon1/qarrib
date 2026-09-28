@@ -167,6 +167,9 @@ API.prototype.updatePatientProfile = function (data) {
 API.prototype.updateLocation = function (lat, lng) {
     return this.request('POST', '/patients/location', { lat: lat, lng: lng });
 };
+API.prototype.updateNurseLocation = function (lat, lng, orderId) {
+    return this.request('POST', '/nurses/location', { lat: lat, lng: lng, orderId: orderId });
+};
 API.prototype.getPatientOrders = function () {
     return this.request('GET', '/patients/orders');
 };

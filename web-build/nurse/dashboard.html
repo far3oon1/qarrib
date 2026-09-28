@@ -278,6 +278,10 @@
                         const lng = position.coords.longitude;
                         if (nurseSocket && nurseSocket.connected) {
                             nurseSocket.emit('update_location', { lat, lng, orderId: orderId });
+                        } else if (!window._lastNurseLocPost || Date.now() - window._lastNurseLocPost > 15000) {
+                            // REST fallback (throttled): used when websockets are unavailable (serverless hosting)
+                            window._lastNurseLocPost = Date.now();
+                            try { api.updateNurseLocation(lat, lng, orderId).catch(function() {}); } catch (e) {}
                         }
                     },
                     function(error) { console.log('Nurse geo error:', error); },
@@ -285,7 +289,9 @@
                 );
             }
 
-            nurseSocket = io({ auth: { token: localStorage.getItem('token') } });
+            if (typeof io === 'undefined') { nurseSocket = null; return; }
+            try { nurseSocket = io({ auth: { token: localStorage.getItem('token') } }); }
+            catch (e) { nurseSocket = null; return; }
             nurseSocket.on('connect', function() {
                 nurseSocket.emit('subscribe_location', { orderId: orderId });
             });
