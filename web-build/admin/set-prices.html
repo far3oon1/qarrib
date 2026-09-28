@@ -81,9 +81,21 @@
                 if (!prices.length) { c.innerHTML = '<div class="empty-state">لا توجد أسعار</div>'; return; }
                 c.innerHTML = prices.map(p => {
                     const id = p._id || p.id;
-                    return '<div class="price-card"><div><div class="price-service">' + (p.serviceType||'Unknown') + '</div></div><div style="display:flex;align-items:center;gap:12px;"><div class="price-value">Q' + (p.price||0) + '</div><button class="delete-btn" onclick="deletePrice(\'' + id + '\')">حذف</button></div></div>';
+                    const serviceName = p.nameAr || p.serviceType || p.name || 'خدمة';
+                    const servicePrice = p.basePrice != null ? p.basePrice : (p.price || 0);
+                    return '<div class="price-card"><div><div class="price-service">' + serviceName + '</div></div><div style="display:flex;align-items:center;gap:8px;"><div class="price-value">' + servicePrice + ' ج.م</div><button class="delete-btn" style="background:#2563eb;" onclick="editPrice(\'' + id + '\',' + servicePrice + ')">✏️ تعديل</button><button class="delete-btn" onclick="deletePrice(\'' + id + '\')">إيقاف</button></div></div>';
                 }).join('');
             } catch(e) {}
+        }
+        async function editPrice(id, current) {
+            const val = prompt('السعر الجديد بالجنيه:', current);
+            if (val == null || val === '') return;
+            const price = parseFloat(val);
+            if (!price || price <= 0) { showAlert('أدخل سعراً صحيحاً أكبر من صفر', 'error'); return; }
+            try {
+                const r = await api.request('POST', '/admin/set-price', { serviceId: id, price: price });
+                if (r.success) { showAlert('تم تحديث السعر'); loadPrices(); }
+            } catch(e) { showAlert(e.message || 'فشل التحديث', 'error'); }
         }
         async function deletePrice(id) {
             if (!confirm('حذف هذا السعر؟')) return;
