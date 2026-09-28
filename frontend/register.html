@@ -241,6 +241,34 @@
             }
         }
 
+        // تصغير الصور قبل الرفع (سقف حجم الطلب على الاستضافة ≈ 4.5MB —
+        // صور الموبايل الخام تتجاوزه بسهولة). الملفات غير الصورية تُترك كما هي.
+        function downscaleImage(file) {
+            return new Promise(function(resolve) {
+                if (!file || !file.type || file.type.indexOf('image/') !== 0) return resolve(file);
+                var url = URL.createObjectURL(file);
+                var img = new Image();
+                img.onload = function() {
+                    try {
+                        var maxDim = 1280;
+                        var scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+                        var canvas = document.createElement('canvas');
+                        canvas.width = Math.max(1, Math.round(img.width * scale));
+                        canvas.height = Math.max(1, Math.round(img.height * scale));
+                        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                        URL.revokeObjectURL(url);
+                        canvas.toBlob(function(blob) {
+                            if (blob) {
+                                resolve(new File([blob], (file.name || 'image').replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' }));
+                            } else { resolve(file); }
+                        }, 'image/jpeg', 0.82);
+                    } catch (e) { URL.revokeObjectURL(url); resolve(file); }
+                };
+                img.onerror = function() { URL.revokeObjectURL(url); resolve(file); };
+                img.src = url;
+            });
+        }
+
         // Form submission
         document.getElementById('registerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -277,13 +305,14 @@
             }
 
             // نضيف الصور للـ FormData حسب الـ role (متوافق مع multer.js)
-            const idCard = document.getElementById('idCard').files[0];
-            const license = document.getElementById('license').files[0];
+            // الصور اتضغطت تلقائياً لأن سقف حجم الطلب على الاستضافة ≈ 4.5MB
+            const idCard = await downscaleImage(document.getElementById('idCard').files[0]);
+            const license = await downscaleImage(document.getElementById('license').files[0]);
 
-            // فحص حجم الملف قبل الرفع (الحد 10MB — يقبل أي نوع ملف)
-            const tooBig = [idCard, license].find(function (f) { return f && f.size > 10 * 1024 * 1024; });
-            if (tooBig) {
-                showAlert('حجم الملف كبير — الحد الأقصى 10MB', 'error');
+            // فحص إجمالي الحجم قبل الرفع (سقف الاستضافة ≈ 4.5MB)
+            const totalSize = [idCard, license].reduce(function (acc, f) { return acc + (f ? f.size : 0); }, 0);
+            if (totalSize > 4 * 1024 * 1024) {
+                showAlert('حجم الملفات كبير — اختر صوراً أصغر (الحد 4MB لإجمالي الملفات)', 'error');
                 btn.disabled = false;
                 btn.textContent = 'إنشاء الحساب';
                 return;
@@ -314,6 +343,10 @@
                     });
                 } catch (netErr) {
                     throw new Error('تعذر الاتصال بالسيرفر (' + API_BASE_URL + ') — تأكد أن السيرفر شغال وافتح الموقع من نفس رابطه ثم حاول مجدداً');
+                }
+
+                if (response.status === 413) {
+                    throw new Error('حجم الملفات أكبر من المسموح (4MB) — صغّر الصور وحاول مجدداً');
                 }
 
                 let result = {};
