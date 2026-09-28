@@ -5,6 +5,7 @@
   "main": "desktop/main.js",
   "author": "Qarrab Healthcare",
   "scripts": {
+    "build": "echo qarrib-static-ok",
     "install:backend": "cd backend && npm install",
     "start:backend": "cd backend && npm start",
     "dev:backend": "cd backend && npm run dev",
