@@ -351,6 +351,21 @@ API.prototype.completeOrderAdmin = function (id) {
 API.prototype.setOrderPrice = function (orderId, price) {
     return this.request('POST', '/admin/orders/' + orderId + '/set-price', { price: price });
 };
+API.prototype.getPrices = function () {
+    return this.request('GET', '/admin/prices');
+};
+API.prototype.getServicePrices = function () {
+    return this.request('GET', '/api/services');
+};
+API.prototype.setPrice = function (data) {
+    return this.request('POST', '/admin/set-price', {
+        serviceType: data.serviceType,
+        price: data.price
+    });
+};
+API.prototype.deletePrice = function (serviceId) {
+    return this.request('DELETE', '/admin/price/' + serviceId);
+};
 API.prototype.getVersion = function () {
     return this.request('GET', '/health');
 };

@@ -297,6 +297,9 @@ API.prototype.sendLocation = function (orderId, lat, lng) {
 API.prototype.getPrices = function () {
     return this.request('GET', '/admin/prices');
 };
+API.prototype.getServicePrices = function () {
+    return this.request('GET', '/api/services');
+};
 API.prototype.setPrice = function (data) {
     return this.request('POST', '/admin/set-price', {
         serviceType: data.serviceType,

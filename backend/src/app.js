@@ -19,6 +19,7 @@ const nurseRoutes = require('./routes/nurse.routes');
 const paymentRoutes = require('./routes/payment.routes');
 const walletRoutes = require('./routes/wallet.routes');
 const chatRoutes = require('./routes/chat.routes');
+const serviceRoutes = require('./routes/service.routes');
 
 const app = express();
 app.set('trust proxy', 1); // required on Render/Railway/Heroku/Vercel (https + rate-limit IPs)
@@ -90,6 +91,7 @@ app.use('/api/nurses', nurseRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/services', serviceRoutes);
 
 // Static frontend (same origin, avoids CORS in production — Render/desktop only.
 // On Vercel the frontend is served as static output, so these simply never match.)
