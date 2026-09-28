@@ -158,13 +158,9 @@ const requestService = asyncHandler(async (req, res) => {
   if (serviceType) {
     serviceDoc = await Service.findOne({ $or: [{ name: serviceType }, { nameAr: serviceType }], isActive: true });
   }
-  if (!serviceDoc) {
-    serviceDoc = await Service.create({
-      name: serviceType || 'home_nursing', nameAr: 'تمريض منزلي',
-      description: description || 'General home nursing service',
-      category: 'other', basePrice: 0, isActive: true
-    });
-  }
+  // Admin pricing comes first: never create unpriced services for nurses to take
+  const { assertAdminPriced } = require('../utils/adminPricing');
+  assertAdminPriced(serviceDoc, 'هذه الخدمة غير مسعرة بعد من الإدارة — لا يمكن إنشاء الطلب حالياً');
 
   const order = await Order.create({
     patient: patient._id, service: serviceDoc._id,
@@ -183,7 +179,10 @@ const requestService = asyncHandler(async (req, res) => {
     await Notification.create({ recipient: a._id, title: 'طلب خدمة جديد', message: `طلب جديد #${order.orderNumber}`, type: 'order', data: { orderId: order._id } });
   }
   emitToOrder(order._id, 'new_order', { orderId: order._id, governorate: governorate || 'Cairo' });
-  try { nurses.forEach((n) => emitToUser(String(n._id), 'notification', { title: 'طلب جديد متاح', orderId: order._id })); } catch (_) {}
+  try {
+    const { emitToUser } = require('../sockets');
+    nurses.forEach((n) => emitToUser(String(n._id), 'notification', { title: 'طلب جديد متاح', orderId: order._id }));
+  } catch (_) { /* sockets optional */ }
 
   const populated = await Order.findById(order._id).populate('service', 'nameAr basePrice').populate('patient', 'fullName phone');
   const { shapeOrder } = require('../utils/orderShape');

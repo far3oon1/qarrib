@@ -104,27 +104,34 @@
     <script>
         if (!requireRole('nurse')) redirectToLogin();
 
+        // One-shot GPS refresh so nearest-first matching uses live location,
+        // then load open requests sorted by distance (server does the sorting).
+        async function refreshMyLocation() {
+            try {
+                if (!navigator.geolocation) return null;
+                const pos = await new Promise(function(resolve, reject) {
+                    navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 });
+                });
+                const lat = pos.coords.latitude, lng = pos.coords.longitude;
+                try { await api.updateNurseLocation(lat, lng); } catch (e) {}
+                return { lat: lat, lng: lng };
+            } catch (e) { return null; }
+        }
+
         async function loadRequests() {
             try {
-                const result = await api.getAvailableRequests();
+                const loc = await refreshMyLocation();
+                const result = await api.getAvailableRequests(loc ? loc.lat : undefined, loc ? loc.lng : undefined);
                 const container = document.getElementById('requestsList');
 
                 if (result.success && result.data.length > 0) {
                     container.innerHTML = result.data.map(req => `
                         <div class="request-card">
                             <div class="request-service">${req.serviceType}</div>
-                            <div class="request-amount">${req.amount ? req.amount + ' ج.م' : 'السعر تقترحه أنت'}</div>
-                            <div class="request-detail">📍 ${req.address}</div>
+                            <div class="request-amount">${req.amount ? req.amount + ' ج.م' : 'السعر لم يحدده الأدمن بعد'}</div>
+                            <div class="request-detail">📍 ${req.address}${req.distanceKm != null ? ' — 📏 ' + req.distanceKm + ' كم' : ''}</div>
                             <div class="request-detail">📝 ${req.description || 'لا يوجد وصف'}</div>
                             <div class="request-detail">⏰ ${formatDate(req.createdAt)}</div>
-                            ${req.hasMyOffer ? `
-                                <div style="background:#f0fdf4;border:1px solid#bbf7d0;border-radius:10px;padding:10px;font-size:14px;color:#166534;">✅ أرسلت سعرك: ${req.myOfferPrice} ج.م — بانتظار الموافقة</div>
-                            ` : `
-                            <div style="display:flex;gap:8px;margin-bottom:8px;">
-                                <input type="number" min="1" placeholder="سعرك بالجنيه" id="price-${req.id}" style="flex:1;padding:10px;border:2px solid#e2e8f0;border-radius:10px;">
-                                <button class="btn btn-secondary" onclick="suggestPrice('${req.id}')">اقتراح سعر 💰</button>
-                            </div>
-                            `}
                             <div class="request-actions">
                                 <button class="btn btn-primary" onclick="acceptRequest('${req.id}')">قبول الطلب</button>
                             </div>
@@ -141,24 +148,6 @@
                 }
             } catch (error) {
                 showAlert('فشل تحميل الطلبات', 'error');
-            }
-        }
-
-        async function suggestPrice(orderId) {
-            const input = document.getElementById('price-' + orderId);
-            const price = parseFloat(input.value);
-            if (!price || price <= 0) {
-                showAlert('أدخل سعراً صحيحاً أولاً', 'error');
-                return;
-            }
-            try {
-                const result = await api.submitOffer(orderId, price, '');
-                if (result.success) {
-                    showAlert('تم إرسال سعرك! بانتظار موافقة المريض.');
-                    loadRequests();
-                }
-            } catch (error) {
-                showAlert(error.message || 'فشل إرسال السعر', 'error');
             }
         }
 
