@@ -51,6 +51,7 @@ router.put('/permissions/settings', require('../controllers/permissions.controll
 router.get('/permissions/users', require('../controllers/permissions.controller').adminListUserPermissions);
 router.put('/permissions/users/:id', require('../controllers/permissions.controller').adminUpdateUserPermissions);
 router.get('/orders/:orderId', adminController.getOrderDetails);
+router.delete('/orders/:orderId', adminController.deleteOrder);
 router.patch('/orders/:orderId/status', validate(updateOrderStatus), adminController.updateOrderStatus);
 
 module.exports = router;
