@@ -405,6 +405,16 @@ API.prototype.getAllOffers = function (query) {
 API.prototype.rejectOffer = function (orderId, offerId, notes) {
     return this.request('POST', '/admin/orders/' + orderId + '/reject-offer', { offerId: offerId, notes: notes });
 };
+// Admin full order control: cancel / remove / change status (any state)
+API.prototype.adminCancelOrder = function (orderId, reason) {
+    return this.request('POST', '/orders/' + orderId + '/cancel', { reason: reason || 'Cancelled by admin' });
+};
+API.prototype.adminDeleteOrder = function (orderId) {
+    return this.request('DELETE', '/admin/orders/' + orderId);
+};
+API.prototype.adminUpdateOrderStatus = function (orderId, status, notes) {
+    return this.request('PATCH', '/admin/orders/' + orderId + '/status', { status: status, notes: notes });
+};
 API.prototype.getVersion = function () {
     return this.request('GET', '/health');
 };

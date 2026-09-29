@@ -593,6 +593,28 @@
         'الموقع محظور لهذا الموقع.': 'Location is BLOCKED for this site.',
         '⚠️ الموقع محظور — ': '⚠️ Location BLOCKED — ',
         'تعليم كمقروء': 'Mark read',
+        // --- Admin full order control (cancel / remove / status, any state) ---
+        '🔧 تحكم الإدارة (أي حالة)': '🔧 Admin control (any state)',
+        'تغيير الحالة': 'Change status',
+        'إلغاء الطلب ⚠️': 'Cancel order ⚠️',
+        'إزالة نهائية 🗑️': 'Remove permanently 🗑️',
+        'تم تحديث الحالة': 'Status updated',
+        'فشل التحديث': 'Update failed',
+        'تم تحديث الطلب': 'Order updated',
+        'تغيرت الحالة إلى ': 'Status changed to ',
+        'تم إلغاء الطلب': 'Order cancelled',
+        'تم إشعار الطرفين': 'Both sides were notified',
+        'فشل الإلغاء': 'Cancel failed',
+        'تمت إزالة الطلب': 'Order removed',
+        'حُذف الطلب نهائياً': 'Order deleted permanently',
+        'فشلت الإزالة': 'Remove failed',
+        'تمت الإزالة': 'Removed',
+        'معيّن': 'Assigned',
+        'عروض مستلمة': 'Offers received',
+        'سعر مقترح': 'Suggested price',
+        'ملغي': 'Cancelled',
+        'مفتوح': 'Open',
+        'قيد مراجعة السعر': 'Price under review',
     };
 
     var prefixes = [

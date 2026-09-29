@@ -87,8 +87,8 @@
                             </div>
                             <div class="order-details">
                                 <strong>الخدمة:</strong> ${order.serviceType}<br>
-                                <strong>المريض:</strong> ${order.patient?.name || 'Unknown'}<br>
-                                <strong>الممرض:</strong> ${order.nurse?.name || 'غير محدد'}<br>
+                                <strong>المريض:</strong> ${order.patient?.name || 'Unknown'} ${order.patient?.phone ? `(<a href="tel:${order.patient.phone}" style="color:#0B5F5A;font-weight:700;">📞 ${order.patient.phone}</a>)` : ''}<br>
+                                <strong>الممرض:</strong> ${order.nurse?.name || 'غير محدد'} ${order.nurse?.phone ? `(<a href="tel:${order.nurse.phone}" style="color:#0B5F5A;font-weight:700;">📞 ${order.nurse.phone}</a>)` : ''}<br>
                                 <strong>المبلغ:</strong> ${order.amount} ج.م<br>
                                 <strong>العمولة:</strong> ${order.platformFee} ج.م<br>
                                 <strong>تأكيد الممرض:</strong> ${order.nurseConfirmed ? '✅' : '⏳'} |
@@ -118,6 +118,19 @@
                             ${(order.nurseConfirmed && order.status !== 'completed' && order.status !== 'cancelled') ? `
                                 <button class="btn btn-secondary btn-sm" style="width:100%;margin-top:8px;" onclick="approveCompletion('${order.id}')">تأكيد الإنجاز وتحويل المبلغ للممرض ✅</button>
                             ` : ''}
+                            <div style="margin-top:10px;background:#1e293b;border-radius:12px;padding:12px;">
+                                <div style="font-weight:700;margin-bottom:8px;color:#fff;">🔧 تحكم الإدارة (أي حالة)</div>
+                                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+                                    <select id="st-${order.id}" style="flex:1;min-width:140px;padding:8px;border-radius:8px;border:1px solid #e2e8f0;">
+                                        ${['open','offers_received','under_review','price_approved','paid','assigned','in_progress','completed','cancelled','refunded'].map(s => `<option value="${s}"${s===order.status?' selected':''}>${getStatusText(s)}</option>`).join('')}
+                                    </select>
+                                    <button class="btn btn-secondary btn-sm" onclick="changeStatus('${order.id}')">تغيير الحالة</button>
+                                </div>
+                                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                                    ${['completed','cancelled','refunded'].includes(order.status) ? '' : `<button class="btn btn-sm" style="flex:1;background:#f59e0b;color:#fff;" onclick="cancelOrderAdmin('${order.id}')">إلغاء الطلب ⚠️</button>`}
+                                    <button class="btn btn-sm" style="flex:1;background:#dc2626;color:#fff;" onclick="deleteOrderAdmin('${order.id}')">إزالة نهائية 🗑️</button>
+                                </div>
+                            </div>
                         </div>
                     `).join('');
                 } else {
@@ -197,6 +210,47 @@
                 loadOrders();
             } catch (error) {
                 showAlert(error.message || 'فشل القبول', 'error');
+            }
+        }
+
+        // --- Full admin control: cancel / remove / change status in ANY state ---
+        async function changeStatus(orderId) {
+            const sel = document.getElementById('st-' + orderId);
+            const status = sel ? sel.value : '';
+            if (!status) return;
+            if (!confirm('تغيير حالة الطلب إلى "' + status + '"؟ / Change status to "' + status + '"?')) return;
+            try {
+                const result = await api.adminUpdateOrderStatus(orderId, status, 'Changed by admin');
+                showAlert(result.message || 'تم تحديث الحالة');
+                if (window.qpNotify) qpNotify.popup({ title: 'Order updated', message: 'Status changed to ' + status, type: 'order' });
+                loadOrders();
+            } catch (error) {
+                showAlert(error.message || 'فشل التحديث', 'error');
+            }
+        }
+
+        async function cancelOrderAdmin(orderId) {
+            if (!confirm('إلغاء هذا الطلب؟ سيتم رد المبلغ المحجوز للمريض وإشعار الطرفين. / Cancel this order? Held money is refunded, both sides notified.')) return;
+            try {
+                const result = await api.adminCancelOrder(orderId, 'Cancelled by admin');
+                showAlert(result.message || 'تم إلغاء الطلب');
+                if (window.qpNotify) qpNotify.popup({ title: 'Order cancelled', message: 'Both sides were notified', type: 'order' });
+                loadOrders();
+            } catch (error) {
+                showAlert(error.message || 'فشل الإلغاء', 'error');
+            }
+        }
+
+        async function deleteOrderAdmin(orderId) {
+            if (!confirm('إزالة نهائية لهذا الطلب؟ سيُرد المبلغ المحجوز ويُحذف الطلب والشات. / Permanently REMOVE this order? Refunds held money, deletes order + chat.')) return;
+            if (!confirm('تأكيد أخير: لا يمكن التراجع! / Final confirm: cannot be undone!')) return;
+            try {
+                const result = await api.adminDeleteOrder(orderId);
+                showAlert(result.message || 'تمت الإزالة');
+                if (window.qpNotify) qpNotify.popup({ title: 'Order removed', message: 'Order deleted permanently', type: 'system' });
+                loadOrders();
+            } catch (error) {
+                showAlert(error.message || 'فشلت الإزالة', 'error');
             }
         }
 

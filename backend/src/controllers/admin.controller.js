@@ -579,6 +579,51 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
   ResponseHelper.success(res, { orderId, status }, 'تم تحديث حالة الطلب');
 });
 
+// DELETE /admin/orders/:orderId — admin removes a service entirely (any state).
+// Held escrow is refunded to the patient wallet first. Patient + nurse are
+// notified with a bell alert, chats of the order are cleaned up.
+const deleteOrder = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+  const order = await Order.findById(orderId);
+  if (!order) throw new ApiError(404, 'الطلب غير موجود');
+
+  if (order.escrowStatus === 'held') {
+    const patient = await User.findById(order.patient);
+    if (patient) {
+      const refundAmount = order.finalPrice || 0;
+      patient.walletBalance = (patient.walletBalance || 0) + refundAmount;
+      await patient.save();
+      await Wallet.create({
+        user: patient._id, order: order._id, type: 'refund',
+        amount: refundAmount, status: 'completed',
+        description: `Refund for admin-removed order ${order.orderNumber}`,
+        balanceAfter: patient.walletBalance
+      });
+    }
+  }
+
+  const targets = [];
+  if (order.patient) targets.push({ id: order.patient, msg: `أزالت الإدارة طلبك #${order.orderNumber} نهائياً` });
+  if (order.assignedNurse) targets.push({ id: order.assignedNurse, msg: `أزالت الإدارة الطلب #${order.orderNumber} نهائياً` });
+  for (const t of targets) {
+    try {
+      await Notification.create({ recipient: t.id, title: 'تمت إزالة الطلب', message: t.msg, type: 'order', data: { orderId: order._id } });
+    } catch (_) {}
+  }
+  try {
+    const Chat = require('../models/Chat');
+    await Chat.deleteMany({ order: order._id });
+  } catch (_) {}
+  try {
+    const { emitToOrder, emitToUser } = require('../sockets');
+    emitToOrder(String(order._id), 'order_update', { orderId: order._id, status: 'removed' });
+    targets.forEach((t) => emitToUser(String(t.id), 'notification', { title: 'تمت إزالة الطلب', orderId: order._id }));
+  } catch (_) {}
+
+  await Order.findByIdAndDelete(orderId);
+  ResponseHelper.success(res, { orderId }, 'تمت إزالة الطلب نهائياً مع رد المبلغ المحجوز');
+});
+
 // Wallet top-up review: patient sends InstaPay to owner, admin confirms receipt
 const getPendingTopups = asyncHandler(async (req, res) => {
   const txs = await Wallet.find({ type: 'deposit', status: 'pending' })
@@ -985,7 +1030,7 @@ const updateNurseStatus = asyncHandler(async (req, res) => {
 module.exports = {
   getDashboardStats, getPendingVerifications, getVerificationsCompat, getNurseVerificationDetails, verifyNurse,
   getAllUsers, getUserById, updateUser, deleteUser, resetUserPassword, toggleUserStatus,
-  getAllOrders, getOrderDetails, reviewOrderPrice, setOrderPrice, updateOrderStatus, getPaymentsStats,
+  getAllOrders, getOrderDetails, deleteOrder, reviewOrderPrice, setOrderPrice, updateOrderStatus, getPaymentsStats,
   getPendingTopups, reviewTopup, completeOrder,
   getPendingWithdrawals, reviewWithdrawal, approveNurseOffer,
   approveService, suggestOrderPrice, getFeedbacks, getNurseReports, updateService,
