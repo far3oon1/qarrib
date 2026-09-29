@@ -24,8 +24,11 @@ const getDashboard = asyncHandler(async (req, res) => {
     .populate('offers.nurse', 'fullName phone rating specialization')
     .sort({ createdAt: -1 });
   const shaped = orders.map(shapeOrder);
-  const active = shaped.filter((o) => ['open', 'offers_received', 'under_review', 'price_approved', 'paid', 'assigned', 'in_progress'].includes(o.status));
-  const completed = shaped.filter((o) => o.status === 'completed');
+  // Requests that are open for nurses to accept are hidden from the patient
+  // entirely — they reappear once a nurse accepts (assigned) or action is needed.
+  const visible = shaped.filter((o) => o.status !== 'open');
+  const active = visible.filter((o) => ['offers_received', 'under_review', 'price_approved', 'paid', 'assigned', 'in_progress'].includes(o.status));
+  const completed = visible.filter((o) => o.status === 'completed');
   ResponseHelper.success(res, {
     user: {
       id: req.user.id,
@@ -34,9 +37,9 @@ const getDashboard = asyncHandler(async (req, res) => {
       walletBalance: req.user.walletBalance || 0,
       location: req.user.location
     },
-    stats: { totalOrders: shaped.length, activeOrders: active.length, completedOrders: completed.length },
+    stats: { totalOrders: visible.length, activeOrders: active.length, completedOrders: completed.length },
     activeOrders: active.slice(0, 5),
-    recentOrders: shaped.slice(0, 5)
+    recentOrders: visible.slice(0, 5)
   }, 'Patient dashboard');
 });
 
@@ -77,7 +80,8 @@ const updateLocation = asyncHandler(async (req, res) => {
 });
 
 const getMyOrders = asyncHandler(async (req, res) => {
-  const orders = await Order.find({ patient: req.user.id })
+  // 'open' requests (waiting for a nurse to accept) are hidden from the patient
+  const orders = await Order.find({ patient: req.user.id, status: { $ne: 'open' } })
     .populate('service', 'nameAr basePrice')
     .populate('assignedNurse', 'fullName phone rating')
     .populate('offers.nurse', 'fullName phone rating specialization yearsOfExperience')
