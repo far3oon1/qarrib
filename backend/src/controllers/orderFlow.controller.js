@@ -454,9 +454,13 @@ const payManual = asyncHandler(async (req, res) => {
   if (!order) throw new ApiError(404, 'Order not found');
   if (String(order.patient) !== String(req.user.id)) throw new ApiError(403, 'Not authorized');
   if (order.finalPrice == null) throw new ApiError(400, 'Price is not fixed yet');
-  if (order.escrowStatus === 'held') throw new ApiError(400, 'Order is already paid');
-  if (!['assigned', 'price_approved', 'paid'].includes(order.status)) {
-    throw new ApiError(400, 'Order is not ready for payment');
+  // Already paid (held or already released straight to the nurse) — never charge twice
+  if (['held', 'released'].includes(order.escrowStatus)) throw new ApiError(400, 'Order is already paid');
+  // Payment is allowed in any pre-completion state (open/under_review/offers_received/
+  // price_approved/assigned/paid/in_progress). Without a nurse yet the money is
+  // simply held and released straight to the nurse on assignment.
+  if (['completed', 'cancelled', 'refunded'].includes(order.status)) {
+    throw new ApiError(400, 'Order is closed');
   }
 
   const patient = await User.findById(req.user.id);
