@@ -229,7 +229,15 @@ const loginWithPhone = asyncHandler(async (req, res) => {
 
  const getMe = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id);
-  ResponseHelper.success(res, { user }, 'تم جلب البيانات بنجاح');
+  // Attach effective feature permissions so the GUI can hide/disable gated buttons
+  try {
+    const { effectivePermissions } = require('./permissions.controller');
+    const uo = user.toObject();
+    uo.effectivePermissions = effectivePermissions(user);
+    ResponseHelper.success(res, { user: uo }, 'تم جلب البيانات بنجاح');
+  } catch (_) {
+    ResponseHelper.success(res, { user }, 'تم جلب البيانات بنجاح');
+  }
 });
 
 const logout = asyncHandler(async (req, res) => {

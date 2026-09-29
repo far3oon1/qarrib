@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Subscriptions - Admin - Qarrib</title>
+    <link rel="manifest" href="../manifest.webmanifest">
+    <meta name="theme-color" content="#0B5F5A">
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        body { background:#F6F3EC; }
+        .web-dash { min-height:100vh; display:flex; }
+        .dash-main { flex:1; padding:36px 44px; display:flex; flex-direction:column; gap:24px; min-width:0; }
+        .panel { padding:28px; border-radius:20px; background:#fff; border:1px solid #D9D3C5; display:flex; flex-direction:column; gap:14px; }
+        .sub-row { display:flex; gap:12px; align-items:center; padding:12px; border:1px solid #EEE9DB; border-radius:14px; margin-bottom:10px; flex-wrap:wrap; }
+        .pill { font-size:11px; font-weight:800; padding:4px 12px; border-radius:999px; }
+        .p-pending{background:#FEF3C7;color:#92400E;} .p-active{background:#DCFCE7;color:#166534;} .p-rejected,.p-expired,.p-cancelled{background:#F6F3EC;color:#4A605E;}
+        @media(max-width:900px){ .dash-main{padding:20px;} .web-dash .q-sidebar{display:none;} }
+    </style>
+</head>
+<body>
+<div class="web-dash">
+    <nav class="q-sidebar">
+        <div class="q-logo" style="font-size:30px;padding:0 12px 24px;">Qarrib · Admin</div>
+        <a href="dashboard.html">Home</a>
+        <a href="subscriptions.html" class="active">💎 Subscriptions</a>
+        <a href="permissions.html">🔐 Permissions</a>
+        <a href="users.html">Users</a>
+        <a href="orders.html">Orders</a>
+        <a href="#" class="logout" onclick="logout();return false;">Log out</a>
+    </nav>
+    <main class="dash-main">
+        <div><div style="font-size:15px;color:#4A605E;">Free / Pro / VIP — monthly billing</div><h1 style="font-size:34px;">💎 Subscriptions</h1></div>
+        <section class="panel">
+            <h2 style="font-size:20px;">1 · Plan prices (EGP / month)</h2>
+            <div style="font-size:13px;color:#4A605E;">Free is always 0. Pro defaults to 250, VIP to 500 — change anytime, applies to new subscriptions immediately.</div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <label style="font-size:13px;">Pro price <input id="proPrice" type="number" min="0" class="q-input" style="width:140px;"></label>
+                <label style="font-size:13px;">VIP price <input id="vipPrice" type="number" min="0" class="q-input" style="width:140px;"></label>
+                <button class="q-btn q-btn-sm" onclick="savePrices()">Save prices</button>
+            </div>
+            <div style="font-size:13px;color:#4A605E;">Features: <strong>Pro</strong> = priority matching, unlimited calls, priority support 8am–12am, 5% discount (half of premium). <strong>VIP</strong> = everything + <strong>24/7 admin hotline calling</strong>, dedicated manager, free reschedule, priority withdrawals, 👑 badge, 10% discount.</div>
+        </section>
+        <section class="panel">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <h2 style="font-size:20px;">2 · Requests</h2>
+                <select id="statusFilter" class="q-input" style="max-width:200px;">
+                    <option value="">All</option><option value="pending">Pending</option><option value="active">Active</option><option value="rejected">Rejected</option><option value="expired">Expired</option><option value="cancelled">Cancelled</option>
+                </select>
+                <button class="q-btn q-btn-sm" onclick="loadSubs()">Refresh</button>
+            </div>
+            <div id="subList"><div class="loading"><div class="spinner"></div></div></div>
+        </section>
+    </main>
+</div>
+<script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
+<script src="../js/api.js?v=6"></script>
+<script src="../js/auth.js?v=6"></script>
+<script src="../js/notifications.js"></script>
+<script src="../js/notify-popup.js?v=1"></script>
+<script>
+if (!requireRole('admin')) redirectToLogin();
+async function loadPrices(){
+    try {
+        var r = await api.getPlans();
+        if (r.success) {
+            var map = {}; r.data.plans.forEach(function(p){ map[p.id] = p; });
+            document.getElementById('proPrice').value = map.pro.price;
+            document.getElementById('vipPrice').value = map.vip.price;
+        }
+    } catch(e){}
+}
+async function savePrices(){
+    var pro = Number(document.getElementById('proPrice').value);
+    var vip = Number(document.getElementById('vipPrice').value);
+    try { var r = await api.savePlanPrices({ pro: pro, vip: vip }); if (r.success) { showAlert('Prices updated'); loadPrices(); } }
+    catch(e){ showAlert(e.message||'Failed','error'); }
+}
+async function loadSubs(){
+    var st = document.getElementById('statusFilter').value;
+    try {
+        var r = await api.getAllSubscriptions(st ? '?status=' + st : '');
+        var box = document.getElementById('subList');
+        if (!r.success || !r.data.length) { box.innerHTML = '<div class="q-muted">No subscriptions</div>'; return; }
+        box.innerHTML = r.data.map(function(s){
+            return '<div class="sub-row"><div style="flex:1;min-width:220px;"><div style="font-weight:800;">' + escapeHtml((s.user&&s.user.name)||'') +
+            ' <span class="pill p-' + s.status + '">' + s.status + '</span> <span class="pill" style="background:#F6F3EC;">' + s.plan.toUpperCase() + '</span></div>' +
+            '<div style="font-size:12px;color:#4A605E;">' + s.price + ' EGP · ' + s.paymentMethod + (s.reference ? ' · ref: ' + escapeHtml(s.reference) : '') + ' · ' + new Date(s.createdAt).toLocaleString() + '</div>' +
+            '<div style="font-size:12px;color:#4A605E;">' + escapeHtml((s.user&&s.user.phone)||'') + ' · ' + escapeHtml((s.user&&s.user.role)||'') + '</div></div>' +
+            (s.status === 'pending' ? '<button class="q-btn q-btn-sm" onclick="review(\'' + s.id + '\',\'approve\')">Approve & activate</button><button class="q-btn q-btn-secondary q-btn-sm" onclick="review(\'' + s.id + '\',\'reject\')">Reject</button>' : '') +
+            '</div>';
+        }).join('');
+    } catch(e){ showAlert(e.message||'Failed','error'); }
+}
+async function review(id, action){
+    if (!confirm(action === 'approve' ? 'Activate this plan for 30 days?' : 'Reject this request?')) return;
+    try { var r = await api.reviewSubscription(id, action); if (r.success) { showAlert('Done'); loadSubs(); } }
+    catch(e){ showAlert(e.message||'Failed','error'); }
+}
+function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+function logout(){ api.logout(); clearAuth(); location.href='../login.html'; }
+loadPrices(); loadSubs();
+</script>
+</body>
+</html>

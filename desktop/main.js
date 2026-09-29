@@ -82,9 +82,12 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
-    minWidth: 800,
+    minWidth: 360,
     minHeight: 600,
     title: 'Qarrab Healthcare',
+    backgroundColor: '#F6F3EC',
+    autoHideMenuBar: true,
+    show: false,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -92,6 +95,15 @@ function createWindow() {
       sandbox: false
     },
     ...iconOption
+  });
+
+  // Autofit: open maximized on any screen like the website fills the browser,
+  // still resizable down to a phone-sized window for testing.
+  mainWindow.once('ready-to-show', () => {
+    try {
+      mainWindow.maximize();
+    } catch (_) {}
+    mainWindow.show();
   });
 
   mainWindow.loadURL(serverUrl);

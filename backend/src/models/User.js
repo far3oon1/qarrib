@@ -142,6 +142,45 @@ const userSchema = new mongoose.Schema({
     default: false
   },
 
+  // --- Subscription plan (free / pro / vip) ---
+  subscription: {
+    plan: { type: String, enum: ['free', 'pro', 'vip'], default: 'free' },
+    status: { type: String, enum: ['active', 'expired', 'pending', 'cancelled'], default: 'active' },
+    expiresAt: { type: Date, default: null },
+    startedAt: { type: Date, default: null }
+  },
+
+  // --- Granular feature permissions (admin-controlled per user, GUI editable) ---
+  // Admin can add/remove any permission from the dashboard. Defaults grant
+  // the core flow; sensitive ones (live tracking, calling) require consent.
+  permissions: {
+    type: Map,
+    of: Boolean,
+    default: undefined
+  },
+
+  // --- Device / legal consents (location, gallery, calling, notifications) ---
+  // Required on mobile + iOS for legal compliance before using live tracking,
+  // uploads and call buttons. Collected via the in-app permission gate.
+  consents: {
+    location: { granted: { type: Boolean, default: false }, updatedAt: { type: Date, default: null } },
+    gallery: { granted: { type: Boolean, default: false }, updatedAt: { type: Date, default: null } },
+    calling: { granted: { type: Boolean, default: false }, updatedAt: { type: Date, default: null } },
+    notifications: { granted: { type: Boolean, default: false }, updatedAt: { type: Date, default: null } },
+    terms: { granted: { type: Boolean, default: false }, updatedAt: { type: Date, default: null } }
+  },
+
+  // --- Live location sharing control (online permission, per-user) ---
+  // shareLiveLocation: master switch. approvedByAdmin: admin can force
+  // approve/revoke from GUI. shareWithPatient / shareWithNurse decide who
+  // sees the live dot on the track pages.
+  locationSharing: {
+    shareLiveLocation: { type: Boolean, default: true },
+    approvedByAdmin: { type: Boolean, default: true },
+    shareWithPatient: { type: Boolean, default: true },
+    shareWithNurse: { type: Boolean, default: true }
+  },
+
   lastLogin: {
     type: Date,
     default: null

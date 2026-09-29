@@ -1,337 +1,246 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة التحكم - ممرض</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Nurse Dashboard - Qarrib</title>
+    <link rel="apple-touch-icon" href="../icon-180.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="../manifest.webmanifest">
+    <meta name="theme-color" content="#0B5F5A">
     <link rel="stylesheet" href="../css/main.css">
     <style>
-        .welcome-header {
-            background: linear-gradient(135deg, #10b981, #059669);
-            color: white;
-            padding: 24px 20px;
-            border-radius: 0 0 24px 24px;
-        }
-        .status-toggle {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-top: 12px;
-        }
-        .toggle-switch {
-            width: 50px;
-            height: 26px;
-            background: rgba(255,255,255,0.3);
-            border-radius: 13px;
-            position: relative;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        .toggle-switch.active {
-            background: #22c55e;
-        }
-        .toggle-switch::after {
-            content: '';
-            position: absolute;
-            width: 22px;
-            height: 22px;
-            background: white;
-            border-radius: 50%;
-            top: 2px;
-            right: 2px;
-            transition: all 0.3s;
-        }
-        .toggle-switch.active::after {
-            right: 26px;
-        }
-        .verification-banner {
-            background: #fef3c7;
-            border: 1px solid #f59e0b;
-            color: #92400e;
-            padding: 12px 16px;
-            border-radius: 12px;
-            margin: 16px 20px;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .request-card {
-            background: white;
-            border-radius: 16px;
-            padding: 20px;
-            margin-bottom: 12px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .request-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-        }
-        .request-service {
-            font-weight: 700;
-            font-size: 16px;
-        }
-        .request-amount {
-            color: #2563eb;
-            font-weight: 700;
-            font-size: 18px;
-        }
-        .request-details {
-            color: #64748b;
-            font-size: 14px;
-            margin-bottom: 12px;
-        }
-        .request-actions {
-            display: flex;
-            gap: 8px;
-        }
-        .request-actions .btn {
-            flex: 1;
-        }
-        .header-actions {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-        }
-        .header-actions button {
-            background: rgba(255,255,255,0.2);
-            border: none;
-            color: white;
-            padding: 8px 12px;
-            border-radius: 999px;
-            cursor: pointer;
-        }
+        body { background: #F6F3EC; }
+        .web-dash { min-height: 100vh; display: flex; background: #F6F3EC; }
+        .dash-main { flex: 1; box-sizing: border-box; padding: 36px 44px; display: flex; flex-direction: column; gap: 28px; min-width: 0; }
+        .dash-top { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+        .dash-top h1 { font-size: 36px; }
+        .stats { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 20px; }
+        .stat { padding: 24px; border-radius: 20px; }
+        .stat.brand { background: #0B5F5A; color: #fff; border: 0; }
+        .stat.plain { background: #fff; border: 1px solid #D9D3C5; }
+        .stat .lbl { font-size: 15px; } .stat.brand .lbl { color: #D5EAE7; } .stat.plain .lbl { color: #4A605E; }
+        .stat .val { margin-top: 8px; font-size: 30px; font-weight: 700; }
+        .panels { display: grid; grid-template-columns: 1.6fr 1fr; gap: 20px; }
+        .panel { padding: 28px; border-radius: 20px; background: #fff; border: 1px solid #D9D3C5; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+        .order-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; background:#F6F3EC; border-radius:14px; padding:14px; }
+        .pill { font-size:12px; font-weight:800; padding:4px 12px; border-radius:999px; background:#DDEBE8; color:#0B4A46; }
+        .toggle-switch { width: 52px; height: 28px; background: #D9D3C5; border-radius: 14px; position: relative; cursor: pointer; transition: all .3s; border:0; }
+        .toggle-switch.active { background: #22c55e; }
+        .toggle-switch::after { content:''; position:absolute; width:22px; height:22px; background:#fff; border-radius:50%; top:3px; left:3px; transition:all .3s; }
+        .toggle-switch.active::after { left:27px; }
+        .mobile-home { display: none; padding: 28px 22px 100px; flex-direction: column; gap: 18px; }
+        .mobile-top { display: flex; justify-content: space-between; align-items: center; }
+        .icon-btn { width: 44px; height: 44px; border-radius: 22px; border: 1px solid #D9D3C5; background: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        @media (max-width: 900px) { .dash-main { display: none; } .mobile-home { display: flex; } .stats{grid-template-columns:1fr 1fr;} .panels{grid-template-columns:1fr;} }
     </style>
 </head>
 <body>
-    <div class="app-container">
-        <div class="welcome-header">
-            <div class="header-actions">
-                <div class="welcome-text">مرحباً</div>
-                <button type="button" onclick="logout()">خروج</button>
-            </div>
-            <div class="welcome-name" id="userName">...</div>
-            <div class="status-toggle">
-                <span>الحالة:</span>
-                <div class="toggle-switch" id="statusToggle"></div>
-                <span id="statusText">غير متصل</span>
+<div class="web-dash">
+    <nav class="q-sidebar">
+        <div class="q-logo" style="font-size:30px;padding:0 12px 24px;">Qarrib · Nurse</div>
+        <a href="dashboard.html" class="active">Home</a>
+        <a href="requests.html">Available requests <span id="reqCount" class="pill" style="margin-inline-start:6px;">0</span></a>
+        <a href="my-orders.html">My visits</a>
+        <a href="track-order.html" id="trackLink">Track patient</a>
+        <a href="chat.html">Chat</a>
+        <a href="wallet.html">Wallet &amp; payout</a>
+        <a href="../plans.html">Plans <span id="planBadge" class="pill" style="margin-inline-start:6px;">Free</span></a>
+        <a href="#" class="logout" onclick="logout();return false;">Log out</a>
+    </nav>
+
+    <main class="dash-main">
+        <div class="dash-top">
+            <div><div style="font-size:15px;color:#4A605E;">Welcome back</div><h1 id="userName">...</h1>
+            <div id="permBanner" style="margin-top:8px;"></div></div>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                <span style="font-size:14px;color:#4A605E;" id="statusText">Offline</span>
+                <button class="toggle-switch" id="statusToggle" aria-label="Online toggle"></button>
+                <a href="requests.html" class="q-btn" style="text-decoration:none;">Find requests</a>
             </div>
         </div>
-
-        <div class="verification-banner" id="verificationBanner" style="display: none;">
-            ⚠️ حسابك قيد المراجعة. سيتم التواصل معك قريباً.
+        <div id="verificationBanner" class="q-card" style="display:none;padding:12px 16px;background:#FFFBEB;border:1px solid #FDE68A;">⚠️ Account under review — you will be notified on approval.</div>
+        <div class="stats">
+            <div class="stat brand"><div class="lbl">Wallet balance</div><div class="val"><span id="walletBalance">0</span> EGP</div><div style="margin-top:10px;display:flex;gap:8px;"><a href="wallet.html" style="color:#fff;font-weight:700;font-size:14px;">Withdraw →</a></div></div>
+            <div class="stat plain"><div class="lbl">Active visits</div><div class="val" id="statActive">–</div></div>
+            <div class="stat plain"><div class="lbl">Total earnings</div><div class="val" id="statEarnings">–</div></div>
+            <div class="stat plain"><div class="lbl">Rating</div><div class="val" id="statRating">–</div></div>
         </div>
-
-        <div class="stats-grid" style="padding: 20px;">
-            <div class="stat-card">
-                <div class="stat-value" id="totalOrders">0</div>
-                <div class="stat-label">إجمالي الطلبات</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="earnings">0</div>
-                <div class="stat-label">الأرباح</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="rating">0</div>
-                <div class="stat-label">التقييم</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="walletBalance">0</div>
-                <div class="stat-label">المحفظة</div>
-            </div>
+        <div class="panels">
+            <section class="panel">
+                <div style="display:flex;justify-content:space-between;align-items:center;"><h2 style="font-size:20px;">Active visits — track patient &amp; end on cash</h2><a href="my-orders.html" style="font-size:15px;font-weight:600;color:#0B5F5A;">View all</a></div>
+                <div id="activeOrders"><div class="loading"><div class="spinner"></div></div></div>
+                <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                    <a href="track-order.html" class="q-btn q-btn-sm" style="text-decoration:none;" id="trackBtn">Track patient 📍</a>
+                    <a href="chat.html" class="q-btn q-btn-secondary q-btn-sm" style="text-decoration:none;">Chat</a>
+                </div>
+            </section>
+            <section class="panel">
+                <h2 style="font-size:20px;">Pro tools</h2>
+                <div id="shareBox"></div>
+                <div class="q-card" style="padding:14px;background:#F6F3EC;border:0;">
+                    <div style="font-weight:700;margin-bottom:6px;">Payout account</div>
+                    <div style="font-size:13px;color:#4A605E;" id="payoutInfo">—</div>
+                    <div style="display:flex;gap:8px;margin-top:8px;">
+                        <select id="payoutMethod" class="q-input" style="flex:1;"><option value="vodafone_cash">Vodafone Cash</option><option value="instapay">InstaPay</option><option value="bank_transfer">Bank transfer</option></select>
+                        <input id="payoutAccount" class="q-input" placeholder="Number / IBAN" style="flex:1.4;">
+                        <button class="q-btn q-btn-sm" onclick="savePayout()">Save</button>
+                    </div>
+                </div>
+                <div class="q-card" style="padding:14px;background:#F6F3EC;border:0;">
+                    <div style="font-weight:700;margin-bottom:6px;">Today</div>
+                    <div style="font-size:13px;color:#4A605E;" id="todayInfo">Loading…</div>
+                </div>
+                <a href="support-chat.html" class="q-btn q-btn-secondary q-btn-sm" style="text-decoration:none;text-align:center;">🎧 Support chat (admin)</a>
+            </section>
         </div>
+        <section class="panel">
+            <div style="display:flex;justify-content:space-between;align-items:center;"><h2 style="font-size:20px;">New requests near you</h2><a href="requests.html" style="font-size:15px;font-weight:600;color:#0B5F5A;">View all</a></div>
+            <div id="availableRequests" style="display:flex;flex-direction:column;gap:12px;"><div class="q-muted">Loading…</div></div>
+        </section>
+    </main>
 
-        <div style="padding: 0 20px 20px;">
-            <div class="section-header" style="margin-bottom: 12px;">
-                <div class="section-title">طلبات متاحة</div>
-            </div>
-            <div id="availableRequests">
-                <div class="loading"><div class="spinner"></div></div>
-            </div>
+    <main class="mobile-home" style="flex:1;">
+        <div class="mobile-top">
+            <div class="q-logo" style="font-size:26px;">Qarrib · Nurse</div>
+            <button class="icon-btn" aria-label="Notifications" onclick="location.href='../notifications.html'">🔔</button>
         </div>
-
-        <nav class="bottom-nav">
-            <a href="dashboard.html" class="nav-item active">
-                <span class="nav-icon">🏠</span>
-                <span>الرئيسية</span>
-            </a>
-            <a href="requests.html" class="nav-item">
-                <span class="nav-icon">📋</span>
-                <span>الطلبات</span>
-            </a>
-            <a href="wallet.html" class="nav-item">
-                <span class="nav-icon">💳</span>
-                <span>المحفظة</span>
-            </a>
-            <a href="chat.html" class="nav-item">
-                <span class="nav-icon">💬</span>
-                <span>الشات</span>
-            </a>
+        <h1 style="font-size:30px;line-height:1.15;">Care visits, on your way.</h1>
+        <div style="display:flex;gap:10px;align-items:center;background:#fff;border:1px solid #D9D3C5;border-radius:14px;padding:12px 14px;">
+            <span style="font-size:14px;" id="statusTextM">Offline</span>
+            <button class="toggle-switch" id="statusToggleM" aria-label="Online toggle"></button>
+            <a href="requests.html" class="q-btn q-btn-sm" style="margin-inline-start:auto;text-decoration:none;">Requests</a>
+        </div>
+        <div id="verificationBannerM" class="q-card" style="display:none;padding:12px;background:#FFFBEB;border:1px solid #FDE68A;">⚠️ Account under review.</div>
+        <a href="requests.html" class="q-btn" style="text-decoration:none;">Find requests near me</a>
+        <div class="q-card" style="padding:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><strong>Active visits</strong><a href="my-orders.html" style="color:#0B5F5A;font-size:14px;font-weight:600;">View all</a></div>
+            <div id="activeOrdersMobile"><div class="q-muted">Loading…</div></div>
+        </div>
+        <div class="q-card" style="padding:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><strong>New requests</strong><a href="requests.html" style="color:#0B5F5A;font-size:14px;font-weight:600;">View all</a></div>
+            <div id="availableRequestsM"><div class="q-muted">Loading…</div></div>
+        </div>
+        <nav class="q-bottomnav" style="position:fixed;bottom:0;left:0;right:0;">
+            <a href="dashboard.html" class="active">Home</a>
+            <a href="requests.html">Requests</a>
+            <a href="chat.html">Messages</a>
+            <a href="wallet.html">Wallet</a>
         </nav>
-    </div>
+    </main>
+</div>
 
-    <script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
-    <script src="../js/api.js?v=6"></script>
-    <script src="../js/auth.js?v=6"></script>
-    <script src="../js/notifications.js"></script>
-    <script>
-        if (!requireRole('nurse')) redirectToLogin();
-
-        async function loadDashboard() {
+<script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
+<script src="../js/api.js?v=6"></script>
+<script src="../js/auth.js?v=6"></script>
+<script src="../js/notifications.js"></script>
+<script src="../js/notify-popup.js?v=1"></script>
+<script src="../js/permissions.js?v=1"></script>
+<script>
+    if (!requireRole('nurse')) redirectToLogin();
+    function orderCard(o){
+        var callBtn = o.patient && o.patient.phone ? '<a class="q-btn q-btn-secondary q-btn-sm" style="text-decoration:none;" href="tel:' + o.patient.phone + '">📞 ' + o.patient.phone + '</a>' : '';
+        return '<div class="order-row"><div style="flex:1;"><div style="font-weight:700;">' + (o.serviceType||'Visit') + ' — ' + (o.amount||0) + ' EGP</div>' +
+        '<div style="font-size:13px;color:#4A605E;">' + (o.address||'') + ' · ' + (o.status||'') + '</div>' +
+        '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;"><a class="q-btn q-btn-sm" style="text-decoration:none;" href="track-order.html?order=' + o.id + '">Track patient 📍</a>' + callBtn + '</div></div>' +
+        '<span class="pill">' + (o.status||'') + '</span></div>';
+    }
+    function reqCard(r){
+        return '<div class="order-row"><div style="flex:1;"><div style="font-weight:700;">' + (r.serviceType||'Request') + '</div>' +
+        '<div style="font-size:13px;color:#4A605E;">📍 ' + (r.address||'') + (r.distanceKm!=null?' · 📏 '+r.distanceKm+' km':'') + ' · 💰 ' + (r.amount||'?') + ' EGP</div></div>' +
+        '<div style="display:flex;gap:8px;"><button class="q-btn q-btn-sm" onclick="acceptRequest(\'' + r.id + '\')">Accept</button></div></div>';
+    }
+    async function acceptRequest(orderId){
+        try { var r = await api.acceptOrder(orderId); if (r.success) { if(window.qpNotify) qpNotify.popup({title:'Visit accepted',message:'Opening live patient tracking…',type:'order'}); setTimeout(function(){ location.href='track-order.html?order='+orderId; },700); } }
+        catch(e){ showAlert(e.message||'Failed','error'); }
+    }
+    async function savePayout(){
+        var m = document.getElementById('payoutMethod').value, a = document.getElementById('payoutAccount').value;
+        try { var r = await api.updateNurseProfile({ payoutMethod: m, payoutAccount: a }); if (r.success) showAlert('Payout account saved'); } catch(e){ showAlert(e.message||'Failed','error'); }
+    }
+    function paintToggle(on){
+        ['statusToggle','statusToggleM'].forEach(function(id){ var t=document.getElementById(id); if(t) t.classList.toggle('active', !!on); });
+        ['statusText','statusTextM'].forEach(function(id){ var t=document.getElementById(id); if(t) t.textContent = on ? 'Online ●' : 'Offline'; });
+    }
+    async function toggleOnline(){
+        try { var r = await api.toggleOnlineStatus(); if (r.success) paintToggle(r.data.isOnline); } catch(e){ showAlert(e.message||'Failed','error'); }
+    }
+    async function loadAll(){
+        try {
+            var d = await api.getNurseDashboard();
+            if (!d.success) return;
+            document.getElementById('userName').textContent = d.data.user.name || d.data.user.fullName;
+            document.getElementById('walletBalance').textContent = d.data.user.walletBalance || 0;
+            document.getElementById('statEarnings').textContent = (d.data.stats.totalEarnings||0) + ' EGP';
+            document.getElementById('statRating').textContent = d.data.user.rating || 'New';
+            var active = d.data.activeOrders || [];
+            document.getElementById('statActive').textContent = active.length;
+            var html = active.length ? active.slice(0,3).map(orderCard).join('') : '<div class="q-muted">No active visits. Go online and accept a request.</div>';
+            document.getElementById('activeOrders').innerHTML = html;
+            document.getElementById('activeOrdersMobile').innerHTML = html;
+            if (active[0]) { document.getElementById('trackBtn').href='track-order.html?order='+active[0].id; document.getElementById('trackLink').href='track-order.html?order='+active[0].id; }
+            if (!d.data.user.isVerified) { document.getElementById('verificationBanner').style.display='block'; document.getElementById('verificationBannerM').style.display='block'; }
+            paintToggle(!!d.data.user.isOnline);
             try {
-                const result = await api.getNurseDashboard();
-                if (result.success) {
-                    const data = result.data;
-                    document.getElementById('userName').textContent = data.user.name;
-                    document.getElementById('totalOrders').textContent = data.stats.totalOrders;
-                    document.getElementById('earnings').textContent = data.stats.totalEarnings;
-                    document.getElementById('rating').textContent = data.user.rating || 'جديد';
-                    document.getElementById('walletBalance').textContent = data.user.walletBalance;
-
-                    if (!data.user.isVerified) {
-                        document.getElementById('verificationBanner').style.display = 'flex';
-                    }
-
-                    const toggle = document.getElementById('statusToggle');
-                    if (data.user.isOnline) {
-                        toggle.classList.add('active');
-                        document.getElementById('statusText').textContent = 'متصل';
-                    }
-
-                    toggle.addEventListener('click', async () => {
-                        const result = await api.toggleOnlineStatus();
-                        if (result.success) {
-                            toggle.classList.toggle('active');
-                            document.getElementById('statusText').textContent = 
-                                toggle.classList.contains('active') ? 'متصل' : 'غير متصل';
-                        }
-                    });
+                var me = await api.getMe();
+                var u = (me.data && me.data.user) || {};
+                document.getElementById('payoutInfo').textContent = (u.payoutMethod||'—') + ' · ' + (u.payoutAccount||'not set');
+                if (u.payoutMethod) document.getElementById('payoutMethod').value = u.payoutMethod;
+                if (u.payoutAccount) document.getElementById('payoutAccount').value = u.payoutAccount;
+            } catch(e){}
+            var today = active.length + ' active · ' + (d.data.stats.completedOrders||0) + ' completed';
+            document.getElementById('todayInfo').textContent = today;
+        } catch(e){}
+        try {
+            var loc = null;
+            try {
+                if (navigator.geolocation) {
+                    var pos = await new Promise(function(res,rej){ navigator.geolocation.getCurrentPosition(res,rej,{enableHighAccuracy:false,timeout:10000,maximumAge:60000}); });
+                    loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                    try { await api.updateNurseLocation(loc.lat, loc.lng); } catch(e2){}
                 }
-            } catch (error) {
-                showAlert('فشل تحميل البيانات', 'error');
+            } catch(e2){}
+            var rq = await api.getAvailableRequests(loc?loc.lat:undefined, loc?loc.lng:undefined);
+            var list = (rq.data||[]).slice(0,4);
+            document.getElementById('reqCount').textContent = (rq.data||[]).length;
+            var h2 = list.length ? list.map(reqCard).join('') : '<div class="q-muted">No requests right now — you will get a 🔔 bell alert when one arrives.</div>';
+            document.getElementById('availableRequests').innerHTML = h2;
+            document.getElementById('availableRequestsM').innerHTML = h2;
+        } catch(e){}
+    }
+    document.getElementById('statusToggle').addEventListener('click', toggleOnline);
+    document.getElementById('statusToggleM').addEventListener('click', toggleOnline);
+    // Legal permission gate (location/gallery/calling/notifications) + live-share toggle
+    document.addEventListener('DOMContentLoaded', async function(){
+        try { if (window.QarribPerms) { await QarribPerms.requireGate('nurse'); QarribPerms.sharingToggle('shareBox'); } } catch(e){}
+    });
+    loadAll();
+    setInterval(loadAll, 30000);
+    // Plan badge
+    (async function planBadge(){
+        try {
+            var r = await api.getMySubscription();
+            if (r.success) {
+                var b = document.getElementById('planBadge');
+                if (b) b.textContent = (r.data.plan||'free').toUpperCase();
             }
-        }
-
-        // One-shot GPS refresh so nearest-first matching uses live location.
-        async function refreshMyLocation() {
-            try {
-                if (!navigator.geolocation) return null;
-                const pos = await new Promise(function(resolve, reject) {
-                    navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 });
-                });
-                const lat = pos.coords.latitude, lng = pos.coords.longitude;
-                try { await api.updateNurseLocation(lat, lng); } catch (e) {}
-                return { lat: lat, lng: lng };
-            } catch (e) { return null; }
-        }
-
-        async function loadRequests() {
-            try {
-                const loc = await refreshMyLocation();
-                const result = await api.getAvailableRequests(loc ? loc.lat : undefined, loc ? loc.lng : undefined);
-                const container = document.getElementById('availableRequests');
-
-                if (result.success && result.data.length > 0) {
-                    container.innerHTML = result.data.slice(0, 3).map(req => `
-                        <div class="request-card">
-                            <div class="request-header">
-                                <span class="request-service">${req.serviceType}</span>
-                                <span class="request-amount">${req.amount ? req.amount + ' ج.م' : 'السعر لم يحدده الأدمن بعد'}</span>
-                            </div>
-                            <div class="request-details">
-                                📍 ${req.address}${req.distanceKm != null ? ' — 📏 ' + req.distanceKm + ' كم' : ''}<br>
-                                📝 ${req.description || 'لا يوجد وصف'}
-                            </div>
-                            <div class="request-actions">
-                                <button class="btn btn-primary btn-sm" onclick="acceptRequest('${req.id}')">قبول</button>
-                                <button class="btn btn-outline btn-sm" onclick="window.location.href='requests.html'">تفاصيل</button>
-                            </div>
-                        </div>
-                    `).join('');
-                } else {
-                    container.innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-state-icon">📋</div>
-                            <p>لا توجد طلبات متاحة حالياً</p>
-                        </div>
-                    `;
+        } catch(e){}
+    })();
+    // live tracking broadcast for the newest active visit
+    (async function initTrack(){
+        try {
+            var res = await api.getNurseDashboard();
+            if (res.success && res.data && res.data.activeOrders.length > 0) {
+                var active = res.data.activeOrders.find(function(o){ return o.status==='in_progress'; }) || res.data.activeOrders[0];
+                if (active && navigator.geolocation) {
+                    navigator.geolocation.watchPosition(function(p){
+                        try { api.updateNurseLocation(p.coords.latitude, p.coords.longitude, active.id).catch(function(){}); } catch(e){}
+                    }, function(){}, {enableHighAccuracy:false,timeout:15000,maximumAge:5000});
                 }
-            } catch (error) {
-                console.error('Load requests error:', error);
             }
-        }
-
-        async function acceptRequest(orderId) {
-            try {
-                const result = await api.acceptOrder(orderId);
-                if (result.success) {
-                    showAlert('تم قبول الطلب! جاري فتح التتبع...');
-                    setTimeout(function(){ window.location.href = 'track-order.html?order=' + orderId; }, 800);
-                }
-            } catch (error) {
-                showAlert(error.message || 'فشل قبول الطلب', 'error');
-            }
-        }
-
-        loadDashboard();
-        loadRequests();
-
-        let nurseSocket = null;
-        let nurseLocationWatcher = null;
-
-        function startNurseTracking(orderId) {
-            window.currentOrderId = orderId;
-            if (!orderId) return;
-
-            if (navigator.geolocation) {
-                nurseLocationWatcher = navigator.geolocation.watchPosition(
-                    function(position) {
-                        const lat = position.coords.latitude;
-                        const lng = position.coords.longitude;
-                        if (nurseSocket && nurseSocket.connected) {
-                            nurseSocket.emit('update_location', { lat, lng, orderId: orderId });
-                        } else if (!window._lastNurseLocPost || Date.now() - window._lastNurseLocPost > 15000) {
-                            // REST fallback (throttled): used when websockets are unavailable (serverless hosting)
-                            window._lastNurseLocPost = Date.now();
-                            try { api.updateNurseLocation(lat, lng, orderId).catch(function() {}); } catch (e) {}
-                        }
-                    },
-                    function(error) { console.log('Nurse geo error:', error); },
-                    { enableHighAccuracy: false, timeout: 15000, maximumAge: 3000 }
-                );
-            }
-
-            if (typeof io === 'undefined') { nurseSocket = null; return; }
-            try { nurseSocket = io({ auth: { token: localStorage.getItem('token') } }); }
-            catch (e) { nurseSocket = null; return; }
-            nurseSocket.on('connect', function() {
-                nurseSocket.emit('subscribe_location', { orderId: orderId });
-            });
-            nurseSocket.on('connect_error', function(err) {
-                console.log('Nurse socket error:', err);
-                setTimeout(function() { startNurseTracking(orderId); }, 5000);
-            });
-            nurseSocket.on('location_update', function(data) {
-                if (data.role === 'patient') {
-                    console.log('Patient moved:', data.lat, data.lng);
-                }
-            });
-        }
-
-        (async function init() {
-            try {
-                const res = await api.getNurseDashboard();
-                if (res.success && res.data && res.data.activeOrders.length > 0) {
-                    const active = res.data.activeOrders.find(function(o) { return o.status === 'in_progress'; });
-                    if (active) { startNurseTracking(active.id); return; }
-                    const assigned = res.data.activeOrders.find(function(o) { return o.status === 'assigned'; });
-                    if (assigned) { startNurseTracking(assigned.id); return; }
-                }
-            } catch(e) { console.log('Nurse tracking init error:', e); }
-        })();
-    </script>
+        } catch(e){}
+    })();
+</script>
 </body>
 </html>

@@ -8,6 +8,8 @@ router.use(protect, authorize('nurse'));
 router.get('/dashboard', nurseController.getDashboard);
 router.put('/profile', nurseController.updateProfile);
 router.post('/location', nurseController.updateLocation);
+router.post('/consent', require('../controllers/permissions.controller').saveConsent);
+router.get('/permissions', require('../controllers/permissions.controller').getRequired);
 router.get('/requests', nurseController.getRequests);
 router.get('/orders', nurseController.getMyOrders);
 router.get('/wallet', nurseController.getMyWallet);

@@ -2,8 +2,15 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>تتبع الطلب - ممرض</title>
+    <link rel="apple-touch-icon" href="../icon-180.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="../manifest.webmanifest">
+    <meta name="description" content="Qarrib Healthcare - nursing care at your door.">
+    <meta name="theme-color" content="#0B5F5A">
     <link rel="stylesheet" href="../css/main.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <style>
@@ -40,6 +47,8 @@
                 <span class="badge" id="statusBadge" style="background:#DDEBE8;color:#0B4A46;">...</span>
             </div>
             <div id="statusLine" style="font-size:13px;color:#4A605E;margin-bottom:8px;">موقعك يُبث مباشرة للمريض والإدارة</div>
+            <div id="shareBox" style="margin-bottom:8px;"></div>
+            <div id="permNote" style="display:none;font-size:12px;color:#92400E;background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:8px 10px;margin-bottom:8px;"></div>
             <div id="respondBox" style="display:none;background:#FFFBEB;border:1px solid #FDE68A;border-radius:12px;padding:12px;margin-bottom:8px;">
                 <div style="font-weight:700;margin-bottom:8px;">تم اختيارك لهذه الخدمة — موافق على السعر؟</div>
                 <div style="display:flex;gap:8px;">
@@ -53,6 +62,14 @@
                 <button class="btn btn-outline btn-sm" id="chatBtn">شات 💬</button>
                 <button class="btn btn-outline btn-sm" id="callBtn">اتصال 📞</button>
             </div>
+            <div id="cashBox" style="display:none;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:12px;padding:12px;margin-top:8px;">
+                <div style="font-weight:700;margin-bottom:6px;">💰 استلام المبلغ نقداً وإنهاء الزيارة</div>
+                <div style="font-size:13px;color:#4A605E;margin-bottom:8px;" id="cashHint">أكد استلام المبلغ من المريض لإنهاء الخدمة.</div>
+                <div style="display:flex;gap:8px;">
+                    <input id="cashAmount" type="number" min="0" class="q-input" placeholder="المبلغ المستلم" style="flex:1;">
+                    <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="doCompleteCash()">استلمت المبلغ — إنهاء ✅</button>
+                </div>
+            </div>
         </div>
     </div>
 <script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
@@ -61,6 +78,8 @@
 <script src="../js/api.js?v=6"></script>
 <script src="../js/auth.js?v=6"></script>
 <script src="../js/notifications.js"></script>
+<script src="../js/notify-popup.js?v=1"></script>
+<script src="../js/permissions.js?v=1"></script>
 <script>
     if (!requireRole('nurse')) redirectToLogin();
     var orderId = new URLSearchParams(window.location.search).get('order');
@@ -107,12 +126,40 @@
             document.getElementById('orderInfo').textContent = (o.serviceType || '') + ' | ' + (o.amount || o.finalPrice || '') + ' ج.م | ' + (o.address || '');
             document.getElementById('statusBadge').textContent = o.status;
             document.getElementById('chatBtn').onclick = function(){ window.location.href = 'chat-room.html?order=' + orderId; };
-            try { document.getElementById('callBtn').onclick = function(){ window.location.href = 'tel:' + (o.patient.phone || ''); }; } catch(e){}
+            // Call patient on the registered number (permission-gated by backend)
+            try {
+                var phone = o.patient && o.patient.phone;
+                var callBtn = document.getElementById('callBtn');
+                if (o.patient && o.patient.callDisabled) { callBtn.textContent = 'اتصال محظور 🔒'; callBtn.onclick = function(){ showAlert('الاتصال معطل لهذا الحساب من الإدارة', 'error'); }; }
+                else if (phone) { callBtn.textContent = 'اتصال 📞 ' + phone; callBtn.onclick = function(){ window.location.href = 'tel:' + phone; }; }
+                else { callBtn.textContent = 'اتصال 📞'; callBtn.onclick = function(){ showAlert('لا يوجد رقم مسجل', 'error'); }; }
+            } catch(e){}
             document.getElementById('startBtn').style.display = o.status === 'assigned' ? 'block' : 'none';
             document.getElementById('doneBtn').style.display = (o.status === 'assigned' || o.status === 'in_progress') ? 'block' : 'none';
             document.getElementById('respondBox').style.display = (o.status === 'assigned' && o.nurseAccepted !== true) ? 'block' : 'none';
+            // Cash box: nurse ends service when the balance is received
+            var cashBox = document.getElementById('cashBox');
+            if (cashBox) {
+                var showCash = (o.status === 'assigned' || o.status === 'in_progress');
+                cashBox.style.display = showCash ? 'block' : 'none';
+                if (showCash) {
+                    var amt = o.amount || o.finalPrice || '';
+                    document.getElementById('cashHint').textContent = 'المبلغ المتوقع: ' + amt + ' ج.م — أدخل المستلم وأنهِ الزيارة.';
+                    if (!document.getElementById('cashAmount').value && amt) document.getElementById('cashAmount').value = amt;
+                }
+            }
+            // Patient location permission notice
+            var note = document.getElementById('permNote');
+            if (note) {
+                if (o.locationSharing && o.locationSharing.patientShare === false) {
+                    note.style.display = 'block';
+                    note.textContent = '🔒 المريض أوقف مشاركة موقعه المباشر — العنوان المسجل: ' + (o.address || '');
+                } else note.style.display = 'none';
+            }
             var pl = o.patientLocation || (o.location && o.location.coordinates) || o.patientLiveLocation;
+            if (o.patientLiveLocation && o.patientLiveLocation.lat != null) pl = o.patientLiveLocation;
             if (pl && pl.lat != null) { patientLoc = { lat: Number(pl.lat), lng: Number(pl.lng) }; patientMarker.setLatLng([patientLoc.lat, patientLoc.lng]); draw(); }
+            else if (o.location && o.location.lat != null) { patientLoc = { lat: Number(o.location.lat), lng: Number(o.location.lng) }; patientMarker.setLatLng([patientLoc.lat, patientLoc.lng]); draw(); }
             if (o.nurseLiveLocation && o.nurseLiveLocation.lat != null && !me) { me = { lat: o.nurseLiveLocation.lat, lng: o.nurseLiveLocation.lng }; meMarker.setLatLng([me.lat, me.lng]); draw(); }
         } catch(e){}
     }
@@ -126,7 +173,14 @@
     }
     async function doComplete(){
         if (!confirm('إنهاء الخدمة كمكتملة؟ سيتم إشعار المريض والإدارة.')) return;
-        try { var r = await api.confirmOrder(orderId, 'nurse'); if (r.success) { showAlert('تم إنهاء الخدمة! بانتظار موافقة الإدارة للتحويل.'); loadOrder(); } }
+        try { var r = await api.confirmOrder(orderId, 'nurse'); if (r.success) { if(window.qpNotify) qpNotify.popup({title:'Service completed',message:'Patient and admin were notified with a bell alert',type:'order'}); showAlert('تم إنهاء الخدمة! بانتظار موافقة الإدارة للتحويل.'); loadOrder(); } }
+        catch(e){ showAlert(e.message || 'فشل الإنهاء', 'error'); }
+    }
+    async function doCompleteCash(){
+        var amt = Number((document.getElementById('cashAmount')||{}).value || 0);
+        if (!amt || amt <= 0) { showAlert('أدخل المبلغ المستلم أولاً', 'error'); return; }
+        if (!confirm('تأكيد استلام ' + amt + ' ج.م نقداً وإنهاء الزيارة؟')) return;
+        try { var r = await api.completeCash(orderId, amt); if (r.success) { if(window.qpNotify) qpNotify.popup({title:'Cash received',message:'Visit ended — patient was asked to rate with stars',type:'payment'}); showAlert('تم إنهاء الزيارة بعد استلام المبلغ!'); loadOrder(); } }
         catch(e){ showAlert(e.message || 'فشل الإنهاء', 'error'); }
     }
     function setupSocket(){
@@ -140,6 +194,7 @@
     (function init(){
         initMap(); loadOrder(); setupSocket();
         setInterval(loadOrder, 15000);
+        try { if (window.QarribPerms) { QarribPerms.requireGate('nurse'); QarribPerms.sharingToggle('shareBox', orderId); } } catch(e){}
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(function(p){ postLoc(p.coords.latitude, p.coords.longitude); }, function(){}, { enableHighAccuracy: false, timeout: 15000 });
             watcher = navigator.geolocation.watchPosition(function(p){ postLoc(p.coords.latitude, p.coords.longitude); }, function(){}, { enableHighAccuracy: false, timeout: 15000, maximumAge: 5000 });

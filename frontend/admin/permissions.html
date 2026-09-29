@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Permissions - Admin - Qarrib</title>
+    <link rel="manifest" href="../manifest.webmanifest">
+    <meta name="theme-color" content="#0B5F5A">
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        body { background: #F6F3EC; }
+        .web-dash { min-height: 100vh; display: flex; background: #F6F3EC; }
+        .dash-main { flex: 1; padding: 36px 44px; display: flex; flex-direction: column; gap: 24px; min-width:0; }
+        .panel { padding: 28px; border-radius: 20px; background: #fff; border: 1px solid #D9D3C5; display:flex; flex-direction:column; gap:16px; }
+        table.perm { width:100%; border-collapse: collapse; font-size:14px; }
+        table.perm th, table.perm td { padding:10px 12px; border-bottom:1px solid #EEE9DB; text-align:start; }
+        table.perm th { color:#4A605E; font-size:13px; }
+        .switch { position:relative; width:46px; height:26px; display:inline-block; }
+        .switch input { opacity:0; width:0; height:0; }
+        .slider { position:absolute; inset:0; background:#D9D3C5; border-radius:999px; cursor:pointer; transition:.2s; }
+        .slider:before { content:''; position:absolute; width:20px; height:20px; background:#fff; border-radius:50%; top:3px; left:3px; transition:.2s; }
+        .switch input:checked + .slider { background:#0B5F5A; }
+        .switch input:checked + .slider:before { transform:translateX(20px); }
+        .user-row { display:flex; gap:12px; align-items:center; padding:12px; border:1px solid #EEE9DB; border-radius:14px; margin-bottom:10px; flex-wrap:wrap; }
+        @media (max-width: 900px){ .dash-main{padding:20px;} .web-dash .q-sidebar{display:none;} }
+    </style>
+</head>
+<body>
+<div class="web-dash">
+    <nav class="q-sidebar">
+        <div class="q-logo" style="font-size:30px;padding:0 12px 24px;">Qarrib · Admin</div>
+        <a href="dashboard.html">Home</a>
+        <a href="permissions.html" class="active">🔐 Permissions</a>
+        <a href="users.html">Users</a>
+        <a href="orders.html">Orders</a>
+        <a href="feedbacks.html">Feedbacks</a>
+        <a href="#" class="logout" onclick="logout();return false;">Log out</a>
+    </nav>
+    <main class="dash-main">
+        <div><div style="font-size:15px;color:#4A605E;">Control who can do what — no code needed</div><h1 style="font-size:34px;">🔐 Permissions</h1></div>
+
+        <section class="panel">
+            <h2 style="font-size:20px;">1 · Required device permissions per role (legal gate)</h2>
+            <div style="font-size:13px;color:#4A605E;">When required, the nurse/patient must Allow it on mobile, iOS or web before using the app. Location = live tracking · Gallery = service images · Calling = call buttons · Notifications = bell alerts.</div>
+            <div id="reqMatrix"><div class="loading"><div class="spinner"></div></div></div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <input id="legalTitle" class="q-input" placeholder="Legal notice title" style="flex:1;min-width:200px;">
+                <input id="legalBody" class="q-input" placeholder="Legal notice text (shown in app)" style="flex:2;min-width:280px;">
+                <button class="q-btn q-btn-sm" onclick="saveSettings()">Save all</button>
+            </div>
+        </section>
+
+        <section class="panel">
+            <h2 style="font-size:20px;">2 · Per-user feature permissions (add / remove as you like)</h2>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <input id="search" class="q-input" placeholder="Search name / phone / email" style="flex:1;min-width:200px;">
+                <select id="roleFilter" class="q-input"><option value="">All roles</option><option value="nurse">Nurses</option><option value="patient">Patients</option><option value="admin">Admins</option></select>
+                <button class="q-btn q-btn-sm" onclick="loadUsers()">Search</button>
+            </div>
+            <div id="userList"><div class="q-muted">Search to load users…</div></div>
+        </section>
+    </main>
+</div>
+
+<script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
+<script src="../js/api.js?v=6"></script>
+<script src="../js/auth.js?v=6"></script>
+<script src="../js/notifications.js"></script>
+<script src="../js/notify-popup.js?v=1"></script>
+<script>
+if (!requireRole('admin')) redirectToLogin();
+var SETTINGS = null;
+var PERM_LABELS = { view_orders:'View orders', accept_orders:'Accept orders', submit_offers:'Submit prices', start_service:'Start service', end_service:'End service', live_tracking:'Live tracking', call_patient:'Call patient', call_nurse:'Call nurse', chat:'Chat', wallet_view:'Wallet view', wallet_withdraw:'Withdraw', receive_alerts:'Bell alerts', share_location:'Share location', upload_photos:'Upload photos', rate_feedback:'Rate / feedback' };
+async function loadSettings(){
+    try {
+        var r = await api.getPermSettings();
+        if (!r.success) return;
+        SETTINGS = r.data;
+        document.getElementById('legalTitle').value = (r.data.legal&&r.data.legal.title)||'';
+        document.getElementById('legalBody').value = (r.data.legal&&r.data.legal.body)||'';
+        var keys = ['location','gallery','calling','notifications','terms'];
+        var html = '<table class="perm"><tr><th>Permission</th><th>Patient required</th><th>Nurse required</th></tr>' +
+            keys.map(function(k){
+                var p = !!r.data.required.patient[k], n = !!r.data.required.nurse[k];
+                return '<tr><td style="font-weight:700;">'+k+'</td>' +
+                '<td><label class="switch"><input type="checkbox" data-role="patient" data-key="'+k+'"'+(p?' checked':'')+'><span class="slider"></span></label></td>' +
+                '<td><label class="switch"><input type="checkbox" data-role="nurse" data-key="'+k+'"'+(n?' checked':'')+'><span class="slider"></span></label></td></tr>';
+            }).join('') + '</table>';
+        document.getElementById('reqMatrix').innerHTML = html;
+    } catch(e){ document.getElementById('reqMatrix').innerHTML = '<div class="q-muted">Failed to load</div>'; }
+}
+async function saveSettings(){
+    var req = { patient:{}, nurse:{} };
+    document.querySelectorAll('#reqMatrix input[type=checkbox]').forEach(function(c){ req[c.dataset.role][c.dataset.key] = c.checked; });
+    try {
+        var r = await api.savePermSettings({ required: req, legal: { title: document.getElementById('legalTitle').value, body: document.getElementById('legalBody').value } });
+        if (r.success) { showAlert('Permission requirements saved'); if(window.qpNotify) qpNotify.popup({title:'Permissions saved',message:'Device gates updated for all users',type:'system'}); }
+    } catch(e){ showAlert(e.message||'Failed','error'); }
+}
+async function loadUsers(){
+    var q = '?';
+    var s = document.getElementById('search').value.trim();
+    var role = document.getElementById('roleFilter').value;
+    if (role) q += 'role='+role+'&';
+    if (s) q += 'search='+encodeURIComponent(s);
+    try {
+        var r = await api.getUserPermissions(q);
+        var box = document.getElementById('userList');
+        if (!r.success || !r.data.length) { box.innerHTML = '<div class="q-muted">No users found</div>'; return; }
+        box.innerHTML = r.data.map(function(u){
+            var perms = Object.keys(PERM_LABELS).map(function(k){
+                var on = !!(u.permissions&&u.permissions[k]);
+                return '<label style="display:flex;align-items:center;gap:6px;font-size:12px;background:#F6F3EC;border-radius:999px;padding:6px 10px;"><input type="checkbox" data-uid="'+u.id+'" data-pkey="'+k+'"'+(on?' checked':'')+'> '+PERM_LABELS[k]+'</label>';
+            }).join('');
+            var ls = u.locationSharing||{};
+            var locOn = ls.approvedByAdmin !== false && ls.shareLiveLocation !== false;
+            return '<div class="user-row"><div style="flex:1;min-width:200px;"><div style="font-weight:800;">'+escapeHtml(u.name||'')+' <span style="font-weight:400;color:#4A605E;">('+u.role+')</span></div>' +
+            '<div style="font-size:12px;color:#4A605E;">'+escapeHtml(u.phone||'')+' · '+escapeHtml(u.email||'')+'</div>' +
+            '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">'+perms+'</div>' +
+            '<div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><label style="font-size:12px;"><input type="checkbox" data-loc="'+u.id+'"'+(locOn?' checked':'')+'> Approve live location</label>' +
+            '<button class="q-btn q-btn-sm" onclick="saveUser(\''+u.id+'\')">Save permissions</button></div></div></div>';
+        }).join('');
+    } catch(e){ showAlert(e.message||'Failed','error'); }
+}
+async function saveUser(id){
+    var perms = {};
+    document.querySelectorAll('input[data-uid="'+id+'"]').forEach(function(c){ perms[c.dataset.pkey] = c.checked; });
+    var locEl = document.querySelector('input[data-loc="'+id+'"]');
+    var payload = { permissions: perms };
+    if (locEl) payload.approveLocation = locEl.checked;
+    try { var r = await api.saveUserPermissions(id, payload); if (r.success) showAlert('Saved for user'); }
+    catch(e){ showAlert(e.message||'Failed','error'); }
+}
+function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+function logout(){ api.logout(); clearAuth(); location.href='../login.html'; }
+loadSettings(); loadUsers();
+</script>
+</body>
+</html>

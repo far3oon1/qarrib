@@ -1,26 +1,33 @@
 {
-  "id": "/",
-  "name": "Qarrab Healthcare | قرّب",
-  "short_name": "قرّب",
-  "description": "Home nursing services and live nurse tracking",
+  "id": "./",
+  "name": "Qarrib Healthcare | قرّب",
+  "short_name": "Qarrib | قرّب",
+  "description": "Home nursing services — request a licensed nurse, compare offers, track live.",
   "lang": "ar",
   "dir": "rtl",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
-  "orientation": "portrait-primary",
-  "background_color": "#f1f5f9",
-  "theme_color": "#2563eb",
+  "orientation": "any",
+  "background_color": "#F6F3EC",
+  "theme_color": "#0B5F5A",
+  "categories": ["health", "medical", "lifestyle"],
   "icons": [
     {
-      "src": "/icon-192.png",
+      "src": "icon-180.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/icon-512.png",
+      "src": "icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
