@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>دخول المساعد - قرّب</title>
+    <link rel="apple-touch-icon" href="icon-180.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="description" content="Qarrib Healthcare - helper sign in.">
+    <meta name="theme-color" content="#0B5F5A">
+    <link rel="stylesheet" href="css/main.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #04211f, #0B5F5A, #134e4a);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .helper-wrapper { width: 100%; max-width: 420px; text-align: center; }
+        .brand { text-align: center; margin-bottom: 32px; }
+        .brand-logo { font-size: 48px; font-weight: 900; color: white; text-shadow: 0 4px 12px rgba(0,0,0,0.4); letter-spacing: -1px; }
+        .brand-tagline { color: rgba(255,255,255,0.6); font-size: 14px; margin-top: 8px; }
+        .helper-badge {
+            display: inline-block; background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15); border-radius: 12px;
+            padding: 12px 24px; margin-bottom: 24px; color: rgba(255,255,255,0.6); font-size: 13px;
+        }
+        .helper-badge span { font-size: 24px; display: block; margin-bottom: 4px; }
+        .helper-card {
+            background: rgba(255,255,255,0.05); backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 24px;
+            padding: 32px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+        }
+        .helper-card h2 { color: white; margin-bottom: 8px; font-size: 20px; }
+        .helper-card p { color: rgba(255,255,255,0.5); font-size: 13px; margin-bottom: 24px; }
+        .input-group { margin-bottom: 16px; }
+        .input-label { display: block; color: rgba(255,255,255,0.6); font-size: 13px; margin-bottom: 6px; text-align: right; }
+        .input-field {
+            width: 100%; padding: 12px 16px; background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15); border-radius: 12px;
+            color: white; font-size: 15px; outline: none; transition: border-color 0.3s;
+        }
+        .input-field:focus { border-color: #2dd4bf; }
+        .input-field::placeholder { color: rgba(255,255,255,0.3); }
+        .btn-helper-access {
+            width: 100%; padding: 14px; background: linear-gradient(135deg, #0B5F5A, #14b8a6);
+            border: none; border-radius: 12px; color: white; font-size: 16px;
+            font-weight: 600; cursor: pointer; margin-top: 8px; transition: opacity 0.3s;
+        }
+        .btn-helper-access:hover { opacity: 0.9; }
+        .btn-helper-access:disabled { opacity: 0.5; cursor: not-allowed; }
+        .alert { padding: 12px 16px; border-radius: 12px; margin-bottom: 16px; font-size: 13px; display: none; }
+        .alert-error { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; }
+        .alert-success { background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.3); color: #86efac; }
+        .alert.show { display: block; }
+        .spinner {
+            display: none; width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white; border-radius: 50%; animation: spin 0.6s linear infinite;
+            margin-left: 8px; vertical-align: middle;
+        }
+        .spinner.show { display: inline-block; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .footer-text { color: rgba(255,255,255,0.3); font-size: 11px; margin-top: 16px; }
+        .footer-text a { color: rgba(255,255,255,0.55); }
+    </style>
+</head>
+<body>
+    <div class="helper-wrapper">
+        <div class="brand">
+            <div class="brand-logo">قرّب</div>
+            <div class="brand-tagline">بوابة المساعدين</div>
+        </div>
+
+        <div class="helper-card">
+            <div class="helper-badge">
+                <span>🎧</span>
+                دخول المساعد — بحساب من إنشاء الأدمن
+            </div>
+
+            <h2>🎧 تسجيل دخول المساعد</h2>
+            <p>أدخل بريدك وكلمة المرور اللذين أنشأهما لك الأدمن (بدون رمز سري)</p>
+
+            <div class="alert alert-error" id="alert-error"></div>
+            <div class="alert alert-success" id="alert-success"></div>
+
+            <div class="input-group">
+                <label class="input-label">البريد الإلكتروني</label>
+                <input type="email" class="input-field" id="email-helper" placeholder="helper@email.com" dir="ltr">
+            </div>
+
+            <div class="input-group">
+                <label class="input-label">كلمة المرور</label>
+                <input type="password" class="input-field" id="password-helper" placeholder="••••••••" dir="ltr">
+            </div>
+
+            <button class="btn-helper-access" id="btn-helper-access" onclick="helperLogin()">
+                <span>🎧 دخول كمساعد</span>
+                <span class="spinner" id="spinner-helper"></span>
+            </button>
+
+            <p class="footer-text">مريض أو ممرض؟ <a href="login.html">صفحة الدخول العادية</a></p>
+        </div>
+    </div>
+
+<script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
+<script src="js/api.js?v=7"></script>
+<script src="js/auth.js?v=7"></script>
+<script>
+        if (isLoggedIn() && getRole() === 'assistant') { window.location.href = '/admin/assistant-panel.html'; }
+
+        function showAlert(elId, message, type) {
+            type = type || 'error';
+            var el = document.getElementById(elId);
+            el.textContent = message;
+            el.className = 'alert alert-' + type + ' show';
+            setTimeout(function() { el.className = 'alert alert-' + type; }, 5000);
+        }
+
+        async function helperLogin() {
+            var email = document.getElementById('email-helper').value.trim();
+            var password = document.getElementById('password-helper').value;
+            var btn = document.getElementById('btn-helper-access');
+            var spinner = document.getElementById('spinner-helper');
+
+            if (!email || !password) {
+                showAlert('alert-error', 'يرجى إدخال البريد الإلكتروني وكلمة المرور');
+                return;
+            }
+
+            btn.disabled = true;
+            spinner.classList.add('show');
+            document.getElementById('alert-error').className = 'alert alert-error';
+            document.getElementById('alert-success').className = 'alert alert-success';
+
+            try {
+                // Dedicated online endpoint: POST /api/auth/assistant/login
+                var result = await api.assistantLogin({ email: email, password: password });
+                if (result.success) {
+                    if (result.data) setUser(result.data.user || result.data);
+                    if (getRole() !== 'assistant') {
+                        showAlert('alert-error', 'هذا الحساب ليس حساب مساعد');
+                        btn.disabled = false;
+                        spinner.classList.remove('show');
+                        return;
+                    }
+                    showAlert('alert-success', 'تم تسجيل الدخول بنجاح! جاري فتح لوحة المساعد...', 'success');
+                    setTimeout(function() {
+                        window.location.href = '/admin/assistant-panel.html';
+                    }, 1000);
+                } else {
+                    showAlert('alert-error', result.message || 'فشل تسجيل الدخول');
+                }
+            } catch (error) {
+                showAlert('alert-error', error.message || 'حدث خطأ في الاتصال بالسيرفر');
+            } finally {
+                btn.disabled = false;
+                spinner.classList.remove('show');
+            }
+        }
+
+        document.getElementById('password-helper').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') helperLogin();
+        });
+</script>
+</body>
+</html>

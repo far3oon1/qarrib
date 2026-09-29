@@ -97,7 +97,7 @@
                         <label class="q-label"><span data-i18n="email3">Email address</span><input id="email-helper" type="email" class="q-input" placeholder="example@email.com"></label>
                         <label class="q-label"><span data-i18n="pass3">Password</span><input id="password-helper" type="password" class="q-input" placeholder="Password"></label>
                         <button class="q-btn" id="btn-helper" type="button" onclick="loginHelper()"><span class="spinner" id="spinner-helper"></span><span data-i18n="signin3">Sign in as helper</span></button>
-                        <div style="font-size:14px;color:#4A605E;text-align:center;" data-i18n="hhint">Helper accounts are created by the admin on the Helpers page, with ticked policies.</div>
+                        <div style="font-size:14px;color:#4A605E;text-align:center;"><span data-i18n="hhint">Helper accounts are created by the admin on the Helpers page, with ticked policies.</span> <a href="assistant-login.html" style="color:#0B5F5A;font-weight:600;" data-i18n="hpage">Dedicated helper sign-in page</a></div>
                     </div>
                 </div>
             </div>
@@ -182,7 +182,7 @@
 
     // EN/AR toggle (design spec: Arabic toggle on sign-in)
     var currentLang = 'en';
-    var AR = { tagline:'أقرب ممرض لك، وقت ما تحتاجه.', p1:'ممرضون مرخّصون وموثّقون', p2:'عروض واضحة من ممرضين قريبين منك', p3:'تابع كل زيارة لحظة بلحظة', ptitle:'تسجيل دخول المريض', psub:'احصل على رعاية تمريضية في منزلك', email:'البريد الإلكتروني', pass:'كلمة المرور', signin:'تسجيل الدخول', noacc:'ليس لديك حساب؟', regp:'سجل كمريض', ntitle:'تسجيل دخول الممرض', nsub:'قدّم خدماتك واكسب', email2:'البريد الإلكتروني', pass2:'كلمة المرور', signin2:'تسجيل الدخول', noacc2:'ليس لديك حساب؟', regn:'سجل كممرض', htitle:'تسجيل دخول المساعد', hsub:'حساب مساعد من إنشاء الأدمن — بدون رمز سري', email3:'البريد الإلكتروني', pass3:'كلمة المرور', signin3:'دخول كمساعد', hhint:'حسابات المساعدين ينشئها الأدمن من صفحة المساعدين مع الصلاحيات.' };
+    var AR = { tagline:'أقرب ممرض لك، وقت ما تحتاجه.', p1:'ممرضون مرخّصون وموثّقون', p2:'عروض واضحة من ممرضين قريبين منك', p3:'تابع كل زيارة لحظة بلحظة', ptitle:'تسجيل دخول المريض', psub:'احصل على رعاية تمريضية في منزلك', email:'البريد الإلكتروني', pass:'كلمة المرور', signin:'تسجيل الدخول', noacc:'ليس لديك حساب؟', regp:'سجل كمريض', ntitle:'تسجيل دخول الممرض', nsub:'قدّم خدماتك واكسب', email2:'البريد الإلكتروني', pass2:'كلمة المرور', signin2:'تسجيل الدخول', noacc2:'ليس لديك حساب؟', regn:'سجل كممرض', htitle:'تسجيل دخول المساعد', hsub:'حساب مساعد من إنشاء الأدمن — بدون رمز سري', email3:'البريد الإلكتروني', pass3:'كلمة المرور', signin3:'دخول كمساعد', hhint:'حسابات المساعدين ينشئها الأدمن من صفحة المساعدين مع الصلاحيات.', hpage:'صفحة دخول المساعد المخصصة' };
     var EN = {};
     document.querySelectorAll('[data-i18n]').forEach(function(el){ var k = el.getAttribute('data-i18n'); if (!EN[k]) EN[k] = el.textContent; });
     document.getElementById('tab-patient').textContent = 'Patient';
