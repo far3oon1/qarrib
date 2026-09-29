@@ -56,4 +56,9 @@ const adminResetPassword = Joi.object({
   newPassword: Joi.string().min(6).max(50).required()
 });
 
-module.exports = { registerPatient, registerNurse, login, loginPhone, adminLogin, adminRegister, adminResetPassword };
+const assistantLogin = Joi.object({
+  email: Joi.string().email().required(),
+  password: Joi.string().required()
+});
+
+module.exports = { registerPatient, registerNurse, login, loginPhone, adminLogin, adminRegister, adminResetPassword, assistantLogin };

@@ -62,6 +62,7 @@
                 <div class="q-switch" role="tablist">
                     <button type="button" id="tab-patient" class="active" onclick="switchRole(event, 'patient')">Patient</button>
                     <button type="button" id="tab-nurse" onclick="switchRole(event, 'nurse')">Nurse</button>
+                    <button type="button" id="tab-helper" onclick="switchRole(event, 'helper')">🎧 Helper</button>
                 </div>
 
                 <div id="form-patient">
@@ -87,6 +88,18 @@
                         <div style="font-size:15px;color:#4A605E;text-align:center;"><span data-i18n="noacc2">Don't have an account?</span> <a href="register.html?role=nurse" style="color:#0B5F5A;font-weight:600;" data-i18n="regn">Register as a nurse</a></div>
                     </div>
                 </div>
+
+                <div id="form-helper" style="display:none;">
+                    <h2 style="margin:0;font-family:Fraunces,Georgia,serif;font-size:32px;" data-i18n="htitle">Helper sign in</h2>
+                    <div style="margin-top:6px;font-size:16px;color:#4A605E;" data-i18n="hsub">Admin-created helper account — no secret key needed</div>
+                    <div style="display:flex;flex-direction:column;gap:16px;margin-top:20px;">
+                        <div class="alert alert-error" id="alert-helper"></div>
+                        <label class="q-label"><span data-i18n="email3">Email address</span><input id="email-helper" type="email" class="q-input" placeholder="example@email.com"></label>
+                        <label class="q-label"><span data-i18n="pass3">Password</span><input id="password-helper" type="password" class="q-input" placeholder="Password"></label>
+                        <button class="q-btn" id="btn-helper" type="button" onclick="loginHelper()"><span class="spinner" id="spinner-helper"></span><span data-i18n="signin3">Sign in as helper</span></button>
+                        <div style="font-size:14px;color:#4A605E;text-align:center;" data-i18n="hhint">Helper accounts are created by the admin on the Helpers page, with ticked policies.</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -100,10 +113,10 @@
         api.getMe().then(function(r){ if (r.success && r.data) { setUser(r.data.user || r.data); if (getRole()) redirectBasedOnRole(); } }).catch(function(){});
     }
     function switchRole(e, role) {
-        document.getElementById('tab-patient').classList.toggle('active', role === 'patient');
-        document.getElementById('tab-nurse').classList.toggle('active', role === 'nurse');
-        document.getElementById('form-patient').style.display = role === 'patient' ? 'block' : 'none';
-        document.getElementById('form-nurse').style.display = role === 'nurse' ? 'block' : 'none';
+        ['patient', 'nurse', 'helper'].forEach(function (r) {
+            document.getElementById('tab-' + r).classList.toggle('active', r === role);
+            document.getElementById('form-' + r).style.display = r === role ? 'block' : 'none';
+        });
         hideAlert(role);
     }
     function showAlert(role, message, type) {
@@ -146,15 +159,36 @@
     ['patient','nurse'].forEach(function(role){
         document.getElementById('password-' + role).addEventListener('keypress', function(e){ if (e.key === 'Enter') login(role); });
     });
+    document.getElementById('password-helper').addEventListener('keypress', function(e){ if (e.key === 'Enter') loginHelper(); });
+
+    // Dedicated helper sign-in -> POST /api/auth/assistant/login (online)
+    async function loginHelper() {
+        var email = document.getElementById('email-helper').value.trim();
+        var password = document.getElementById('password-helper').value;
+        var btn = document.getElementById('btn-helper');
+        var spinner = document.getElementById('spinner-helper');
+        if (!email || !password) { showAlert('helper', currentLang === 'ar' ? 'يرجى إدخال البريد الإلكتروني وكلمة المرور' : 'Please enter email and password'); return; }
+        btn.disabled = true; spinner.classList.add('show'); hideAlert('helper');
+        try {
+            var result = await api.assistantLogin({ email: email, password: password });
+            if (result.success) {
+                setUser(result.data.user);
+                showAlert('helper', currentLang === 'ar' ? 'أهلاً بك! جاري فتح لوحة المساعد...' : 'Welcome! Opening helper panel...', 'success');
+                setTimeout(function(){ window.location.href = '/admin/assistant-panel.html'; }, 800);
+            } else { showAlert('helper', result.message || 'Login failed'); }
+        } catch (e) { showAlert('helper', e.message || 'Connection error'); }
+        finally { btn.disabled = false; spinner.classList.remove('show'); }
+    }
 
     // EN/AR toggle (design spec: Arabic toggle on sign-in)
     var currentLang = 'en';
-    var AR = { tagline:'أقرب ممرض لك، وقت ما تحتاجه.', p1:'ممرضون مرخّصون وموثّقون', p2:'عروض واضحة من ممرضين قريبين منك', p3:'تابع كل زيارة لحظة بلحظة', ptitle:'تسجيل دخول المريض', psub:'احصل على رعاية تمريضية في منزلك', email:'البريد الإلكتروني', pass:'كلمة المرور', signin:'تسجيل الدخول', noacc:'ليس لديك حساب؟', regp:'سجل كمريض', ntitle:'تسجيل دخول الممرض', nsub:'قدّم خدماتك واكسب', email2:'البريد الإلكتروني', pass2:'كلمة المرور', signin2:'تسجيل الدخول', noacc2:'ليس لديك حساب؟', regn:'سجل كممرض' };
+    var AR = { tagline:'أقرب ممرض لك، وقت ما تحتاجه.', p1:'ممرضون مرخّصون وموثّقون', p2:'عروض واضحة من ممرضين قريبين منك', p3:'تابع كل زيارة لحظة بلحظة', ptitle:'تسجيل دخول المريض', psub:'احصل على رعاية تمريضية في منزلك', email:'البريد الإلكتروني', pass:'كلمة المرور', signin:'تسجيل الدخول', noacc:'ليس لديك حساب؟', regp:'سجل كمريض', ntitle:'تسجيل دخول الممرض', nsub:'قدّم خدماتك واكسب', email2:'البريد الإلكتروني', pass2:'كلمة المرور', signin2:'تسجيل الدخول', noacc2:'ليس لديك حساب؟', regn:'سجل كممرض', htitle:'تسجيل دخول المساعد', hsub:'حساب مساعد من إنشاء الأدمن — بدون رمز سري', email3:'البريد الإلكتروني', pass3:'كلمة المرور', signin3:'دخول كمساعد', hhint:'حسابات المساعدين ينشئها الأدمن من صفحة المساعدين مع الصلاحيات.' };
     var EN = {};
     document.querySelectorAll('[data-i18n]').forEach(function(el){ var k = el.getAttribute('data-i18n'); if (!EN[k]) EN[k] = el.textContent; });
     document.getElementById('tab-patient').textContent = 'Patient';
     document.getElementById('tab-nurse').textContent = 'Nurse';
-    var AR_TABS = { patient:'مريض', nurse:'ممرض' }, EN_TABS = { patient:'Patient', nurse:'Nurse' };
+    document.getElementById('tab-helper').textContent = '🎧 Helper';
+    var AR_TABS = { patient:'مريض', nurse:'ممرض', helper:'🎧 مساعد' }, EN_TABS = { patient:'Patient', nurse:'Nurse', helper:'🎧 Helper' };
     function applyLoginLang(lang) {
         currentLang = lang === 'ar' ? 'ar' : 'en';
         var dict = currentLang === 'ar' ? AR : EN;
@@ -166,6 +200,7 @@
         var tabs = currentLang === 'ar' ? AR_TABS : EN_TABS;
         document.getElementById('tab-patient').textContent = tabs.patient;
         document.getElementById('tab-nurse').textContent = tabs.nurse;
+        document.getElementById('tab-helper').textContent = tabs.helper;
         var t = document.getElementById('langToggle');
         if (t) t.textContent = currentLang === 'ar' ? 'English' : 'العربية';
     }

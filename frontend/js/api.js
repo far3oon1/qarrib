@@ -169,6 +169,15 @@ API.prototype.adminRegister = function (data) {
 API.prototype.adminResetPassword = function (data) {
     return this.request('POST', '/auth/admin/reset-password', data);
 };
+API.prototype.assistantLogin = function (data) {
+    var self = this;
+    return this.request('POST', '/auth/assistant/login', data).then(function (result) {
+        if (result.success && result.data && result.data.token) {
+            self.setToken(result.data.token);
+        }
+        return result;
+    });
+};
 API.prototype.logout = function () {
     var self = this;
     return this.request('POST', '/auth/logout').then(function (r) {

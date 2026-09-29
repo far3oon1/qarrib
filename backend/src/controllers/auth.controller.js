@@ -427,6 +427,49 @@ const adminResetPassword = asyncHandler(async (req, res) => {
   ResponseHelper.success(res, { message: 'Password updated successfully' }, 'Password updated');
 });
 
+// --- Dedicated Assistant (helper) Login ---
+// Online endpoint for helper accounts created by the admin.
+// No secret key (helpers are not admins); role + active checks enforced.
+const assistantLogin = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+
+  const assistant = await User.findOne({ email }).select('+password');
+  if (!assistant) {
+    throw new ApiError(401, 'البريد الإلكتروني أو كلمة المرور غير صحيحة');
+  }
+  if (assistant.role !== 'assistant') {
+    throw new ApiError(403, 'Not a helper account — use the patient/nurse sign-in');
+  }
+
+  const isMatch = await assistant.comparePassword(password);
+  if (!isMatch) {
+    throw new ApiError(401, 'البريد الإلكتروني أو كلمة المرور غير صحيحة');
+  }
+
+  if (!assistant.isActive) {
+    throw new ApiError(403, 'Helper account is disabled — contact the admin');
+  }
+
+  assistant.lastLogin = new Date();
+  await assistant.save();
+
+  const token = generateToken(assistant._id, assistant.role);
+
+  ResponseHelper.success(res, {
+    user: {
+      id: assistant._id,
+      fullName: assistant.fullName,
+      email: assistant.email,
+      phone: assistant.phone,
+      role: assistant.role,
+      status: assistant.status,
+      assistantLabel: assistant.assistantLabel || null,
+      assistantScopes: Array.isArray(assistant.assistantScopes) ? assistant.assistantScopes : [],
+    },
+    token
+  }, 'Welcome back — helper sign-in successful');
+});
+
 module.exports = {
   registerPatient,
   registerNurse,
@@ -438,5 +481,6 @@ module.exports = {
   updateProfile,
   adminLogin,
   adminRegister,
-  adminResetPassword
+  adminResetPassword,
+  assistantLogin
 };
