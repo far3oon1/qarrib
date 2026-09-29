@@ -15,7 +15,7 @@
     if (!badge) return;
     try {
       var r = await api.getNotifications('?limit=1');
-      var count = (r && r.unreadCount) || 0;
+      var count = (r && r.data && r.data.unreadCount) || (r && r.unreadCount) || 0;
       badge.textContent = count > 99 ? '99+' : String(count);
       badge.style.display = count > 0 ? 'inline-block' : 'none';
     } catch (e) {}
@@ -35,6 +35,7 @@
       s.on('new_order', function () { toast('طلب جديد متاح'); refreshBadge(); });
       s.on('order_update', function () { toast('تحديث على طلبك'); refreshBadge(); });
       s.on('new_message', function () { refreshBadge(); });
+      s.on('new_direct_message', function (d) { toast('رسالة جديدة من ' + ((d && d.fromRole === 'admin') ? 'الإدارة' : 'ممرض')); refreshBadge(); });
     } catch (e) {}
   }
 
