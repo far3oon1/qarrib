@@ -82,7 +82,7 @@ async function loadSettings(){
         var html = '<table class="perm"><tr><th>Permission</th><th>Patient required</th><th>Nurse required</th></tr>' +
             keys.map(function(k){
                 var p = !!r.data.required.patient[k], n = !!r.data.required.nurse[k];
-                return '<tr><td style="font-weight:700;">'+k+'</td>' +
+                return '<tr><td style="font-weight:700;">'+k.charAt(0).toUpperCase()+k.slice(1)+'</td>' +
                 '<td><label class="switch"><input type="checkbox" data-role="patient" data-key="'+k+'"'+(p?' checked':'')+'><span class="slider"></span></label></td>' +
                 '<td><label class="switch"><input type="checkbox" data-role="nurse" data-key="'+k+'"'+(n?' checked':'')+'><span class="slider"></span></label></td></tr>';
             }).join('') + '</table>';

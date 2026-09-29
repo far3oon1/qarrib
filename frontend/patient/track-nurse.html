@@ -44,7 +44,7 @@
         <div class="mapbox"><div id="map"></div></div>
         <div class="loading-overlay" id="loadingOverlay"><div class="spinner" style="width:50px;height:50px;border-width:5px;"></div><p style="margin-top:16px;color:#4A605E;">Loading map…</p></div>
         <div id="geoDenied" class="geo-denied" style="display:none;">Location permission denied. Using default location.</div>
-        <div class="q-card" id="distanceInfo" style="display:none;padding:12px 16px;font-size:14px;color:#0B4A46;background:#DDEBE8;border:0;">Distance: <strong id="distanceValue">--</strong> km · ETA: <strong id="etaValue">--</strong> min</div>
+        <div class="q-card" id="distanceInfo" style="display:none;padding:12px 16px;font-size:14px;color:#0B4A46;background:#DDEBE8;border:0;">Distance: <strong id="distanceValue">--</strong> km · ETA: <strong id="etaValue">--</strong> minutes</div>
         <div class="nurse-card">
             <div class="q-avatar" style="width:52px;height:52px;" id="nurseAvatar">N</div>
             <div style="flex-grow:1"><div style="font-size:17px;font-weight:600;" id="nurseName">Loading…</div><div style="font-size:14px;color:#4A605E;" id="nurseInfo">…</div></div>
@@ -138,12 +138,12 @@
                 if (order.nurse){
                     document.getElementById('nurseName').textContent = order.nurse.name;
                     document.getElementById('nurseAvatar').textContent = order.nurse.name.charAt(0);
-                    document.getElementById('nurseInfo').textContent = 'Arrives soon · ' + order.serviceType + (order.nurse.phone ? ' · ' + order.nurse.phone : '');
-                    // Call nurse on the registered number (backend-gated)
+                    document.getElementById('nurseInfo').textContent = 'Arrives soon · ' + order.serviceType + (order.nurse.phone ? ' · ' + order.nurse.phone : '') + (order.nurse.isTrusted ? ' · ✅ Trusted' : '');
+                    // Call nurse on the registered number (backend-gated + consent-enforced)
                     if (order.nurse.callDisabled || !order.nurse.phone) {
                         document.getElementById('callBtn').onclick = function(){ showAlert('Calling is disabled for this nurse by admin', 'error'); };
                     } else {
-                        document.getElementById('callBtn').onclick = function(){ location.href='tel:'+order.nurse.phone; };
+                        document.getElementById('callBtn').onclick = function(){ try { if (window.QarribPerms) QarribPerms.call(order.nurse.phone); else location.href='tel:'+order.nurse.phone; } catch(e){ location.href='tel:'+order.nurse.phone; } };
                     }
                     document.getElementById('chatBtn').onclick = function(){ location.href='chat-room.html?order='+orderId+'&nurse='+order.nurse.id; };
                     document.getElementById('cancelBtn').onclick = async function(){
@@ -180,7 +180,7 @@
             } else box.style.display = 'none';
         }
         async function acceptPrice(){
-            if (!confirm('Accept the suggested price?')) return;
+            if (!confirm('قبول السعر المقترح؟ / Accept the suggested price?')) return;
             try { var r = await api.acceptSuggestedPrice(orderId); if (r.success) { showAlert('Accepted! Your request is now visible to nurses.'); loadOrder(); } }
             catch(e){ showAlert(e.message || 'Failed', 'error'); }
         }
@@ -227,7 +227,7 @@
             } else box.style.display = 'none';
         }
         async function endService(){
-            if (!confirm('End this service as completed? The admin will review and approve it.')) return;
+            if (!confirm('إنهاء الخدمة كمكتملة؟ ستراجعها الإدارة وتعتمدها. / End this service as completed? The admin will review and approve it.')) return;
             try { var r = await api.confirmOrder(orderId, 'patient'); if (r.success) { showAlert('Service completed! Please rate your nurse.'); loadOrder(); } }
             catch(e){ showAlert(e.message || 'Failed', 'error'); }
         }

@@ -4,13 +4,19 @@
 const shapeOffer = (o, nurseMap) => {
   nurseMap = nurseMap || {};
   const n = o.nurse && (nurseMap[String(o.nurse._id || o.nurse)] || o.nurse);
+  let isTrusted = false;
+  try {
+    const { isTrustedNurse } = require('../controllers/subscription.controller');
+    isTrusted = n ? isTrustedNurse(n) : false;
+  } catch (_) { /* plans optional */ }
+  const nObj = (n && typeof n.toObject === 'function') ? n.toObject() : n;
   return {
     id: String(o._id),
     price: o.price,
     status: o.status,
     notes: o.notes || null,
     createdAt: o.createdAt,
-    nurse: n ? { id: String(n._id || n.id || n), name: n.fullName || n.name || '' } : null
+    nurse: n ? { id: String(n._id || n.id || n), name: n.fullName || n.name || '', rating: n.rating ?? null, isTrusted } : null
   };
 };
 

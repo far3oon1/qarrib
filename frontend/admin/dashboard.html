@@ -154,7 +154,7 @@
         } catch(e){ showAlert('Failed','error'); }
     }
     function resetPayments() {
-        if (!confirm('Reset all payments to zero?')) return;
+        if (!confirm('إعادة تعيين كل المدفوعات إلى الصفر؟ / Reset all payments to zero?')) return;
         api.resetPayments().then(function(r){ if(r.success){ showAlert('Reset done'); loadStats(); loadEarnings(); } }).catch(function(e){ showAlert(e.message||'Error','error'); });
     }
     async function checkVersion() {
