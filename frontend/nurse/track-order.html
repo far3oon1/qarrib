@@ -62,6 +62,9 @@
                 <button class="btn btn-outline btn-sm" id="chatBtn">شات 💬</button>
                 <button class="btn btn-outline btn-sm" id="callBtn">اتصال 📞</button>
             </div>
+            <div style="margin-top:8px;">
+                <button class="btn btn-outline btn-sm" id="cancelBtn" style="width:100%;border-color:#fca5a5;color:#b91c1c;" onclick="doCancel()">إلغاء الزيارة ❌</button>
+            </div>
             <div id="cashBox" style="display:none;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:12px;padding:12px;margin-top:8px;">
                 <div style="font-weight:700;margin-bottom:6px;">💰 استلام المبلغ نقداً وإنهاء الزيارة</div>
                 <div style="font-size:13px;color:#4A605E;margin-bottom:8px;" id="cashHint">أكد استلام المبلغ من المريض لإنهاء الخدمة.</div>
@@ -136,6 +139,12 @@
             } catch(e){}
             document.getElementById('startBtn').style.display = o.status === 'assigned' ? 'block' : 'none';
             document.getElementById('doneBtn').style.display = (o.status === 'assigned' || o.status === 'in_progress') ? 'block' : 'none';
+            // Nurse cancel works while the visit is still open (assigned / in progress)
+            try {
+                var cbtn = document.getElementById('cancelBtn');
+                var cclosed = ['completed','cancelled','refunded'].indexOf(o.status) !== -1;
+                if (cbtn) cbtn.style.display = cclosed ? 'none' : 'block';
+            } catch(e){}
             document.getElementById('respondBox').style.display = (o.status === 'assigned' && o.nurseAccepted !== true) ? 'block' : 'none';
             // Cash box: nurse ends service when the balance is received
             var cashBox = document.getElementById('cashBox');
@@ -183,6 +192,11 @@
         try { var r = await api.completeCash(orderId, amt); if (r.success) { if(window.qpNotify) qpNotify.popup({title:'Cash received',message:'Visit ended — patient was asked to rate with stars',type:'payment'}); showAlert('تم إنهاء الزيارة بعد استلام المبلغ!'); loadOrder(); } }
         catch(e){ showAlert(e.message || 'فشل الإنهاء', 'error'); }
     }
+    async function doCancel(){
+        if (!confirm('إلغاء هذه الزيارة؟ سيتم إشعار المريض والإدارة. / Cancel this visit? Patient and admin will be notified.')) return;
+        try { var r = await api.cancelOrder(orderId, 'Cancelled by nurse'); if (r.success) { if(window.qpNotify) qpNotify.popup({title:'Visit cancelled',message:'Patient and admin were notified',type:'order'}); showAlert('تم إلغاء الزيارة'); setTimeout(function(){ window.location.href = 'my-orders.html'; }, 900); } }
+        catch(e){ showAlert(e.message || 'فشل الإلغاء', 'error'); }
+    }
     function setupSocket(){
         if (typeof io === 'undefined') { setInterval(loadOrder, 10000); return; }
         try {
@@ -196,8 +210,13 @@
         setInterval(loadOrder, 15000);
         try { if (window.QarribPerms) { QarribPerms.requireGate('nurse'); QarribPerms.sharingToggle('shareBox', orderId); } } catch(e){}
         if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(function(p){ postLoc(p.coords.latitude, p.coords.longitude); }, function(){}, { enableHighAccuracy: false, timeout: 15000 });
-            watcher = navigator.geolocation.watchPosition(function(p){ postLoc(p.coords.latitude, p.coords.longitude); }, function(){}, { enableHighAccuracy: false, timeout: 15000, maximumAge: 5000 });
+            navigator.geolocation.getCurrentPosition(function(p){ postLoc(p.coords.latitude, p.coords.longitude); }, function(err){
+                if (err && err.code === 1 && window.QarribPerms) {
+                    var sl = document.getElementById('statusLine');
+                    if (sl) sl.innerHTML = '⚠️ Location BLOCKED — <button class="btn btn-outline btn-sm" onclick="QarribPerms.showDeniedHelp(\'location\').then(function(ok){ if(ok) location.reload(); })">How to enable / كيف تفعّل</button>';
+                }
+            }, { enableHighAccuracy: false, timeout: 30000, maximumAge: 0 });
+            watcher = navigator.geolocation.watchPosition(function(p){ postLoc(p.coords.latitude, p.coords.longitude); }, function(){}, { enableHighAccuracy: false, timeout: 30000, maximumAge: 10000 });
         }
         document.getElementById('loadingOverlay').classList.add('hidden');
     })();

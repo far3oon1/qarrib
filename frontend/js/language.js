@@ -581,6 +581,18 @@
         'أو ادفع فوراً من رصيد المحفظة بزر المحفظة على أي خطة. ألغِ في أي وقت — تعود للمجانية.': 'Or pay instantly from wallet balance with the wallet button on any plan. Cancel anytime — you drop back to Free.',
         'سعر الممرض المميز': 'VIP Nurse price',
         'فشل تحميل الخطط': 'Failed to load plans',
+        // --- Working cancel (nurse + patient), rated-state stars, denied-location help ---
+        'تم إلغاء الزيارة': 'Visit cancelled',
+        'تم إشعار الممرض والإدارة': 'The nurse and admin were notified',
+        'تم إشعار المريض والإدارة': 'Patient and admin were notified',
+        'فشل الإلغاء': 'Cancel failed',
+        'إلغاء الزيارة ❌': 'Cancel visit ❌',
+        'تقييمك': 'Your rating',
+        'جارٍ الإرسال…': 'Sending…',
+        'بانتظار إشارة GPS…': 'Waiting for GPS fix…',
+        'الموقع محظور لهذا الموقع.': 'Location is BLOCKED for this site.',
+        '⚠️ الموقع محظور — ': '⚠️ Location BLOCKED — ',
+        'تعليم كمقروء': 'Mark read',
     };
 
     var prefixes = [

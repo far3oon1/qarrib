@@ -80,8 +80,44 @@
     return el;
   }
 
+  // Shown-once store: each notification pops a single time, even across
+  // polls and reloads. Keyed by DB id; socket-only events use a cooldown key.
+  function shownGet() {
+    try { return JSON.parse(localStorage.getItem('qp_shown_ids') || '{}'); } catch (e) { return {}; }
+  }
+  function shownHas(id) {
+    if (!id) return false;
+    try { return !!shownGet()[String(id)]; } catch (e) { return false; }
+  }
+  function shownMark(id) {
+    if (!id) return;
+    try {
+      var m = shownGet(); m[String(id)] = Date.now();
+      var keys = Object.keys(m);
+      if (keys.length > 150) {
+        keys.sort(function (a, b) { return m[a] - m[b]; });
+        for (var i = 0; i < keys.length - 150; i++) delete m[keys[i]];
+      }
+      localStorage.setItem('qp_shown_ids', JSON.stringify(m));
+    } catch (e) {}
+  }
+  function cooldownOk(key, ms) {
+    if (!key) return true;
+    try {
+      var m = shownGet();
+      var last = m['k:' + key] || 0;
+      if (Date.now() - last < (ms || 300000)) return false;
+      m['k:' + key] = Date.now();
+      localStorage.setItem('qp_shown_ids', JSON.stringify(m));
+      return true;
+    } catch (e) { return true; }
+  }
+
   function popup(n) {
     try {
+      // One time only: skip already-seen DB notifications
+      var nid = n && (n._id || n.id);
+      if (nid && shownHas(nid)) return;
       ensureStyles();
       var stack = ensureStack();
       var card = document.createElement('div');
@@ -95,9 +131,15 @@
       card.querySelector('.qp-msg').textContent = msg;
       card.onclick = function () {
         try { dismiss(true); } catch (e) {}
+        // Seen = read: mark it read the moment the user taps View
+        try {
+          var rid = n && (n._id || n.id);
+          if (rid && typeof api !== 'undefined' && api.markNotificationRead) api.markNotificationRead(rid).catch(function () {});
+        } catch (e) {}
         goToNotification(n);
       };
       stack.appendChild(card);
+      if (nid) shownMark(nid);
       ringBell(); vibrate();
       try {
         if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
@@ -143,13 +185,12 @@
       var newest = list[0];
       var nid = String(newest._id || newest.id || '');
       if (!lastSeenId) { lastSeenId = nid; return; }
-      // Any item newer than lastSeenId that is unread -> pop it
+      // Any unread item not shown before -> pop it exactly once
       for (var i = list.length - 1; i >= 0; i--) {
         var it = list[i];
         var id = String(it._id || it.id || '');
-        if (id !== lastSeenId && !it.isRead) {
-          // only alert once per item
-          if (!it._qpShown) { it._qpShown = true; popup(it); }
+        if (id && id !== lastSeenId && !it.isRead && !shownHas(id)) {
+          popup(it);
         }
       }
       lastSeenId = nid;
@@ -164,10 +205,20 @@
       try { token = localStorage.getItem('token'); } catch (e) {}
       if (!token) return;
       var s = io({ auth: { token: token } });
-      s.on('notification', function (d) { popup({ title: (d && d.title) || '🔔 New notification', message: (d && d.message) || '', type: 'general', data: d || {} }); });
-      s.on('new_order', function (d) { popup({ title: '🔔 New service request', message: 'A new request is available — open requests now', type: 'order', data: d || {} }); });
+      s.on('notification', function (d) {
+        var oid = (d && ((d.data && d.data.orderId) || d.orderId)) || '';
+        if (!cooldownOk('n:' + ((d && d.title) || '') + ':' + oid, 300000)) return;
+        popup({ title: (d && d.title) || '🔔 New notification', message: (d && d.message) || '', type: 'general', data: d || {} });
+      });
+      s.on('new_order', function (d) {
+        var oid2 = String((d && (d.orderId || (d.data && d.data.orderId))) || 'new');
+        if (!cooldownOk('o:' + oid2, 300000)) return;
+        popup({ title: '🔔 New service request', message: 'A new request is available — open requests now', type: 'order', data: d || {} });
+      });
       s.on('order_update', function (d) {
         var st = (d && d.status) || '';
+        var oid3 = String((d && (d.orderId || (d.data && d.data.orderId))) || '');
+        if (!cooldownOk('u:' + oid3 + ':' + st, 120000)) return;
         var map = { assigned: 'A nurse accepted — track live now', in_progress: 'Service started', completed: 'Service completed — please rate with stars ⭐', cancelled: 'Order was cancelled' };
         popup({ title: '🔔 Order update', message: map[st] || ('Status: ' + st), type: 'order', data: d || {} });
       });
