@@ -4,7 +4,7 @@ const authController = require('../controllers/auth.controller');
 const { protect, authorize } = require('../middleware/auth');
 const validate = require('../middleware/validate');
 const { handleUploadSingle, handleUploadMultiple } = require('../middleware/upload');
-const { registerPatient, registerNurse, login, loginPhone, adminLogin, adminRegister, adminResetPassword } = require('../validators/auth.validator');
+const { registerPatient, registerNurse, login, loginPhone, adminLogin, adminRegister, adminResetPassword, assistantLogin } = require('../validators/auth.validator');
 
 // Frontend sends `name` (register.html) while validators expect `fullName`,
 // plus flat address without governorate/city — normalize before validation
@@ -26,6 +26,8 @@ router.post('/register/nurse', handleUploadMultiple(), normalizeRegister, valida
 router.post('/login', validate(login), authController.login);
 router.post('/login/phone', validate(loginPhone), authController.loginWithPhone);
 router.post('/logout', protect, authController.logout);
+// Dedicated helper sign-in (accounts created by admin on the Helpers page)
+router.post('/assistant/login', validate(assistantLogin), authController.assistantLogin);
 // Dedicated admin endpoints
 router.post('/admin/login', validate(adminLogin), authController.adminLogin);
 router.post('/admin/register', validate(adminRegister), authController.adminRegister);
