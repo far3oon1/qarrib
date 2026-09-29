@@ -237,6 +237,9 @@ API.prototype.submitOffer = function (orderId, price, notes) {
 API.prototype.approveOffer = function (orderId, offerId) {
     return this.request('POST', '/orders/' + orderId + '/approve-offer', { offerId: offerId });
 };
+API.prototype.acceptSuggestedPrice = function (orderId) {
+    return this.request('POST', '/orders/' + orderId + '/accept-price');
+};
 API.prototype.payManual = function (orderId, data) {
     return this.request('POST', '/orders/' + orderId + '/pay', data);
 };
@@ -284,6 +287,15 @@ API.prototype.getChatMessages = function (orderId) {
 };
 API.prototype.getMyChats = function () {
     return this.request('GET', '/chat/my-chats');
+};
+API.prototype.getDirectContacts = function () {
+    return this.request('GET', '/chat/direct/contacts');
+};
+API.prototype.getDirectMessages = function (userId) {
+    return this.request('GET', '/chat/direct/' + userId);
+};
+API.prototype.sendDirectMessage = function (userId, content) {
+    return this.request('POST', '/chat/direct/' + userId + '/send', { content: content });
 };
 API.prototype.sendMessage = function (orderId, content, type) {
     if (type === undefined) type = 'text';
@@ -365,6 +377,23 @@ API.prototype.completeOrderAdmin = function (id) {
 };
 API.prototype.setOrderPrice = function (orderId, price) {
     return this.request('POST', '/admin/orders/' + orderId + '/set-price', { price: price });
+};
+API.prototype.suggestOrderPrice = function (orderId, price) {
+    return this.request('POST', '/admin/orders/' + orderId + '/suggest-price', { price: price });
+};
+API.prototype.approveService = function (orderId) {
+    return this.request('POST', '/admin/orders/' + orderId + '/approve-service');
+};
+API.prototype.getAdminFeedbacks = function (query) {
+    if (query === undefined) query = '';
+    return this.request('GET', '/admin/feedbacks' + query);
+};
+API.prototype.getNurseReports = function (query) {
+    if (query === undefined) query = '';
+    return this.request('GET', '/admin/nurse-reports' + query);
+};
+API.prototype.toggleServiceApproval = function (serviceId, requireApproval) {
+    return this.request('PATCH', '/admin/services/' + serviceId, { requireApproval: requireApproval });
 };
 API.prototype.getVersion = function () {
     return this.request('GET', '/health');

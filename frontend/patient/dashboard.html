@@ -116,12 +116,19 @@
 <script src="../js/auth.js?v=6"></script>
 <script>
     if (!requireRole('patient')) { redirectToLogin(); }
-    function getStatusText(s){ var m={pending:'Pending',accepted:'Accepted',in_progress:'In progress',completed:'Completed',cancelled:'Cancelled',offers_received:'Offers received',assigned:'Assigned'}; return m[s]||s; }
+    function getStatusText(s){ var m={pending:'Pending',open:'Open',under_review:'Under review',price_approved:'Price suggested',accepted:'Accepted',in_progress:'In progress',completed:'Completed',cancelled:'Cancelled',offers_received:'Offers received',assigned:'Assigned'}; return m[s]||s; }
     function orderCard(o){
+        var acceptBtn = o.status === 'price_approved'
+            ? '<button class="q-btn q-btn-sm" style="margin-top:8px;width:100%;" onclick="acceptPrice(\'' + o.id + '\')">Accept ' + (o.amount || 0) + ' EGP &amp; open to nurses</button>' : '';
         return '<div class="offer-row" style="background:#fff;border:1px solid #D9D3C5;">' +
           '<div style="flex:1;"><div style="font-weight:700;">'+(o.serviceType||'Service')+'</div>' +
-          '<div style="font-size:13px;color:#4A605E;">'+(o.amount||0)+' EGP · '+(o.address||'')+'</div></div>' +
+          '<div style="font-size:13px;color:#4A605E;">'+(o.amount||0)+' EGP · '+(o.address||'')+'</div>' + acceptBtn + '</div>' +
           '<span class="q-badge">'+getStatusText(o.status)+'</span></div>';
+    }
+    async function acceptPrice(orderId){
+        if (!confirm('Accept the suggested price?')) return;
+        try { var r = await api.acceptSuggestedPrice(orderId); if (r.success) { alert('Accepted! Your request is now visible to nurses.'); loadDashboard(); } }
+        catch (e) { alert(e.message || 'Failed'); }
     }
     async function loadDashboard() {
         try {

@@ -84,7 +84,8 @@
                     const id = p._id || p.id;
                     const serviceName = p.nameAr || p.serviceType || p.name || 'خدمة';
                     const servicePrice = p.basePrice != null ? p.basePrice : (p.price || 0);
-                    return '<div class="price-card"><div><div class="price-service">' + serviceName + '</div></div><div style="display:flex;align-items:center;gap:8px;"><div class="price-value">' + servicePrice + ' ج.م</div><button class="delete-btn" style="background:#2563eb;" onclick="editPrice(\'' + id + '\',' + servicePrice + ')">✏️ تعديل</button><button class="delete-btn" onclick="deletePrice(\'' + id + '\')">إيقاف</button></div></div>';
+                    const needAppr = p.requireApproval !== false;
+                    return '<div class="price-card"><div><div class="price-service">' + serviceName + '</div><div style="font-size:12px;color:' + (needAppr ? '#B45309' : '#059669') + ';">' + (needAppr ? 'يحتاج اعتماد الإدارة قبل ظهوره للممرضين' : 'يظهر للممرضين مباشرة') + '</div></div><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><div class="price-value">' + servicePrice + ' ج.م</div><button class="delete-btn" style="background:#B45309;" onclick="toggleApproval(\'' + id + '\',' + needAppr + ')">' + (needAppr ? 'إلغاء الاعتماد' : 'تفعيل الاعتماد') + '</button><button class="delete-btn" style="background:#2563eb;" onclick="editPrice(\'' + id + '\',' + servicePrice + ')">✏️ تعديل</button><button class="delete-btn" onclick="deletePrice(\'' + id + '\')">إيقاف</button></div></div>';
                 }).join('');
             } catch(e) {}
         }
@@ -101,6 +102,12 @@
         async function deletePrice(id) {
             if (!confirm('حذف هذا السعر؟')) return;
             try { await api.request('DELETE', '/admin/price/' + id, {}); showAlert('تم الحذف'); loadPrices(); } catch(e) { showAlert('فشل','error'); }
+        }
+        async function toggleApproval(id, current) {
+            try {
+                const r = await api.toggleServiceApproval(id, !current);
+                if (r.success) { showAlert('تم التحديث'); loadPrices(); }
+            } catch(e) { showAlert(e.message || 'فشل التحديث','error'); }
         }
         loadPrices();
     </script>

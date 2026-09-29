@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تقارير الممرضين - أدمن</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        .page-header { background: #0B5F5A; color: #fff; padding: 20px; display: flex; align-items: center; gap: 12px; }
+        .back-btn { background: rgba(255,255,255,.2); border: 0; color: #fff; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 20px; }
+        .rep-container { padding: 20px; }
+        .rep-card { background: #fff; border-radius: 16px; padding: 20px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.08); border: 1px solid #D9D3C5; }
+        .rep-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+        .rep-stat { background: #F6F3EC; border-radius: 10px; padding: 10px; text-align: center; }
+        .rep-stat .v { font-size: 20px; font-weight: 800; color: #0B5F5A; }
+        .rep-stat .l { font-size: 12px; color: #4A605E; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="page-header">
+            <button class="back-btn" onclick="history.back()">→</button>
+            <div style="font-size:20px;font-weight:700;">تقارير الممرضين</div>
+        </div>
+        <div class="rep-container" id="repList"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+<script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
+<script src="../js/api.js?v=6"></script>
+<script src="../js/auth.js?v=6"></script>
+<script src="../js/notifications.js"></script>
+<script>
+    if (!requireRole('admin')) redirectToLogin();
+    function esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+    async function loadReports(){
+        try {
+            var r = await api.getNurseReports();
+            var box = document.getElementById('repList');
+            if (!r.success || !r.data.length) { box.innerHTML = '<div class="empty-state"><p>لا يوجد ممرضون</p></div>'; return; }
+            box.innerHTML = r.data.map(function(n){
+                return '<div class="rep-card">' +
+                    '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+                        '<div><strong>' + esc(n.name) + '</strong> ' + (n.isOnline ? '<span style="color:#059669;font-size:12px;">متصل</span>' : '<span style="color:#94a3b8;font-size:12px;">غير متصل</span>') +
+                        '<div style="font-size:13px;color:#4A605E;">' + esc(n.specialization || '') + ' | ⭐ ' + n.rating + ' (' + n.totalReviews + ') | ' + esc(n.phone || '') + '</div></div>' +
+                        '<a class="btn btn-outline btn-sm" style="width:auto;" href="support-chat.html">مراسلة 💬</a>' +
+                    '</div>' +
+                    '<div class="rep-grid">' +
+                        '<div class="rep-stat"><div class="v">' + n.ordersCompleted + '</div><div class="l">مكتملة</div></div>' +
+                        '<div class="rep-stat"><div class="v">' + n.ordersActive + '</div><div class="l">نشطة</div></div>' +
+                        '<div class="rep-stat"><div class="v">' + n.ordersCancelled + '</div><div class="l">ملغية</div></div>' +
+                        '<div class="rep-stat"><div class="v">' + (n.completionRate == null ? '—' : n.completionRate + '%') + '</div><div class="l">نسبة الإنجاز</div></div>' +
+                        '<div class="rep-stat"><div class="v">' + n.totalEarnings + '</div><div class="l">الأرباح (ج.م)</div></div>' +
+                        '<div class="rep-stat"><div class="v">' + n.walletBalance + '</div><div class="l">الرصيد (ج.م)</div></div>' +
+                    '</div>' +
+                '</div>';
+            }).join('');
+        } catch(e){ document.getElementById('repList').innerHTML = '<div class="empty-state"><p>فشل التحميل</p></div>'; }
+    }
+    loadReports();
+</script>
+</body>
+</html>

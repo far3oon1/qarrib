@@ -212,6 +212,11 @@ const giveFeedback = asyncHandler(async (req, res) => {
     nurse.totalReviews = total;
     await nurse.save();
   }
+  // Forward patient feedback to the admin panel
+  const fbAdmins = await User.find({ role: 'admin' }).select('_id');
+  for (const a of fbAdmins) {
+    await Notification.create({ recipient: a._id, title: 'تقييم جديد من مريض', message: `المريض قيّم الطلب #${order.orderNumber} بـ ${rating}/5${review ? ' — ' + String(review).slice(0, 120) : ''}`, type: 'general', data: { orderId: order._id, rating, review: review || null } });
+  }
   ResponseHelper.success(res, { orderId }, 'Rating submitted successfully');
 });
 

@@ -109,6 +109,38 @@ function initializeSocket(server) {
       socket.to(`order_${orderId}`).emit('typing', { userId: socket.userId, isTyping: !!isTyping });
     });
 
+    // Direct admin <-> nurse thread: {to, content}
+    socket.on('join_direct', ({ userId }) => {
+      try {
+        if (!userId) return;
+        if (!['admin', 'nurse'].includes(socket.userRole)) return;
+        const a = socket.userId < String(userId) ? socket.userId : String(userId);
+        const b = socket.userId < String(userId) ? String(userId) : socket.userId;
+        socket.join(`direct_${a}_${b}`);
+        socket.emit('joined_direct', { userId: String(userId) });
+      } catch (_) { /* ignore */ }
+    });
+
+    socket.on('send_direct', async ({ to, content }) => {
+      try {
+        if (!to || !content || !String(content).trim()) return;
+        if (!['admin', 'nurse'].includes(socket.userRole)) return;
+        const other = await User.findById(to).select('_id role');
+        if (!other) return;
+        if (socket.userRole === 'admin' && other.role !== 'nurse') return;
+        if (socket.userRole === 'nurse' && other.role !== 'admin') return;
+        const message = await Chat.create({
+          order: null, directTo: other._id,
+          sender: socket.userId, senderRole: socket.userRole,
+          content: String(content).trim(), type: 'text'
+        });
+        const a = socket.userId < String(other._id) ? socket.userId : String(other._id);
+        const b = socket.userId < String(other._id) ? String(other._id) : socket.userId;
+        io.to(`direct_${a}_${b}`).emit('new_direct_message', message);
+        io.to(`user_${String(other._id)}`).emit('notification', { title: 'رسالة جديدة', directFrom: socket.userId });
+      } catch (_) { /* ignore */ }
+    });
+
     socket.on('disconnect', () => {
       User.findByIdAndUpdate(socket.userId, { isOnline: false }).catch(() => {});
     });

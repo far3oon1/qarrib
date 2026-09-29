@@ -1,11 +1,21 @@
 const mongoose = require('mongoose');
 
-// Chat message scoped to an Order (patient <-> assigned nurse).
+// Chat message scoped to an Order (patient <-> assigned nurse),
+// or a direct admin<->nurse thread (order = null, directTo = the other party).
 const chatSchema = new mongoose.Schema({
   order: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Order',
-    required: true,
+    default: null,
+    index: true
+  },
+
+  // Direct support thread participant (the person this message is addressed to).
+  // For order chats this stays null.
+  directTo: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null,
     index: true
   },
 
@@ -55,5 +65,6 @@ const chatSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 chatSchema.index({ order: 1, createdAt: 1 });
+chatSchema.index({ sender: 1, directTo: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Chat', chatSchema);

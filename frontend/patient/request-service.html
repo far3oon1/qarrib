@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>طلب خدمة - قرّب</title>
     <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <style>
         .page-header {
             background: linear-gradient(135deg, #2563eb, #1d4ed8);
@@ -134,6 +135,12 @@
                     </div>
                 </div>
 
+                <div class="form-group">
+                    <label class="form-label">أقرب الممرضين المتصلين الآن (بث مباشر)</label>
+                    <div id="nearbyMap" style="width:100%;height:220px;border-radius:12px;background:#e2e8f0;z-index:1;"></div>
+                    <div id="nearbyList" style="margin-top:8px;font-size:13px;color:#64748b;">جاري البحث عن أقرب الممرضين...</div>
+                </div>
+
                 <div class="form-group" style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 12px;">
                     <div style="font-size: 14px; color: #166534;">💰 السعر تحدده الإدارة — يظهر لك قبل الدفع.</div>
                 </div>
@@ -181,6 +188,7 @@
     </div>
 
     <script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="../js/api.js?v=6"></script>
     <script src="../js/auth.js?v=6"></script>
     <script>
@@ -248,6 +256,7 @@
                                 </p>
                             </div>
                         `;
+                        loadNearbyNurses();
                     },
                     (error) => {
                         showAlert('فشل تحديد الموقع. يرجى التأكد من تفعيل GPS', 'error');
@@ -257,6 +266,44 @@
                 showAlert('المتصفح لا يدعم تحديد الموقع', 'error');
             }
         }
+
+        // Live nearest-nurse map (refreshes every 20s)
+        let nearbyMap = null, nearbyMarkers = [];
+        function ensureNearbyMap(lat, lng) {
+            if (nearbyMap) { nearbyMap.setView([lat, lng], 13); return; }
+            try {
+                nearbyMap = L.map('nearbyMap').setView([lat, lng], 13);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap', maxZoom: 19 }).addTo(nearbyMap);
+            } catch (e) { nearbyMap = null; }
+        }
+        async function loadNearbyNurses() {
+            const lat = userLocation ? userLocation.lat : 30.0444;
+            const lng = userLocation ? userLocation.lng : 31.2357;
+            ensureNearbyMap(lat, lng);
+            try {
+                const r = await api.getNearbyNurses(lat, lng, 50);
+                const list = (r.success ? r.data : []) || [];
+                nearbyMarkers.forEach(m => { try { nearbyMap.removeLayer(m); } catch (e) {} });
+                nearbyMarkers = [];
+                if (nearbyMap) {
+                    const meIcon = L.divIcon({ className: '', html: '<div style="background:#2563eb;width:26px;height:26px;border-radius:50%;border:3px solid white;"></div>', iconSize: [26, 26], iconAnchor: [13, 13] });
+                    nearbyMarkers.push(L.marker([lat, lng], { icon: meIcon }).addTo(nearbyMap).bindPopup('موقعك'));
+                    list.slice(0, 10).forEach(n => {
+                        const c = n.location && n.location.coordinates;
+                        if (!c || c.lat == null) return;
+                        const ic = L.divIcon({ className: '', html: '<div style="background:#10b981;width:26px;height:26px;border-radius:50%;border:3px solid white;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;">N</div>', iconSize: [26, 26], iconAnchor: [13, 13] });
+                        nearbyMarkers.push(L.marker([c.lat, c.lng], { icon: ic }).addTo(nearbyMap).bindPopup((n.fullName || 'ممرض') + ' - ' + (n.distanceKm != null ? n.distanceKm.toFixed(1) + ' كم' : '')));
+                    });
+                }
+                document.getElementById('nearbyList').innerHTML = list.length
+                    ? list.slice(0, 5).map(n => `<div>🟢 ${n.fullName || 'ممرض'} - ⭐ ${n.rating || 'جديد'} - ${n.distanceKm != null ? n.distanceKm.toFixed(1) + ' كم' : ''}</div>`).join('')
+                    : 'لا يوجد ممرضون متصلون قريبون الآن — سيصلك إشعار عند توفرهم.';
+            } catch (e) {
+                document.getElementById('nearbyList').textContent = 'تعذر تحميل الممرضين القريبين.';
+            }
+        }
+        loadNearbyNurses();
+        setInterval(loadNearbyNurses, 20000);
 
         async function loadWallet() {
             try {
