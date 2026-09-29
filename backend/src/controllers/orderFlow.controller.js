@@ -161,6 +161,8 @@ const acceptOrder = asyncHandler(async (req, res) => {
   order.assignedNurse = req.user.id;
   order.status = 'assigned';
   order.acceptedAt = new Date();
+  order.nurseAccepted = true;
+  order.nurseAcceptedAt = new Date();
   order.statusHistory.push({ status: 'assigned', changedBy: req.user.id, notes: 'Nurse accepted' });
   await order.save();
   const nurseName = req.user.fullName || 'The nurse';
@@ -182,6 +184,13 @@ const startService = asyncHandler(async (req, res) => {
   const order = await Order.findOne({ _id: req.params.id, assignedNurse: req.user.id });
   if (!order) throw new ApiError(404, 'Order not found');
   if (order.status !== 'assigned') throw new ApiError(400, 'Order must be accepted first');
+  if (order.nurseAccepted === false) throw new ApiError(400, 'You declined this service');
+  if (order.nurseAccepted == null) {
+    // Starting implies acceptance for nurses assigned without responding
+    order.nurseAccepted = true;
+    order.nurseAcceptedAt = new Date();
+    order.statusHistory.push({ status: 'assigned', changedBy: req.user.id, notes: 'Nurse accepted by starting service' });
+  }
   order.status = 'in_progress';
   order.startedAt = new Date();
   order.statusHistory.push({ status: 'in_progress', changedBy: req.user.id, notes: 'Service started' });
@@ -389,10 +398,13 @@ const approveOffer = asyncHandler(async (req, res) => {
   order.assignedNurse = offer.nurse;
   order.status = 'assigned';
   order.acceptedAt = order.acceptedAt || new Date();
+  // The assigned nurse must confirm OK or decline before starting
+  order.nurseAccepted = null;
+  order.nurseAcceptedAt = null;
   order.statusHistory.push({ status: 'assigned', changedBy: req.user.id, notes: `Patient approved price ${offer.price}` });
   await order.save();
 
-  await Notification.create({ recipient: offer.nurse, title: 'تمت الموافقة على سعرك', message: `وافق المريض على سعرك ${offer.price} ج.م`, type: 'order', data: { orderId: order._id } });
+  await Notification.create({ recipient: offer.nurse, title: 'تم اختيارك لطلب — أكّد القبول', message: `وافق المريض على سعرك ${offer.price} ج.م للطلب #${order.orderNumber} — افتح طلباتك واضغط "موافق" أو "رفض"`, type: 'order', data: { orderId: order._id } });
   // When admin accepts the nurse price, patient must be told to PAY now
   await Notification.create({ recipient: order.patient, title: 'تم قبول السعر — ادفع الآن', message: `الإدارة قبلت سعر ${offer.price} ج.م لطلبك #${order.orderNumber} — ادفع من المحفظة أو InstaPay ليبدأ الممرض`, type: 'order', data: { orderId: order._id, finalPrice: offer.price } });
   try {
@@ -529,4 +541,60 @@ const acceptSuggestedPrice = asyncHandler(async (req, res) => {
   ResponseHelper.success(res, { orderId: order._id, status: 'open', finalPrice: order.finalPrice }, 'تم قبول السعر — طلبك ظاهر الآن لأقرب الممرضين');
 });
 
-module.exports = { createSimple, acceptOrder, startService, confirmOrder, cancelOrder, getOrderCompat, rateOrder, approveOffer, payManual, submitOffer, acceptSuggestedPrice };
+// POST /api/orders/:id/respond {accept: true|false} (assigned nurse says OK or declines)
+// The nurse answers an admin/patient-approved assignment at a fixed price.
+const respondToAssignment = asyncHandler(async (req, res) => {
+  const accept = req.body.accept === true || req.body.accept === 'true' || req.body.accept === 'accept';
+  const order = await Order.findById(req.params.id).populate('service', 'nameAr');
+  if (!order) throw new ApiError(404, 'Order not found');
+  if (!order.assignedNurse || String(order.assignedNurse) !== String(req.user.id)) {
+    throw new ApiError(403, 'This service is not assigned to you');
+  }
+  if (!['assigned'].includes(order.status)) throw new ApiError(400, 'This service is no longer awaiting your response');
+  if (order.nurseAccepted === true && accept) {
+    return ResponseHelper.success(res, { orderId: order._id, status: order.status, accepted: true }, 'Already accepted');
+  }
+
+  const nurseName = req.user.fullName || 'The nurse';
+  if (accept) {
+    order.nurseAccepted = true;
+    order.nurseAcceptedAt = new Date();
+    order.statusHistory.push({ status: 'assigned', changedBy: req.user.id, notes: 'Nurse confirmed OK' });
+    await order.save();
+    await Notification.create({ recipient: order.patient, title: 'الممرض وافق على طلبك', message: `${nurseName} وافق على تنفيذ طلبك #${order.orderNumber} بسعر ${order.finalPrice} ج.م — تتبعه لحظة بلحظة`, type: 'order', data: { orderId: order._id, nurseId: req.user.id } });
+    const admins = await User.find({ role: 'admin' }).select('_id');
+    for (const a of admins) {
+      await Notification.create({ recipient: a._id, title: 'الممرض قبل الخدمة', message: `${nurseName} وافق على الطلب #${order.orderNumber}`, type: 'order', data: { orderId: order._id } });
+    }
+    try {
+      const { emitToOrder, emitToUser } = require('../sockets');
+      emitToOrder(String(order._id), 'order_update', { orderId: order._id, status: 'assigned', nurseAccepted: true });
+      emitToUser(String(order.patient), 'notification', { title: 'الممرض وافق على طلبك', orderId: order._id });
+    } catch (_) { /* sockets optional */ }
+    return ResponseHelper.success(res, { orderId: order._id, status: order.status, accepted: true }, 'تم قبول الخدمة — توجه للمريض وابدأ التتبع');
+  }
+
+  // Decline: free the order back to nurses, keep the offer open for others
+  const offer = order.offers.find((o) => o.status === 'approved' && String(o.nurse) === String(req.user.id));
+  if (offer) offer.status = 'pending_review';
+  order.assignedNurse = null;
+  order.selectedOffer = null;
+  order.nurseAccepted = null;
+  order.nurseAcceptedAt = null;
+  const othersWaiting = order.offers.some((o) => o.status === 'pending_review');
+  order.status = othersWaiting ? 'offers_received' : 'open';
+  order.statusHistory.push({ status: order.status, changedBy: req.user.id, notes: 'Nurse declined the service' });
+  await order.save();
+  await Notification.create({ recipient: order.patient, title: 'الممرض اعتذر عن طلبك', message: `${nurseName} اعتذر عن الطلب #${order.orderNumber} — نعرضه الآن على ممرضين آخرين`, type: 'order', data: { orderId: order._id } });
+  const admins = await User.find({ role: 'admin' }).select('_id');
+  for (const a of admins) {
+    await Notification.create({ recipient: a._id, title: 'ممرض رفض خدمة', message: `${nurseName} رفض الطلب #${order.orderNumber} — عاد للممرضين`, type: 'order', data: { orderId: order._id } });
+  }
+  try {
+    const { emitToOrder } = require('../sockets');
+    emitToOrder(String(order._id), 'order_update', { orderId: order._id, status: order.status, nurseDeclined: true });
+  } catch (_) { /* sockets optional */ }
+  ResponseHelper.success(res, { orderId: order._id, status: order.status, accepted: false }, 'تم تسجيل رفضك — عاد الطلب للممرضين');
+});
+
+module.exports = { createSimple, acceptOrder, startService, confirmOrder, cancelOrder, getOrderCompat, rateOrder, approveOffer, payManual, submitOffer, acceptSuggestedPrice, respondToAssignment };

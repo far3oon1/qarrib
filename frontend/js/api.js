@@ -240,6 +240,9 @@ API.prototype.approveOffer = function (orderId, offerId) {
 API.prototype.acceptSuggestedPrice = function (orderId) {
     return this.request('POST', '/orders/' + orderId + '/accept-price');
 };
+API.prototype.respondToAssignment = function (orderId, accept) {
+    return this.request('POST', '/orders/' + orderId + '/respond', { accept: accept });
+};
 API.prototype.payManual = function (orderId, data) {
     return this.request('POST', '/orders/' + orderId + '/pay', data);
 };
@@ -394,6 +397,13 @@ API.prototype.getNurseReports = function (query) {
 };
 API.prototype.toggleServiceApproval = function (serviceId, requireApproval) {
     return this.request('PATCH', '/admin/services/' + serviceId, { requireApproval: requireApproval });
+};
+API.prototype.getAllOffers = function (query) {
+    if (query === undefined) query = '';
+    return this.request('GET', '/admin/offers' + query);
+};
+API.prototype.rejectOffer = function (orderId, offerId, notes) {
+    return this.request('POST', '/admin/orders/' + orderId + '/reject-offer', { offerId: offerId, notes: notes });
 };
 API.prototype.getVersion = function () {
     return this.request('GET', '/health');
