@@ -248,7 +248,7 @@
             } catch (e) {}
         }
 
-        // Get location
+        // Get location — REQUIRED for real (fresh fix, blocked-state help)
         function getLocation() {
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
@@ -269,8 +269,20 @@
                         loadNearbyNurses();
                     },
                     (error) => {
+                        var denied = error && error.code === 1;
+                        var mp = document.getElementById('mapPreview');
+                        if (denied && window.QarribPerms) {
+                            mp.innerHTML = '<div style="text-align:center;"><div style="font-size:28px;">⚠️</div>'
+                                + '<p>Location is BLOCKED for this site</p>'
+                                + '<button type="button" class="btn btn-sm" style="margin-top:8px;" onclick="QarribPerms.showDeniedHelp(\'location\').then(function(ok){ if(ok) getLocation(); })">How to enable / كيف تفعّل</button></div>';
+                        } else {
+                            mp.innerHTML = '<div style="text-align:center;"><div style="font-size:28px;">📍</div>'
+                                + '<p>Waiting for GPS fix…</p>'
+                                + '<button type="button" class="btn btn-sm btn-outline" style="margin-top:8px;" onclick="getLocation()">Retry / إعادة</button></div>';
+                        }
                         showAlert('فشل تحديد الموقع. يرجى التأكد من تفعيل GPS', 'error');
-                    }
+                    },
+                    { enableHighAccuracy: false, timeout: 30000, maximumAge: 0 }
                 );
             } else {
                 showAlert('المتصفح لا يدعم تحديد الموقع', 'error');

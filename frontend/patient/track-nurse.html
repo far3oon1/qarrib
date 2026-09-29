@@ -146,11 +146,18 @@
                         document.getElementById('callBtn').onclick = function(){ try { if (window.QarribPerms) QarribPerms.call(order.nurse.phone); else location.href='tel:'+order.nurse.phone; } catch(e){ location.href='tel:'+order.nurse.phone; } };
                     }
                     document.getElementById('chatBtn').onclick = function(){ location.href='chat-room.html?order='+orderId+'&nurse='+order.nurse.id; };
-                    document.getElementById('cancelBtn').onclick = async function(){
-                        if (order.status==='completed'){ alert('Order already completed'); return; }
-                        if (confirm('Cancel this visit?')){ await api.cancelOrder(orderId,'Cancelled by patient'); location.href='dashboard.html'; }
-                    };
                 }
+                // Cancel works with or without an assigned nurse (patient side)
+                try {
+                    var cb = document.getElementById('cancelBtn');
+                    var closed = (order.status==='completed'||order.status==='cancelled'||order.status==='refunded');
+                    cb.style.display = closed ? 'none' : 'block';
+                    cb.onclick = async function(){
+                        if (!confirm('إلغاء هذه الزيارة؟ / Cancel this visit?')) return;
+                        try { await api.cancelOrder(orderId,'Cancelled by patient'); if(window.qpNotify) qpNotify.popup({title:'Visit cancelled',message:'The nurse and admin were notified',type:'order'}); location.href='dashboard.html'; }
+                        catch(e){ showAlert(e.message||'Failed','error'); }
+                    };
+                } catch(e){}
                 renderSteps(order.status);
                 renderPriceBanner(order);
                 renderOffers(order);
@@ -241,19 +248,30 @@
                     '<div id="stars" style="display:flex;gap:6px;font-size:28px;margin-bottom:8px;">' +
                     [1,2,3,4,5].map(function(i){ return '<span style="cursor:pointer;" onclick="setStars(' + i + ')">☆</span>'; }).join('') + '</div>' +
                     '<textarea id="fbText" class="q-input" rows="2" placeholder="Your feedback (sent to admin too)" style="min-height:64px;padding:10px;"></textarea>' +
-                    '<button class="q-btn q-btn-sm" style="width:100%;margin-top:8px;" onclick="sendFeedback()">Send feedback</button></div>';
+                    '<button class="q-btn q-btn-sm" id="sendFbBtn" style="width:100%;margin-top:8px;" onclick="sendFeedback()">Send feedback</button></div>';
                 window._stars = 5; setStars(5);
+            } else if (order.status === 'completed' && order.patientReview && order.patientReview.rating) {
+                box.style.display = 'block';
+                var st = '';
+                for (var i = 0; i < 5; i++) st += (i < order.patientReview.rating ? '★' : '☆');
+                box.innerHTML = '<div class="q-card" style="padding:16px;text-align:center;"><div style="font-weight:700;">Your rating</div>' +
+                    '<div style="font-size:30px;color:#b45309;">' + st + '</div>' +
+                    '<div style="font-size:13px;color:#4A605E;">' + ((order.patientReview.comment || '').replace(/</g,'&lt;') || 'Thank you!') + '</div></div>';
             } else box.style.display = 'none';
         }
         function setStars(n){
             window._stars = n;
-            var els = document.getElementById('stars').children;
+            var s = document.getElementById('stars');
+            if (!s) return;
+            var els = s.children;
             for (var i = 0; i < els.length; i++) els[i].textContent = i < n ? '★' : '☆';
         }
         async function sendFeedback(){
+            var btn = document.getElementById('sendFbBtn');
+            if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
             var txt = (document.getElementById('fbText') || {}).value || '';
             try { var r = await api.rateOrder(orderId, window._stars || 5, txt); if (r.success) { showAlert('Thank you! Feedback sent.'); loadOrder(); } }
-            catch(e){ showAlert(e.message || 'Failed', 'error'); }
+            catch(e){ showAlert(e.message || 'Failed', 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Send feedback'; } }
         }
         function setupSocket(){
             if (typeof io==='undefined'){ setInterval(loadOrder,10000); return; }
@@ -269,8 +287,21 @@
             if (navigator.geolocation){
                 navigator.geolocation.getCurrentPosition(function(p){
                     updatePatientPosition(p.coords.latitude,p.coords.longitude);
-                    navigator.geolocation.watchPosition(function(pos){ updatePatientPosition(pos.coords.latitude,pos.coords.longitude); },function(){},{enableHighAccuracy:false,timeout:15000,maximumAge:5000});
-                },function(){ document.getElementById('geoDenied').style.display='block'; updatePatientPosition(30.0444,31.2357); },{enableHighAccuracy:false,timeout:15000,maximumAge:5000});
+                    navigator.geolocation.watchPosition(function(pos){ updatePatientPosition(pos.coords.latitude,pos.coords.longitude); },function(){},{enableHighAccuracy:false,timeout:30000,maximumAge:10000});
+                },function(err){
+                    // Real failure (not just slow GPS): blocked → settings guide, else retry
+                    var denied = err && err.code === 1;
+                    var gd = document.getElementById('geoDenied');
+                    if (denied && window.QarribPerms) {
+                        gd.style.display = 'block';
+                        gd.innerHTML = 'Location is BLOCKED for this site. <button class="q-btn q-btn-sm" style="margin-inline-start:8px;" onclick="QarribPerms.showDeniedHelp(\'location\').then(function(ok){ if(ok) location.reload(); })">How to enable / كيف تفعّل</button>';
+                    } else {
+                        gd.style.display = 'block';
+                        gd.innerHTML = 'Waiting for GPS fix… <button class="q-btn q-btn-sm" style="margin-inline-start:8px;" onclick="location.reload()">Retry / إعادة</button>';
+                        setTimeout(function(){ try { location.reload(); } catch(e){} }, 30000);
+                    }
+                    updatePatientPosition(30.0444,31.2357);
+                },{enableHighAccuracy:false,timeout:30000,maximumAge:0});
             } else updatePatientPosition(30.0444,31.2357);
             document.getElementById('loadingOverlay').classList.add('hidden');
         })();

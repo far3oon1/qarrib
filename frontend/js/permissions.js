@@ -56,13 +56,16 @@
     return false;
   }
 
-  async function requestLocation() {
-    // 1) Capacitor native (Android/iOS) via bridged navigator.geolocation
-    // 2) Web Geolocation API
+  // Returns {ok, denied, code, message} — denied=true means the OS/browser
+  // is BLOCKING prompts (user picked "Block", or app setting off). Retrying
+  // the prompt will NOT work; the user must re-allow in settings first.
+  var lastLocDenied = false;
+  function requestLocationDetailed(fresh) {
     return new Promise(function (resolve) {
       try {
-        if (!navigator.geolocation) return resolve(false);
+        if (!navigator.geolocation) return resolve({ ok: false, denied: false, code: 0, message: 'unsupported' });
         navigator.geolocation.getCurrentPosition(function (pos) {
+          lastLocDenied = false;
           lsSet('qp_perm_location', 'granted');
           try {
             var lat = pos.coords.latitude, lng = pos.coords.longitude;
@@ -73,9 +76,55 @@
               else if (role === 'patient') api.updateLocation(lat, lng).catch(function () {});
             }
           } catch (e) {}
-          resolve(true);
-        }, function () { resolve(false); }, { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 });
-      } catch (e) { resolve(false); }
+          resolve({ ok: true, denied: false, lat: pos.coords.latitude, lng: pos.coords.longitude });
+        }, function (err) {
+          var code = (err && err.code) || 0;
+          var denied = code === 1;
+          if (denied) lastLocDenied = true;
+          resolve({ ok: false, denied: denied, code: code, message: (err && err.message) || '' });
+        }, { enableHighAccuracy: false, timeout: 30000, maximumAge: fresh ? 0 : 15000 });
+      } catch (e) { resolve({ ok: false, denied: false, code: 0, message: String(e) }); }
+    });
+  }
+
+  async function requestLocation() {
+    var r = await requestLocationDetailed(false);
+    return r.ok;
+  }
+
+  function wasLocationDenied() { return lastLocDenied; }
+
+  // Help sheet shown when the OS blocks prompts: exact steps to re-allow.
+  function showDeniedHelp(key) {
+    ensureStyles();
+    var old = document.getElementById('qp-perm-overlay');
+    if (old) { try { old.remove(); } catch (e) {} }
+    var ov = document.createElement('div');
+    ov.id = 'qp-perm-overlay';
+    var steps;
+    if (key === 'location') {
+      steps = isIOS()
+        ? 'iPhone/iPad: Settings → Qarrib → Location → Allow (While Using). Then come back and tap Try again.'
+        : isNative()
+          ? 'Android app: Settings → Apps → Qarrib → Permissions → Location → Allow. Then come back and tap Try again.'
+          : 'Browser blocked location for this site. Tap the 🔒/location icon in the address bar → allow Location for this site → then tap Try again. / المتصفح حظر الموقع: اضغط أيقونة القفل في شريط العنوان ← السماح بالموقع ← ثم حاول مجدداً.';
+    } else if (key === 'notifications') {
+      steps = 'Allow notifications for this site in the browser/app settings, then tap Try again. / فعّل الإشعارات من إعدادات المتصفح/التطبيق ثم حاول مجدداً.';
+    } else {
+      steps = 'Allow it in the system settings, then tap Try again. / فعّله من إعدادات النظام ثم حاول مجدداً.';
+    }
+    ov.innerHTML = '<div id="qp-perm-card"><h2>⚠️ ' + escapeHtml(key === 'location' ? 'Location is blocked / الموقع محظور' : 'Permission blocked / الإذن محظور') + '</h2>' +
+      '<div class="sub">' + escapeHtml(steps) + '</div>' +
+      '<div id="qp-perm-actions"><button id="qp-perm-close">Close / إغلاق</button><button id="qp-perm-accept">Try again / حاول مجدداً</button></div></div>';
+    document.body.appendChild(ov);
+    return new Promise(function (resolve) {
+      ov.querySelector('#qp-perm-close').onclick = function () { ov.remove(); resolve(false); };
+      ov.querySelector('#qp-perm-accept').onclick = async function () {
+        ov.querySelector('#qp-perm-accept').textContent = '…';
+        var ok = await requestOne(key);
+        ov.remove();
+        resolve(!!ok);
+      };
     });
   }
 
@@ -214,6 +263,16 @@
         btn.onclick = async function () {
           btn.textContent = 'Requesting…';
           var ok2 = await requestOne(d.key);
+          // OS is blocking prompts (earlier "Block") — guide to settings instead
+          if (!ok2 && d.key === 'location' && wasLocationDenied()) {
+            btn.textContent = 'Enable';
+            paint();
+            await showDeniedHelp('location');
+            try { await fetchState(); } catch (e) {}
+            status[d.key] = granted(d.key);
+            paint();
+            return;
+          }
           status[d.key] = ok2 || status[d.key];
           if (ok2) { var m = {}; m[d.key] = true; pushConsents(m); if (d.key === 'terms') lsSet('qp_terms_accepted', '1'); }
           btn.textContent = 'Enable';
@@ -273,6 +332,10 @@
       : true;
     if (!go) return false;
     var ok = await requestOne(key);
+    // Blocked at OS level → open the settings guide, then re-check
+    if (!ok && key === 'location' && wasLocationDenied()) {
+      ok = await showDeniedHelp('location');
+    }
     if (ok) {
       var m = {}; m[key] = true;
       try { await pushConsents(m); } catch (e) {}
@@ -359,6 +422,9 @@
     requireGate: showGate,
     sharingToggle: sharingToggle,
     requestLocation: requestLocation,
+    requestLocationDetailed: requestLocationDetailed,
+    wasLocationDenied: wasLocationDenied,
+    showDeniedHelp: showDeniedHelp,
     ensure: ensure,
     isGranted: isGranted,
     call: call,
