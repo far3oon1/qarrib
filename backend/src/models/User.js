@@ -142,9 +142,9 @@ const userSchema = new mongoose.Schema({
     default: false
   },
 
-  // --- Subscription plan (free / pro / vip) ---
+  // --- Subscription plan (free / pro / vip for patients; free / nurse_vip for nurses) ---
   subscription: {
-    plan: { type: String, enum: ['free', 'pro', 'vip'], default: 'free' },
+    plan: { type: String, enum: ['free', 'pro', 'vip', 'nurse_vip'], default: 'free' },
     status: { type: String, enum: ['active', 'expired', 'pending', 'cancelled'], default: 'active' },
     expiresAt: { type: Date, default: null },
     startedAt: { type: Date, default: null }

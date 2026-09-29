@@ -103,7 +103,8 @@ const getNearbyNurses = asyncHandler(async (req, res) => {
     role: 'nurse', status: 'approved', isActive: true, isOnline: true,
     'location.coordinates.lat': { $ne: null },
     'location.coordinates.lng': { $ne: null }
-  }).select('fullName specialization yearsOfExperience rating totalReviews location isOnline');
+  }).select('fullName specialization yearsOfExperience rating totalReviews location isOnline subscription');
+  const { isTrustedNurse } = require('./subscription.controller');
   const mapped = nurses
     .map((n) => {
       const coords = n.location && n.location.coordinates ? n.location.coordinates : null;
@@ -116,11 +117,12 @@ const getNearbyNurses = asyncHandler(async (req, res) => {
         totalReviews: n.totalReviews,
         location: n.location,
         isOnline: n.isOnline,
+        isTrusted: isTrustedNurse(n),
         distanceKm: coords ? distanceKm(me, coords) : Infinity
       };
     })
     .filter((n) => n.distanceKm <= Number(distance))
-    .sort((a, b) => a.distanceKm - b.distanceKm);
+    .sort((a, b) => ((b.isTrusted ? 1 : 0) - (a.isTrusted ? 1 : 0)) || (a.distanceKm - b.distanceKm));
   ResponseHelper.success(res, mapped, 'Nearby nurses');
 });
 
@@ -128,8 +130,8 @@ const getOrdersWithOffers = asyncHandler(async (req, res) => {
   const orders = await Order.find({ patient: req.user.id, status: { $in: ['offers_received', 'assigned', 'price_approved'] } })
     .populate('service', 'nameAr basePrice')
     .populate('patient', 'fullName phone')
-    .populate('assignedNurse', 'fullName phone rating')
-    .populate('offers.nurse', 'fullName phone rating specialization yearsOfExperience')
+    .populate('assignedNurse', 'fullName phone rating subscription')
+    .populate('offers.nurse', 'fullName phone rating specialization yearsOfExperience subscription')
     .sort({ createdAt: -1 });
   const shaped = orders.map(shapeOrder);
   ResponseHelper.success(res, shaped, 'Orders with offers');
@@ -138,14 +140,17 @@ const getOrdersWithOffers = asyncHandler(async (req, res) => {
 
 const getNursesList = asyncHandler(async (req, res) => {
   const nurses = await User.find({ role: 'nurse', status: 'approved', isActive: true })
-    .select('fullName gender specialization yearsOfExperience rating')
+    .select('fullName gender specialization yearsOfExperience rating subscription')
     .lean();
+  const { isTrustedNurse } = require('./subscription.controller');
   const mapped = nurses.map((n) => ({
     ...n,
     id: String(n._id),
     name: n.fullName,
-    isVerified: true
+    isVerified: true,
+    isTrusted: isTrustedNurse(n)
   }));
+  mapped.sort((a, b) => ((b.isTrusted ? 1 : 0) - (a.isTrusted ? 1 : 0)));
   ResponseHelper.success(res, mapped, 'Nurses list');
 });
 

@@ -327,8 +327,8 @@ const cancelOrder = asyncHandler(async (req, res) => {
 const getOrderCompat = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id)
     .populate('service', 'nameAr basePrice')
-    .populate('patient', 'fullName phone locationSharing permissions consents')
-    .populate('assignedNurse', 'fullName phone rating locationSharing permissions consents');
+    .populate('patient', 'fullName phone locationSharing permissions consents subscription')
+    .populate('assignedNurse', 'fullName phone rating locationSharing permissions consents subscription');
   if (!order) throw new ApiError(404, 'Order not found');
   if (req.user.role !== 'admin') {
     const uid = String(req.user.id);
@@ -341,6 +341,16 @@ const getOrderCompat = asyncHandler(async (req, res) => {
     }
   }
   const out = shapeOrder(order);
+  // --- Trusted nurse badge (VIP Nurse plan) ---
+  try {
+    const { isTrustedNurse } = require('./subscription.controller');
+    if (out.nurse) {
+      out.nurse.isTrusted = !!(order.assignedNurse && isTrustedNurse(order.assignedNurse));
+      delete out.nurse.subscription;
+    }
+    if (out.patient) delete out.patient.subscription;
+    if (Array.isArray(out.offers)) out.offers.forEach((x) => { if (x.nurse) delete x.nurse.subscription; });
+  } catch (_) { /* badge is best-effort */ }
   // --- Online location permission gate ---
   // Live dots + registered phone numbers are only exposed when the OWNER
   // approved sharing (account → location toggle, or admin GUI approval).

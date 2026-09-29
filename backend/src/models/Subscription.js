@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 // One row per subscription purchase (history). Current plan lives on User.subscription.
 const subscriptionSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
-  plan: { type: String, enum: ['free', 'pro', 'vip'], required: true },
+  plan: { type: String, enum: ['free', 'pro', 'vip', 'nurse_vip'], required: true },
   price: { type: Number, required: true, min: 0 },
   durationDays: { type: Number, default: 30 },
   status: { type: String, enum: ['pending', 'active', 'expired', 'cancelled', 'rejected'], default: 'pending', index: true },

@@ -173,7 +173,7 @@
             document.getElementById('userName').textContent = d.data.user.name || d.data.user.fullName;
             document.getElementById('walletBalance').textContent = d.data.user.walletBalance || 0;
             document.getElementById('statEarnings').textContent = (d.data.stats.totalEarnings||0) + ' EGP';
-            document.getElementById('statRating').textContent = d.data.user.rating || 'New';
+            document.getElementById('statRating').textContent = d.data.user.rating || 'Not rated yet';
             var active = d.data.activeOrders || [];
             document.getElementById('statActive').textContent = active.length;
             var html = active.length ? active.slice(0,3).map(orderCard).join('') : '<div class="q-muted">No active visits. Go online and accept a request.</div>';
@@ -223,7 +223,14 @@
             var r = await api.getMySubscription();
             if (r.success) {
                 var b = document.getElementById('planBadge');
-                if (b) b.textContent = (r.data.plan||'free').toUpperCase();
+                var pl = r.data.plan || 'free';
+                if (b) b.textContent = (pl === 'nurse_vip' ? 'VIP ✅ Trusted' : pl.toUpperCase());
+                if (pl !== 'nurse_vip') {
+                    var u = document.createElement('a'); u.href = '../plans.html';
+                    u.style.cssText = 'font-size:13px;font-weight:700;color:#0B5F5A;';
+                    u.textContent = 'Become VIP Trusted nurse 500 EGP →';
+                    var top = document.querySelector('.dash-top'); if (top) top.appendChild(u);
+                }
             }
         } catch(e){}
     })();

@@ -36,6 +36,18 @@ const DEFAULT_PLANS = {
       'admin_hotline_24h', 'dedicated_manager', 'free_reschedule', 'withdrawal_priority', 'vip_badge', 'discount_10'
     ],
     limits: { callsPerOrder: 'unlimited', supportHours: '24/7', priorityMatching: true, adminHotline24h: true }
+  },
+  // Nurse-only plans: Free Nurse (basic) vs VIP Nurse (500 EGP/month, trusted badge).
+  // VIP nurses show ✅ trusted to patients and rank first in nurse lists.
+  nurse_vip: {
+    id: 'nurse_vip', name: 'VIP Nurse', nameAr: 'ممرض مميز', price: 500, durationDays: 30,
+    role: 'nurse',
+    tagline: 'Trusted badge ✅ — patients trust you first, rank first, get more visits.',
+    features: [
+      'accept_orders', 'live_tracking', 'chat_basic', 'wallet_view',
+      'unlimited_calls', 'priority_matching', 'support_priority', 'withdrawal_priority', 'vip_badge', 'trusted_nurse'
+    ],
+    limits: { callsPerOrder: 'unlimited', supportHours: '24/7', priorityMatching: true, adminHotline24h: false }
   }
 };
 
@@ -76,8 +88,20 @@ function planOf(user) {
 function hasFeature(user, feature) {
   const plan = planOf(user);
   const plans = getPlans();
-  return (plans[plan].features || []).includes(feature);
+  return ((plans[plan] && plans[plan].features) || []).includes(feature);
 }
+
+// Trusted nurse = active VIP Nurse plan. Shown with ✅ to patients, sorted first.
+function isTrustedNurse(nurseDoc) {
+  try {
+    const sub = (nurseDoc && (nurseDoc.subscription || (nurseDoc.toObject && nurseDoc.toObject().subscription))) || {};
+    if (sub.plan !== 'nurse_vip') return false;
+    if (sub.expiresAt && new Date(sub.expiresAt) < new Date()) return false;
+    return true;
+  } catch (_) { return false; }
+}
+
+const ownerInstaPay = () => process.env.OWNER_INSTAPAY_NUMBER || '01150209401';
 
 async function refreshUserPlan(user) {
   const sub = user.subscription || {};
@@ -90,16 +114,23 @@ async function refreshUserPlan(user) {
   return user;
 }
 
-// GET /api/subscriptions/plans
+// GET /api/subscriptions/plans — role-aware list + the InstaPay number to pay to
 const listPlans = asyncHandler(async (req, res) => {
   const plans = getPlans();
   let mine = 'free';
+  let role = req.user.role;
   try {
     const me = await User.findById(req.user.id);
     await refreshUserPlan(me);
     mine = planOf(me);
+    role = me.role;
   } catch (_) {}
-  ResponseHelper.success(res, { plans: [plans.free, plans.pro, plans.vip], myPlan: mine }, 'Subscription plans');
+  const list = role === 'nurse'
+    ? [plans.free, plans.nurse_vip]
+    : role === 'admin'
+      ? [plans.free, plans.pro, plans.vip, plans.nurse_vip]
+      : [plans.free, plans.pro, plans.vip];
+  ResponseHelper.success(res, { plans: list, myPlan: mine, myRole: role, ownerInstaPay: ownerInstaPay() }, 'Subscription plans');
 });
 
 // GET /api/subscriptions/me
@@ -110,10 +141,12 @@ const mySubscription = asyncHandler(async (req, res) => {
   const plan = planOf(me);
   const active = await Subscription.findOne({ user: me._id, status: 'active' }).sort({ endsAt: -1 });
   ResponseHelper.success(res, {
-    plan, planDef: plans[plan],
+    plan, planDef: plans[plan] || plans.free,
     expiresAt: me.subscription?.expiresAt || null,
     status: me.subscription?.status || 'active',
-    features: plans[plan].features,
+    features: (plans[plan] || plans.free).features,
+    isTrusted: isTrustedNurse(me),
+    ownerInstaPay: ownerInstaPay(),
     active
   }, 'My subscription');
 });
@@ -121,12 +154,15 @@ const mySubscription = asyncHandler(async (req, res) => {
 // POST /api/subscriptions/subscribe {plan: pro|vip, method: wallet|instapay, reference?}
 const subscribe = asyncHandler(async (req, res) => {
   const { plan, method, reference } = req.body;
-  if (!['pro', 'vip'].includes(plan)) throw new ApiError(400, 'plan must be pro or vip');
+  if (!['pro', 'vip', 'nurse_vip'].includes(plan)) throw new ApiError(400, 'plan must be pro, vip or nurse_vip');
   if (!['wallet', 'instapay'].includes(method)) throw new ApiError(400, 'method must be wallet or instapay');
-  const plans = getPlans();
-  const price = plans[plan].price;
   const me = await User.findById(req.user.id);
   await refreshUserPlan(me);
+  // Plans are role-locked: nurse_vip is nurses-only, pro/vip are patients-only
+  if (me.role === 'nurse' && plan !== 'nurse_vip') throw new ApiError(400, 'Nurses can only subscribe to VIP Nurse');
+  if (me.role === 'patient' && plan === 'nurse_vip') throw new ApiError(400, 'VIP Nurse is for nurses only');
+  const plans = getPlans();
+  const price = plans[plan].price;
 
   if (method === 'wallet') {
     if ((me.walletBalance || 0) < price) throw new ApiError(400, `Insufficient wallet balance — ${plan.toUpperCase()} costs ${price} EGP. Top up first.`);
@@ -141,7 +177,10 @@ const subscribe = asyncHandler(async (req, res) => {
     me.subscription = { plan, status: 'active', startedAt: startsAt, expiresAt: endsAt };
     await me.save();
     const sub = await Subscription.create({ user: me._id, plan, price, status: 'active', paymentMethod: 'wallet', startsAt, endsAt });
-    await Notification.create({ recipient: me._id, title: `Welcome to ${plan.toUpperCase()} 🎉`, message: `Your ${plan.toUpperCase()} plan is active for 30 days — enjoy ${plan === 'vip' ? 'all features + 24/7 admin hotline' : 'priority matching, unlimited calls & priority support'}.`, type: 'payment', data: { subscriptionId: sub._id, plan } });
+    const welcomeMsg = plan === 'nurse_vip'
+      ? 'Your VIP NURSE plan is active for 30 days — patients now see you as ✅ TRUSTED and you rank first.'
+      : `Your ${plan.toUpperCase()} plan is active for 30 days — enjoy ${plan === 'vip' ? 'all features + 24/7 admin hotline' : 'priority matching, unlimited calls & priority support'}.`;
+    await Notification.create({ recipient: me._id, title: `Welcome to ${plan.toUpperCase()} 🎉`, message: welcomeMsg, type: 'payment', data: { subscriptionId: sub._id, plan } });
     const admins = await User.find({ role: 'admin' }).select('_id');
     for (const a of admins) {
       await Notification.create({ recipient: a._id, title: 'New subscription', message: `${me.fullName} subscribed to ${plan.toUpperCase()} (${price} EGP via wallet)`, type: 'payment', data: { subscriptionId: sub._id, userId: me._id, plan } });
@@ -169,7 +208,7 @@ const subscribe = asyncHandler(async (req, res) => {
     const { emitToUser } = require('../sockets');
     admins.forEach((x) => emitToUser(String(x._id), 'notification', { title: 'New subscription to review', plan }));
   } catch (_) {}
-  ResponseHelper.success(res, { plan, price, status: 'pending', subscriptionId: sub._id }, 'Request sent — admin will activate your plan after verifying the transfer');
+  ResponseHelper.success(res, { plan, price, status: 'pending', subscriptionId: sub._id, ownerInstaPay: ownerInstaPay() }, `Request sent — transfer ${price} EGP via InstaPay to ${ownerInstaPay()}, then admin activates your plan after verifying`);
 });
 
 // POST /api/subscriptions/cancel
@@ -214,7 +253,7 @@ const adminReview = asyncHandler(async (req, res) => {
     user.subscription = { plan: sub.plan, status: 'active', startedAt: startsAt, expiresAt: endsAt };
     await user.save();
     await Wallet.create({ user: user._id, type: 'subscription', amount: sub.price, status: 'completed', paymentMethod: sub.paymentMethod || 'instapay', reference: sub.reference, description: `Subscription ${sub.plan.toUpperCase()} approved — 30 days`, balanceAfter: user.walletBalance || 0 });
-    await Notification.create({ recipient: user._id, title: `Your ${sub.plan.toUpperCase()} is active 🎉`, message: `Admin activated your ${sub.plan.toUpperCase()} plan for 30 days${sub.plan === 'vip' ? ' — 24/7 admin hotline is now available in your dashboard' : ''}.`, type: 'payment', data: { subscriptionId: sub._id, plan: sub.plan } });
+    await Notification.create({ recipient: user._id, title: `Your ${sub.plan.toUpperCase()} is active 🎉`, message: `Admin activated your ${sub.plan.toUpperCase()} plan for 30 days${sub.plan === 'vip' ? ' — 24/7 admin hotline is now available in your dashboard' : sub.plan === 'nurse_vip' ? ' — patients now see you as ✅ TRUSTED' : ''}.`, type: 'payment', data: { subscriptionId: sub._id, plan: sub.plan } });
     try { const { emitToUser } = require('../sockets'); emitToUser(String(user._id), 'notification', { title: `Your ${sub.plan.toUpperCase()} is active`, plan: sub.plan }); } catch (_) {}
   } else {
     sub.status = 'rejected'; sub.reviewedBy = req.user.id; sub.reviewedAt = new Date();
@@ -224,20 +263,17 @@ const adminReview = asyncHandler(async (req, res) => {
   ResponseHelper.success(res, { id: String(sub._id), status: sub.status }, approve ? 'Subscription activated' : 'Subscription rejected');
 });
 
-// PUT /api/subscriptions/admin/prices {pro?, vip?}
+// PUT /api/subscriptions/admin/prices {pro?, vip?, nurse_vip?}
 const adminPrices = asyncHandler(async (req, res) => {
-  if (req.body.pro != null) {
-    const p = Number(req.body.pro);
-    if (!Number.isFinite(p) || p < 0) throw new ApiError(400, 'Invalid pro price');
-    priceOverrides.pro = p;
-  }
-  if (req.body.vip != null) {
-    const p = Number(req.body.vip);
-    if (!Number.isFinite(p) || p < 0) throw new ApiError(400, 'Invalid vip price');
-    priceOverrides.vip = p;
+  for (const k of ['pro', 'vip', 'nurse_vip']) {
+    if (req.body[k] != null) {
+      const p = Number(req.body[k]);
+      if (!Number.isFinite(p) || p < 0) throw new ApiError(400, `Invalid ${k} price`);
+      priceOverrides[k] = p;
+    }
   }
   await saveOverrides();
   ResponseHelper.success(res, { plans: getPlans() }, 'Plan prices updated');
 });
 
-module.exports = { listPlans, mySubscription, subscribe, cancel, adminList, adminReview, adminPrices, getPlans, planOf, hasFeature, refreshUserPlan, DEFAULT_PLANS };
+module.exports = { listPlans, mySubscription, subscribe, cancel, adminList, adminReview, adminPrices, getPlans, planOf, hasFeature, refreshUserPlan, isTrustedNurse, ownerInstaPay, DEFAULT_PLANS };

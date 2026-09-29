@@ -88,11 +88,35 @@
     } catch (e) { return false; }
   }
 
-  // Gallery: on native we can only truly request when picking a file; here we
-  // mark the legal consent and verify a picker can open. On web same flow.
+  // Gallery: REAL device interaction — the OS picker IS the permission grant.
+  // We open a throwaway picker; consent is recorded only if the user picks
+  // a photo (cancel = not granted). Point-of-use uploads also mark it.
   async function requestGallery() {
-    lsSet('qp_perm_gallery', 'granted');
-    return true;
+    return new Promise(function (resolve) {
+      try {
+        var inp = document.createElement('input');
+        inp.type = 'file'; inp.accept = 'image/*'; inp.style.display = 'none';
+        var done = false;
+        function finish(ok) {
+          if (done) return; done = true;
+          try { inp.remove(); } catch (e) {}
+          if (ok) { lsSet('qp_perm_gallery', 'granted'); pushConsents({ gallery: true }); }
+          resolve(ok);
+        }
+        inp.onchange = function () { finish(inp.files && inp.files.length > 0); };
+        if ('oncancel' in inp) inp.oncancel = function () { finish(false); };
+        document.body.appendChild(inp);
+        inp.click();
+        setTimeout(function () { if (!done) { try { inp.remove(); } catch (e) {} if (!done) { done = true; resolve(lsGet('qp_perm_gallery') === 'granted'); } } }, 90000);
+        // Fallback for browsers without 'cancel': focus back with no file = dismissed
+        var onFocus = function () {
+          setTimeout(function () {
+            if (!done && (!inp.files || !inp.files.length)) { window.removeEventListener('focus', onFocus); finish(false); }
+          }, 800);
+        };
+        window.addEventListener('focus', onFocus);
+      } catch (e) { resolve(false); }
+    });
   }
   async function requestCalling() {
     // tel: links need no OS permission on web; on Android CALL_PHONE is in the
@@ -215,6 +239,94 @@
     });
   }
 
+  // ---- Enforcement: fast sync check + blocking ensure + global guards ----
+  var cachedConsents = null;
+  var origFetchState = fetchState;
+  fetchState = function () {
+    return origFetchState().then(function (st) {
+      try { cachedConsents = st.myConsents || {}; } catch (e) {}
+      return st;
+    });
+  };
+
+  function isGranted(key) {
+    try {
+      if (cachedConsents && cachedConsents[key] && cachedConsents[key].granted) return true;
+    } catch (e) {}
+    return deviceGranted(key);
+  }
+
+  // ensure(key): guarantees a REAL grant before the app proceeds.
+  // Returns true only when the OS-level permission was actually granted
+  // (location fix, real photo picked, system notification allowed...).
+  // Shows a compact blocking sheet when it is still missing.
+  async function ensure(key) {
+    if (isGranted(key)) return true;
+    try { await fetchState(); } catch (e) {}
+    if (isGranted(key)) return true;
+    var def = null;
+    PERM_DEFS.forEach(function (d) { if (d.key === key) def = d; });
+    var label = def ? def.title : key;
+    ensureStyles();
+    var go = window.confirm
+      ? window.confirm('Qarrib needs "' + label + '" enabled to continue.\nPress OK to enable it now (the system will ask you).\n\nqarrib يحتاج تفعيل "' + label + '" للمتابعة. اضغط موافق للتفعيل الآن.')
+      : true;
+    if (!go) return false;
+    var ok = await requestOne(key);
+    if (ok) {
+      var m = {}; m[key] = true;
+      try { await pushConsents(m); } catch (e) {}
+      try { cachedConsents = cachedConsents || {}; cachedConsents[key] = { granted: true }; } catch (e) {}
+    }
+    return !!ok;
+  }
+
+  // call(number): gated dialing — calling consent is enforced before tel:
+  async function call(number) {
+    var num = String(number || '').trim();
+    if (!num) {
+      try { if (typeof showAlert === 'function') showAlert('No registered number / لا يوجد رقم مسجل', 'error'); } catch (e) {}
+      return false;
+    }
+    var ok = await ensure('calling');
+    if (!ok) return false;
+    try { window.location.href = 'tel:' + num; } catch (e) {}
+    return true;
+  }
+
+  // Global guards: uploads prove gallery access, tel: links prove calling consent.
+  function installGuards() {
+    try {
+      // Any real photo/document chosen = gallery granted (direct OS interaction)
+      document.addEventListener('change', function (ev) {
+        try {
+          var t = ev.target;
+          if (t && t.tagName === 'INPUT' && t.type === 'file' && t.files && t.files.length) {
+            lsSet('qp_perm_gallery', 'granted');
+            pushConsents({ gallery: true });
+            try { cachedConsents = cachedConsents || {}; cachedConsents.gallery = { granted: true }; } catch (e) {}
+          }
+        } catch (e) {}
+      });
+      // tel: links require calling consent first — enforced, not just clicked
+      document.addEventListener('click', function (ev) {
+        try {
+          var a = ev.target && ev.target.closest ? ev.target.closest('a[href^="tel:"]') : null;
+          if (!a) return;
+          if (isGranted('calling')) return; // already enabled — dial straight away
+          ev.preventDefault();
+          var num = (a.getAttribute('href') || '').replace(/^tel:/, '');
+          call(num);
+        } catch (e) {}
+      }, true);
+    } catch (e) {}
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', installGuards);
+  } else {
+    installGuards();
+  }
   // Small inline banner for track pages: location sharing on/off (online permission)
   async function sharingToggle(containerId, orderId) {
     try {
@@ -247,6 +359,9 @@
     requireGate: showGate,
     sharingToggle: sharingToggle,
     requestLocation: requestLocation,
+    ensure: ensure,
+    isGranted: isGranted,
+    call: call,
     isNative: isNative, isIOS: isIOS
   };
 })();

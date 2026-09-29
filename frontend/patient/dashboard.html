@@ -173,7 +173,9 @@
                 else {
                     var rows = [];
                     list.slice(0,2).forEach(function(o){ (o.offers||[]).slice(0,2).forEach(function(x){
-                        rows.push('<div class="offer-row"><div class="q-avatar" style="width:44px;height:44px;">'+((x.nurse&&x.nurse.name)||'N').charAt(0)+'</div><div style="flex:1"><div style="font-weight:600;">'+((x.nurse&&x.nurse.name)||'Nurse')+'</div><div style="font-size:14px;color:#4A605E;">★ ' + ((x.nurse&&x.nurse.rating)||'New') + '</div></div><div style="font-weight:700;color:#0B5F5A;">'+x.price+' EGP</div></div>');
+                        var nm = (x.nurse&&x.nurse.name)||'Nurse';
+                        var trust = (x.nurse&&x.nurse.isTrusted) ? ' ✅' : '';
+                        rows.push('<div class="offer-row"><div class="q-avatar" style="width:44px;height:44px;">'+nm.charAt(0)+'</div><div style="flex:1"><div style="font-weight:600;">'+nm+trust+'</div><div style="font-size:14px;color:#4A605E;">★ ' + ((x.nurse&&x.nurse.rating)||'New') + '</div></div><div style="font-weight:700;color:#0B5F5A;">'+x.price+' EGP</div></div>');
                     }); });
                     prev.innerHTML = rows.join('') || '<div class="q-muted">Waiting for nurse offers…</div>';
                 }

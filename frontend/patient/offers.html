@@ -57,7 +57,8 @@
                 var bar = '<div class="req-bar">' + (order.serviceType||'Service') + ' · ' + formatDate(order.createdAt) + ' · ' + (order.address||'Area') + '</div>';
                 var cards = offers.length ? offers.map(function(o){
                     var nm = o.nurse ? o.nurse.name : 'Nurse';
-                    var meta = 'License verified · ★ ' + (o.nurse ? (o.nurse.rating || 'New') : 'New');
+                    var trusted = o.nurse && o.nurse.isTrusted ? ' · ✅ Trusted' : '';
+                    var meta = 'License verified · ★ ' + (o.nurse ? (o.nurse.rating || 'New') : 'New') + trusted;
                     return '<div class="offer-card">' +
                         '<div class="offer-top"><div class="q-avatar" style="width:52px;height:52px;">' + nm.charAt(0) + '</div>' +
                         '<div style="flex-grow:1"><div style="font-size:17px;font-weight:600;">' + nm + '</div><div style="font-size:14px;color:#4A605E;">' + meta + '</div></div>' +
@@ -72,7 +73,7 @@
         } catch (e) { document.getElementById('offersContainer').innerHTML = '<div class="q-card" style="padding:24px;">Failed to load</div>'; }
     })();
     async function approveOffer(orderId, offerId) {
-        if (!confirm('Accept this price?')) return;
+        if (!confirm('قبول هذا السعر؟ / Accept this price?')) return;
         try { var r = await api.approveOffer(orderId, offerId); if (r.success) location.reload(); }
         catch (e) { alert(e.message || 'Approval failed'); }
     }

@@ -131,7 +131,7 @@
                 var phone = o.patient && o.patient.phone;
                 var callBtn = document.getElementById('callBtn');
                 if (o.patient && o.patient.callDisabled) { callBtn.textContent = 'اتصال محظور 🔒'; callBtn.onclick = function(){ showAlert('الاتصال معطل لهذا الحساب من الإدارة', 'error'); }; }
-                else if (phone) { callBtn.textContent = 'اتصال 📞 ' + phone; callBtn.onclick = function(){ window.location.href = 'tel:' + phone; }; }
+                else if (phone) { callBtn.textContent = 'اتصال 📞 ' + phone; callBtn.onclick = function(){ try { if (window.QarribPerms) QarribPerms.call(phone); else window.location.href = 'tel:' + phone; } catch(e){ window.location.href = 'tel:' + phone; } }; }
                 else { callBtn.textContent = 'اتصال 📞'; callBtn.onclick = function(){ showAlert('لا يوجد رقم مسجل', 'error'); }; }
             } catch(e){}
             document.getElementById('startBtn').style.display = o.status === 'assigned' ? 'block' : 'none';

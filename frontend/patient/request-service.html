@@ -200,6 +200,7 @@
     <script src="../js/auth.js?v=6"></script>
     <script src="../js/notifications.js"></script>
     <script src="../js/notify-popup.js?v=1"></script>
+    <script src="../js/permissions.js?v=1"></script>
     <script>
         if (!requireRole('patient')) redirectToLogin();
 
@@ -305,7 +306,7 @@
                     });
                 }
                 document.getElementById('nearbyList').innerHTML = list.length
-                    ? list.slice(0, 5).map(n => `<div>🟢 ${n.fullName || 'ممرض'} - ⭐ ${n.rating || 'جديد'} - ${n.distanceKm != null ? n.distanceKm.toFixed(1) + ' كم' : ''}</div>`).join('')
+                    ? list.slice(0, 5).map(n => `<div>🟢 ${n.fullName || 'ممرض'}${n.isTrusted ? ' ✅ موثّق' : ''} - ⭐ ${n.rating || 'جديد'} - ${n.distanceKm != null ? n.distanceKm.toFixed(1) + ' كم' : ''}</div>`).join('')
                     : 'لا يوجد ممرضون متصلون قريبون الآن — سيصلك إشعار عند توفرهم.';
             } catch (e) {
                 document.getElementById('nearbyList').textContent = 'تعذر تحميل الممرضين القريبين.';
@@ -324,9 +325,15 @@
             } catch(e) {}
         }
 
-        // Form submission
+        // Form submission — location permission is REQUIRED and really requested
         document.getElementById('requestForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+            try {
+                if (window.QarribPerms && !(await QarribPerms.ensure('location'))) {
+                    showAlert('مطلوب تفعيل الموقع لطلب ممرض / Location is required to request a nurse', 'error');
+                    return;
+                }
+            } catch (_) {}
             const btn = document.getElementById('submitBtn');
             btn.disabled = true;
             btn.textContent = 'جاري الإرسال...';
