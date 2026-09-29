@@ -259,6 +259,17 @@ const toggleUserStatus = asyncHandler(async (req, res) => {
   user.isActive = !user.isActive;
   await user.save();
 
+  await Notification.create({
+    recipient: user._id,
+    title: user.isActive ? 'تم تفعيل حسابك' : 'تم تعطيل حسابك',
+    message: user.isActive ? 'أعادت الإدارة تفعيل حسابك — يمكنك العمل الآن' : 'عطّلت الإدارة حسابك — تواصل مع الدعم',
+    type: 'system'
+  });
+  try {
+    const { emitToUser } = require('../sockets');
+    emitToUser(String(user._id), 'notification', { title: user.isActive ? 'تم تفعيل حسابك' : 'تم تعطيل حسابك' });
+  } catch (_) { /* sockets optional */ }
+
   ResponseHelper.success(res, { userId, isActive: user.isActive }, user.isActive ? 'تم تفعيل الحساب' : 'تم تعطيل الحساب');
 });
 
@@ -553,6 +564,18 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
   if (status === 'completed') order.completedAt = new Date();
   await order.save();
 
+  // Every admin status change alerts the parties on their panels
+  await Notification.create({ recipient: order.patient, title: 'تحديث على طلبك', message: `غيّرت الإدارة حالة الطلب #${order.orderNumber} إلى "${status}"`, type: 'order', data: { orderId: order._id, status } });
+  if (order.assignedNurse) {
+    await Notification.create({ recipient: order.assignedNurse, title: 'تحديث على طلبك', message: `غيّرت الإدارة حالة الطلب #${order.orderNumber} إلى "${status}"`, type: 'order', data: { orderId: order._id, status } });
+  }
+  try {
+    const { emitToOrder, emitToUser } = require('../sockets');
+    emitToOrder(String(order._id), 'order_update', { orderId: order._id, status });
+    emitToUser(String(order.patient), 'notification', { title: 'تحديث على طلبك', orderId: order._id });
+    if (order.assignedNurse) emitToUser(String(order.assignedNurse), 'notification', { title: 'تحديث على طلبك', orderId: order._id });
+  } catch (_) { /* sockets optional */ }
+
   ResponseHelper.success(res, { orderId, status }, 'تم تحديث حالة الطلب');
 });
 
@@ -594,7 +617,9 @@ const reviewTopup = asyncHandler(async (req, res) => {
   ResponseHelper.success(res, { topupId, status: tx.status }, approve ? 'تم تأكيد الشحن' : 'تم رفض الشحن');
 });
 
-// Admin approves completion: money goes DIRECTLY to the nurse (owner rule).
+// Admin approves completion: closes the order. With direct pay the money
+// already went to the nurse on payment/assignment — this only pays out
+// when an escrow is still held (never double-pays).
 const completeOrder = asyncHandler(async (req, res) => {
   const { orderId } = req.params;
   const order = await Order.findById(orderId);
@@ -605,37 +630,33 @@ const completeOrder = asyncHandler(async (req, res) => {
   if (!order.assignedNurse) throw new ApiError(400, 'No nurse assigned to this order');
   if (order.escrowStatus === 'cancelled') throw new ApiError(400, 'This order was cancelled');
 
-  const nurse = await User.findById(order.assignedNurse);
-  const earning = order.nurseEarnings || 0;
-  nurse.walletBalance = (nurse.walletBalance || 0) + earning;
-  await nurse.save();
-  await Wallet.create({
-    user: nurse._id, order: order._id, type: 'earning',
-    amount: earning, status: 'completed', paymentMethod: order.paymentMethod,
-    description: `Earnings for order ${order.orderNumber} (admin approved)`,
-    balanceAfter: nurse.walletBalance
-  });
-  const platformFee = order.platformFee || 0;
-  if (platformFee > 0) {
-    await Wallet.create({
-      user: nurse._id, order: order._id, type: 'fee',
-      amount: platformFee, status: 'completed', paymentMethod: order.paymentMethod,
-      description: `Platform fee (${(order.commissionRate || 10)}%) for order ${order.orderNumber}`,
-      balanceAfter: nurse.walletBalance
-    });
+  let paidToNurse = 0;
+  if (order.escrowStatus === 'held') {
+    const { releaseEscrowToNurse } = require('../utils/releaseEscrow');
+    const r = await releaseEscrowToNurse(order);
+    paidToNurse = r.earning || 0;
   }
 
+  const nurse = await User.findById(order.assignedNurse);
   order.status = 'completed';
   order.completedAt = new Date();
   order.escrowStatus = 'released';
   order.paymentStatus = 'paid';
-  order.statusHistory.push({ status: 'completed', changedBy: req.user.id, notes: 'Admin approved completion — paid to nurse' });
+  order.statusHistory.push({ status: 'completed', changedBy: req.user.id, notes: paidToNurse > 0 ? 'Admin approved completion — paid to nurse' : 'Admin approved completion (already paid directly)' });
   await order.save();
 
   await Notification.create({ recipient: order.patient, title: 'تم إنجاز طلبك', message: `تمت الموافقة على إنجاز طلبك #${order.orderNumber}`, type: 'order', data: { orderId: order._id } });
-  await Notification.create({ recipient: nurse._id, title: 'تم تحويل مستحقاتك', message: `تمت إضافة ${earning} ج.م إلى محفظتك`, type: 'order', data: { orderId: order._id } });
+  if (paidToNurse <= 0) {
+    await Notification.create({ recipient: nurse._id, title: 'تم إنجاز طلبك', message: `اعتمدت الإدارة إنجاز الطلب #${order.orderNumber}`, type: 'order', data: { orderId: order._id } });
+  }
 
-  ResponseHelper.success(res, { orderId: order._id, status: 'completed', paidToNurse: earning }, 'تمت الموافقة وتحويل المبلغ للممرض');
+  try {
+    const { emitToOrder, emitToUser } = require('../sockets');
+    emitToOrder(String(order._id), 'order_update', { orderId: order._id, status: 'completed' });
+    emitToUser(String(order.patient), 'notification', { title: 'تم إنجاز طلبك', orderId: order._id });
+  } catch (_) { /* sockets optional */ }
+
+  ResponseHelper.success(res, { orderId: order._id, status: 'completed', paidToNurse }, paidToNurse > 0 ? 'تمت الموافقة وتحويل المبلغ للممرض' : 'تم اعتماد الإنجاز (المبلغ محوّل مسبقاً)');
 });
 
 // Nurse withdrawals: list pending (with nurse payout account) + approve/reject
@@ -708,6 +729,11 @@ const approveNurseOffer = asyncHandler(async (req, res) => {
   order.nurseAcceptedAt = null;
   order.statusHistory.push({ status: 'assigned', changedBy: req.user.id, notes: `Admin approved price ${offer.price}` });
   await order.save();
+  // Prepaid escrow (if any) moves straight to the assigned nurse
+  try {
+    const { releaseEscrowToNurse } = require('../utils/releaseEscrow');
+    await releaseEscrowToNurse(order);
+  } catch (_) { /* best-effort */ }
   await Notification.create({ recipient: order.patient, title: 'تم قبول السعر — ادفع الآن', message: `الإدارة قبلت سعر ${offer.price} ج.م لطلبك #${order.orderNumber} — ادفع من المحفظة أو InstaPay`, type: 'order', data: { orderId: order._id, finalPrice: offer.price } });
   await Notification.create({ recipient: offer.nurse, title: 'تم اختيارك لطلب — أكّد القبول', message: `قبلت الإدارة سعرك ${offer.price} ج.م للطلب #${order.orderNumber} — افتح طلباتك واضغط "موافق" أو "رفض"`, type: 'order', data: { orderId: order._id } });
   try {

@@ -165,6 +165,11 @@ const acceptOrder = asyncHandler(async (req, res) => {
   order.nurseAcceptedAt = new Date();
   order.statusHistory.push({ status: 'assigned', changedBy: req.user.id, notes: 'Nurse accepted' });
   await order.save();
+  // If the patient already paid (held escrow), it goes straight to this nurse now
+  try {
+    const { releaseEscrowToNurse } = require('../utils/releaseEscrow');
+    await releaseEscrowToNurse(order);
+  } catch (_) { /* release is best-effort here */ }
   const nurseName = req.user.fullName || 'The nurse';
   await Notification.create({ recipient: order.patient, title: 'تم قبول طلبك', message: `${nurseName} قبل طلبك #${order.orderNumber} — تتبع وصوله لحظة بلحظة`, type: 'order', data: { orderId: order._id, nurseId: req.user.id } });
   const acceptAdmins = await User.find({ role: 'admin' }).select('_id');
@@ -249,7 +254,7 @@ if (order.status !== 'completed') {
   }
   const doneAdmins = await User.find({ role: 'admin' }).select('_id');
   for (const a of doneAdmins) {
-    await Notification.create({ recipient: a._id, title: 'خدمة مكتملة بانتظار المراجعة', message: `${endedBy === 'patient' ? 'المريض' : 'الممرض'} أنهى الطلب #${order.orderNumber} — راجع وحوّل المبلغ`, type: 'order', data: { orderId: order._id } });
+    await Notification.create({ recipient: a._id, title: 'خدمة مكتملة بانتظار المراجعة', message: `${endedBy === 'patient' ? 'المريض' : 'الممرض'} أنهى الطلب #${order.orderNumber} — راجع الإنجاز واعتمده`, type: 'order', data: { orderId: order._id } });
   }
 
   if (order.patientConfirmed && order.nurseConfirmed && order.escrowStatus === 'held') {
@@ -261,7 +266,7 @@ if (order.status !== 'completed') {
       const { emitToOrder } = require('../sockets');
       emitToOrder(String(order._id), 'order_update', { orderId: order._id, status: 'completed', pendingAdminApproval: true });
     } catch (_) {}
-    return ResponseHelper.success(res, { orderId: order._id, status: order.status, pendingAdminApproval: true }, 'تم تأكيد الطرفين! بانتظار موافقة الإدارة لتحويل المبلغ.');
+    return ResponseHelper.success(res, { orderId: order._id, status: order.status, pendingAdminApproval: true }, 'تم تأكيد الطرفين! بانتظار مراجعة الإدارة واعتماد الإنجاز.');
   }
 
   try {
@@ -361,11 +366,18 @@ const rateOrder = asyncHandler(async (req, res) => {
     nurse.totalReviews = total;
     await nurse.save();
   }
-  // Patient feedback is also sent to the admin panel
+  // Patient feedback is also sent to the admin panel + back to the nurse
   if (req.user.role === 'patient') {
     const fbAdmins = await User.find({ role: 'admin' }).select('_id');
     for (const a of fbAdmins) {
       await Notification.create({ recipient: a._id, title: 'تقييم جديد من مريض', message: `المريض قيّم الطلب #${order.orderNumber} بـ ${rating}/5${review ? ' — ' + String(review).slice(0, 120) : ''}`, type: 'general', data: { orderId: order._id, rating, review: review || null } });
+    }
+    if (order.assignedNurse) {
+      await Notification.create({ recipient: order.assignedNurse, title: 'تقييم جديد من مريض', message: `قيّمك المريض ${rating}/5 في الطلب #${order.orderNumber}${review ? ' — ' + String(review).slice(0, 120) : ''}`, type: 'general', data: { orderId: order._id, rating } });
+      try {
+        const { emitToUser } = require('../sockets');
+        emitToUser(String(order.assignedNurse), 'notification', { title: 'تقييم جديد من مريض', orderId: order._id, rating });
+      } catch (_) { /* sockets optional */ }
     }
   }
   ResponseHelper.success(res, { orderId: order._id }, 'Rating submitted successfully');
@@ -408,9 +420,21 @@ const approveOffer = asyncHandler(async (req, res) => {
   order.statusHistory.push({ status: 'assigned', changedBy: req.user.id, notes: `Patient approved price ${offer.price}` });
   await order.save();
 
+  // Prepaid escrow (if any) moves straight to the assigned nurse
+  try {
+    const { releaseEscrowToNurse } = require('../utils/releaseEscrow');
+    await releaseEscrowToNurse(order);
+  } catch (_) { /* best-effort */ }
+
   await Notification.create({ recipient: offer.nurse, title: 'تم اختيارك لطلب — أكّد القبول', message: `وافق المريض على سعرك ${offer.price} ج.م للطلب #${order.orderNumber} — افتح طلباتك واضغط "موافق" أو "رفض"`, type: 'order', data: { orderId: order._id } });
   // When admin accepts the nurse price, patient must be told to PAY now
   await Notification.create({ recipient: order.patient, title: 'تم قبول السعر — ادفع الآن', message: `الإدارة قبلت سعر ${offer.price} ج.م لطلبك #${order.orderNumber} — ادفع من المحفظة أو InstaPay ليبدأ الممرض`, type: 'order', data: { orderId: order._id, finalPrice: offer.price } });
+  if (req.user.role !== 'admin') {
+    const offerAdmins = await User.find({ role: 'admin' }).select('_id');
+    for (const a of offerAdmins) {
+      await Notification.create({ recipient: a._id, title: 'المريض قبل سعراً', message: `المريض قبل سعر ${offer.price} ج.م للطلب #${order.orderNumber} وعيّن الممرض`, type: 'order', data: { orderId: order._id, finalPrice: offer.price } });
+    }
+  }
   try {
     const { emitToOrder, emitToUser } = require('../sockets');
     emitToOrder(String(order._id), 'order_update', { orderId: order._id, status: 'assigned', finalPrice: offer.price });
@@ -462,14 +486,19 @@ const payManual = asyncHandler(async (req, res) => {
   order.statusHistory.push({ status: order.status, changedBy: req.user.id, notes: method === 'wallet' ? 'Escrow held (wallet)' : 'Escrow held (InstaPay to owner)' });
   await order.save();
 
-  if (order.assignedNurse) {
+  // Direct pay: a nurse is already assigned, so the money goes straight
+  // to the nurse's wallet balance immediately.
+  const { releaseEscrowToNurse } = require('../utils/releaseEscrow');
+  const released = await releaseEscrowToNurse(order);
+
+  if (order.assignedNurse && !released.released) {
     await Notification.create({ recipient: order.assignedNurse, title: 'تم الدفع', message: `تم دفع طلبك #${order.orderNumber}`, type: 'order', data: { orderId: order._id } });
   }
   const orderAdmins = await User.find({ role: 'admin' }).select('_id');
   for (const a of orderAdmins) {
-    await Notification.create({ recipient: a._id, title: 'تم دفع طلب', message: `المريض دفع ${order.finalPrice} ج.م للطلب #${order.orderNumber} (${method})`, type: 'payment', data: { orderId: order._id } });
+    await Notification.create({ recipient: a._id, title: 'تم دفع طلب', message: `المريض دفع ${order.finalPrice} ج.م للطلب #${order.orderNumber} (${method})${released.released ? ' — تحوّل مباشرة لرصيد الممرض' : ''}`, type: 'payment', data: { orderId: order._id } });
   }
-  ResponseHelper.success(res, { orderId: order._id, escrowStatus: 'held' }, 'تم الدفع وحجز المبلغ');
+  ResponseHelper.success(res, { orderId: order._id, escrowStatus: order.escrowStatus, paidToNurse: released.earning || 0 }, released.released ? 'تم الدفع وتحويل المبلغ لرصيد الممرض مباشرة' : 'تم الدفع وحجز المبلغ');
 });
 
 // POST /api/orders/:orderId/offer {price, notes?} (nurse suggests a price)
@@ -565,6 +594,11 @@ const respondToAssignment = asyncHandler(async (req, res) => {
     order.nurseAcceptedAt = new Date();
     order.statusHistory.push({ status: 'assigned', changedBy: req.user.id, notes: 'Nurse confirmed OK' });
     await order.save();
+    // Prepaid escrow moves straight to the confirming nurse
+    try {
+      const { releaseEscrowToNurse } = require('../utils/releaseEscrow');
+      await releaseEscrowToNurse(order);
+    } catch (_) { /* best-effort */ }
     await Notification.create({ recipient: order.patient, title: 'الممرض وافق على طلبك', message: `${nurseName} وافق على تنفيذ طلبك #${order.orderNumber} بسعر ${order.finalPrice} ج.م — تتبعه لحظة بلحظة`, type: 'order', data: { orderId: order._id, nurseId: req.user.id } });
     const admins = await User.find({ role: 'admin' }).select('_id');
     for (const a of admins) {
