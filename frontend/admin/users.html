@@ -95,6 +95,7 @@
             <button class="filter-btn" onclick="filterUsers('patient')">مرضى</button>
             <button class="filter-btn" onclick="filterUsers('nurse')">ممرضين</button>
             <button class="filter-btn" style="border-color:#0B5F5A;color:#0B5F5A;font-weight:700;" onclick="toggleAddForm()">＋ إضافة حساب</button>
+            <button class="filter-btn" style="border-color:#0B5F5A;color:#0B5F5A;font-weight:700;" onclick="location.href='assistants.html'">🎧 المساعدون والصلاحيات</button>
         </div>
 
         <div id="addForm" style="display:none;background:#fff;margin:0 20px 16px;border-radius:12px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
@@ -118,9 +119,52 @@
         </div>
     </div>
 
+    <!-- Credentials vault modal (admin only, online, nothing cached) -->
+    <div id="vaultModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:16px;">
+        <div style="background:#fff;border-radius:16px;max-width:560px;width:100%;max-height:90vh;overflow:auto;padding:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                <h3 style="margin:0;" id="vaultTitle">🔐 بيانات الحساب</h3>
+                <button onclick="closeModal('vaultModal')" style="border:0;background:#f1f5f9;border-radius:8px;padding:6px 12px;cursor:pointer;">✕</button>
+            </div>
+            <div style="background:#fefce8;border:1px solid #fde68a;border-radius:10px;padding:8px 12px;font-size:12px;margin-bottom:12px;">🔒 مشفرة (AES-256-GCM) — للأدمن فقط · لا تظهر للمساعدين</div>
+            <div id="vaultBody"><div class="loading"><div class="spinner"></div></div></div>
+        </div>
+    </div>
+
+    <!-- Full online edit modal (admin only) -->
+    <div id="editModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:16px;">
+        <div style="background:#fff;border-radius:16px;max-width:560px;width:100%;max-height:90vh;overflow:auto;padding:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                <h3 style="margin:0;" id="editTitle">✏️ تعديل الحساب أونلاين</h3>
+                <button onclick="closeModal('editModal')" style="border:0;background:#f1f5f9;border-radius:8px;padding:6px 12px;cursor:pointer;">✕</button>
+            </div>
+            <input type="hidden" id="edit-id">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <input id="edit-fullName" class="form-input" placeholder="الاسم الكامل">
+                <input id="edit-email" class="form-input" placeholder="البريد" dir="ltr">
+                <input id="edit-phone" class="form-input" placeholder="الهاتف" dir="ltr">
+                <input id="edit-nationalId" class="form-input" placeholder="الرقم القومي" dir="ltr">
+                <input id="edit-password" class="form-input" type="password" placeholder="كلمة مرور جديدة (اختياري)" dir="ltr">
+                <select id="edit-role" class="form-input"><option value="patient">مريض</option><option value="nurse">ممرض</option></select>
+                <select id="edit-gender" class="form-input"><option value="">— الجنس —</option><option value="male">ذكر</option><option value="female">أنثى</option></select>
+                <select id="edit-status" class="form-input"><option value="active">active</option><option value="approved">approved</option><option value="pending">pending</option><option value="rejected">rejected</option><option value="suspended">suspended</option></select>
+                <input id="edit-specialization" class="form-input" placeholder="التخصص">
+                <input id="edit-yearsOfExperience" class="form-input" type="number" min="0" max="50" placeholder="سنوات الخبرة" dir="ltr">
+                <input id="edit-governorate" class="form-input" placeholder="المحافظة">
+                <input id="edit-city" class="form-input" placeholder="المدينة">
+                <input id="edit-address" class="form-input" placeholder="العنوان" style="grid-column:1/-1;">
+                <input id="edit-bio" class="form-input" placeholder="نبذة" style="grid-column:1/-1;">
+                <select id="edit-payoutMethod" class="form-input"><option value="">— طريقة السحب —</option><option value="vodafone_cash">vodafone_cash</option><option value="instapay">instapay</option><option value="bank_transfer">bank_transfer</option></select>
+                <input id="edit-payoutAccount" class="form-input" placeholder="حساب السحب" dir="ltr">
+            </div>
+            <label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:13px;"><input type="checkbox" id="edit-isActive"> الحساب مفعّل</label>
+            <button class="btn btn-primary" style="margin-top:12px;width:100%;" id="saveFullBtn" onclick="saveFullEdit()">💾 حفظ أونلاين</button>
+        </div>
+    </div>
+
     <script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
-    <script src="../js/api.js?v=6"></script>
-    <script src="../js/auth.js?v=6"></script>
+    <script src="../js/api.js?v=7"></script>
+    <script src="../js/auth.js?v=7"></script>
     <script>
         if (!requireRole('admin')) redirectToLogin();
 
@@ -182,7 +226,15 @@
                                 <h4>${user.name} ${user.role === 'nurse' ? (user.isVerified ? '✅' : '⏳') : ''}</h4>
                                 <p>${user.email} | ${user.phone} | ${user.role}</p>
                             </div>
-                            <div class="user-actions">
+                            <div class="user-actions" style="flex-wrap:wrap;justify-content:flex-end;">
+                                <button class="btn-sm" style="background:#0B5F5A;color:#fff;"
+                                    onclick="viewCredentials('${user.id}')">
+                                    🔐 ${L('بيانات', 'Vault')}
+                                </button>
+                                <button class="btn-sm" style="background:#2563eb;color:#fff;"
+                                    onclick="openEdit('${user.id}')">
+                                    ✏️ ${L('تعديل', 'Edit')}
+                                </button>
                                 <button class="btn-sm" style="background: ${user.isActive ? '#fee2e2' : '#d1fae5'}; color: ${user.isActive ? '#991b1b' : '#065f46'};"
                                     onclick="toggleUser('${user.id}', ${!user.isActive})">
                                     ${user.isActive ? L('تعطيل', 'Disable') : L('تفعيل', 'Enable')}
@@ -227,6 +279,102 @@
             document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
             event.target.classList.add('active');
             loadUsers(role === 'all' ? '' : role);
+        }
+
+        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+        function row(k, v) { return '<div style="display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid #f1f5f9;font-size:13px;"><span style="color:#64748b;">' + k + '</span><strong style="text-align:end;word-break:break-all;">' + esc(v == null || v === '' ? '—' : v) + '</strong></div>'; }
+
+        // Admin vault: all credentials + registration info, decrypted online.
+        async function viewCredentials(userId) {
+            openModal('vaultModal');
+            document.getElementById('vaultBody').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+            try {
+                const r = await api.getUserCredentials(userId);
+                const d = r.data || {};
+                const c = d.credentials || {}, g = d.registration || {};
+                document.getElementById('vaultTitle').textContent = '🔐 ' + (g.fullName || d.name || 'الحساب');
+                let h = '<div style="font-weight:800;margin:6px 0 2px;">بيانات الدخول</div>';
+                h += row('الاسم', c.fullName || g.fullName);
+                h += row('البريد', c.email);
+                h += row('الهاتف', c.phone);
+                h += row('الرقم القومي', c.nationalId);
+                h += row('كلمة المرور', c.passwordNote || '—');
+                h += '<div style="font-weight:800;margin:12px 0 2px;">التسجيل</div>';
+                h += row('الدور', g.role) + row('الحالة', g.status) + row('مفعّل', g.isActive ? 'نعم' : 'لا');
+                h += row('الجنس', g.gender) + row('التخصص', g.specialization) + row('الخبرة', g.yearsOfExperience);
+                h += row('المحافظة', g.location && g.location.governorate) + row('المدينة', g.location && g.location.city) + row('العنوان', g.location && g.location.address);
+                h += row('طريقة السحب', g.payoutMethod) + row('حساب السحب', g.payoutAccount) + row('المحفظة', g.walletBalance);
+                h += row('آخر دخول', g.lastLogin ? new Date(g.lastLogin).toLocaleString() : '—');
+                if (g.idCardImage && g.idCardImage.url) h += '<div style="margin-top:8px;font-size:13px;">صورة البطاقة: <a href="' + esc(g.idCardImage.url) + '" target="_blank">فتح</a></div>';
+                if (g.licenseImage && g.licenseImage.url) h += '<div style="font-size:13px;">الترخيص: <a href="' + esc(g.licenseImage.url) + '" target="_blank">فتح</a></div>';
+                document.getElementById('vaultBody').innerHTML = h;
+            } catch (e) {
+                document.getElementById('vaultBody').innerHTML = '<div style="color:#991b1b;font-size:13px;">' + esc(e.message || 'Failed') + '</div>';
+            }
+        }
+
+        // Load full record into the online edit form.
+        async function openEdit(userId) {
+            openModal('editModal');
+            try {
+                const r = await api.getUserCredentials(userId);
+                const g = (r.data && r.data.registration) || {};
+                document.getElementById('edit-id').value = userId;
+                document.getElementById('edit-fullName').value = g.fullName || '';
+                document.getElementById('edit-email').value = g.email || '';
+                document.getElementById('edit-phone').value = g.phone || '';
+                document.getElementById('edit-nationalId').value = g.nationalId || '';
+                document.getElementById('edit-password').value = '';
+                document.getElementById('edit-role').value = g.role || 'patient';
+                document.getElementById('edit-gender').value = g.gender || '';
+                document.getElementById('edit-status').value = g.status || 'active';
+                document.getElementById('edit-specialization').value = g.specialization || '';
+                document.getElementById('edit-yearsOfExperience').value = g.yearsOfExperience || 0;
+                document.getElementById('edit-governorate').value = (g.location && g.location.governorate) || '';
+                document.getElementById('edit-city').value = (g.location && g.location.city) || '';
+                document.getElementById('edit-address').value = (g.location && g.location.address) || '';
+                document.getElementById('edit-bio').value = g.bio || '';
+                document.getElementById('edit-payoutMethod').value = g.payoutMethod || '';
+                document.getElementById('edit-payoutAccount').value = g.payoutAccount || '';
+                document.getElementById('edit-isActive').checked = !!g.isActive;
+            } catch (e) { showAlert(e.message || 'Failed', 'error'); closeModal('editModal'); }
+        }
+
+        async function saveFullEdit() {
+            const btn = document.getElementById('saveFullBtn');
+            btn.disabled = true;
+            try {
+                const id = document.getElementById('edit-id').value;
+                const payload = {
+                    fullName: document.getElementById('edit-fullName').value.trim(),
+                    email: document.getElementById('edit-email').value.trim(),
+                    phone: document.getElementById('edit-phone').value.trim(),
+                    nationalId: document.getElementById('edit-nationalId').value.trim(),
+                    role: document.getElementById('edit-role').value,
+                    gender: document.getElementById('edit-gender').value || null,
+                    status: document.getElementById('edit-status').value,
+                    specialization: document.getElementById('edit-specialization').value.trim() || null,
+                    yearsOfExperience: Number(document.getElementById('edit-yearsOfExperience').value || 0),
+                    bio: document.getElementById('edit-bio').value.trim() || null,
+                    payoutMethod: document.getElementById('edit-payoutMethod').value || null,
+                    payoutAccount: document.getElementById('edit-payoutAccount').value.trim() || null,
+                    isActive: document.getElementById('edit-isActive').checked,
+                    location: {
+                        governorate: document.getElementById('edit-governorate').value.trim() || null,
+                        city: document.getElementById('edit-city').value.trim() || null,
+                        address: document.getElementById('edit-address').value.trim() || null
+                    }
+                };
+                const pw = document.getElementById('edit-password').value;
+                if (pw) payload.password = pw;
+                const r = await api.updateUserFull(id, payload);
+                showAlert(serverMsg(r, 'تم الحفظ أونلاين', 'Saved online'));
+                closeModal('editModal');
+                loadUsers();
+            } catch (e) { showAlert(e.message || 'Failed', 'error'); }
+            finally { btn.disabled = false; }
         }
 
         loadUsers();

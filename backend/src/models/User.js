@@ -36,7 +36,7 @@ const userSchema = new mongoose.Schema({
 
   role: {
     type: String,
-    enum: ['patient', 'nurse', 'admin'],
+    enum: ['patient', 'nurse', 'admin', 'assistant'],
     required: [true, 'Role is required']
   },
 
@@ -194,6 +194,36 @@ const userSchema = new mongoose.Schema({
   passwordResetExpires: {
     type: Date,
     select: false
+  },
+
+  // --- Helper / assistant accounts (created by admin with ticked policies) ---
+  // Assistants help manage orders / support-chat nurses & patients, but they
+  // NEVER receive registration secrets (see utils/accountView.js masking).
+  assistantScopes: {
+    type: [String],
+    default: []
+  },
+
+  assistantLabel: {
+    type: String,
+    trim: true,
+    maxlength: 120,
+    default: null
+  },
+
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+
+  // --- Encrypted snapshot of registration secrets (admin-only decryption) ---
+  // Mirrors { email, phone, nationalId, payoutAccount } encrypted with
+  // AES-256-GCM (ENCRYPTION_KEY). Refreshed on every save.
+  sensitiveEnc: {
+    type: String,
+    default: null,
+    select: false
   }
 
 }, {
@@ -204,8 +234,31 @@ const userSchema = new mongoose.Schema({
 userSchema.index({ role: 1, status: 1 });
 
 userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
+  if (!this.isModified('password')) {
+    // Still refresh the encrypted snapshot when secrets change.
+    if (this.isModified('email') || this.isModified('phone') || this.isModified('nationalId') || this.isModified('payoutAccount')) {
+      try {
+        const { encryptObject } = require('../utils/encryption');
+        this.sensitiveEnc = encryptObject({
+          email: this.email || null,
+          phone: this.phone || null,
+          nationalId: this.nationalId || null,
+          payoutAccount: this.payoutAccount || null,
+        });
+      } catch (_) { /* encryption optional */ }
+    }
+    return next();
+  }
   this.password = await bcrypt.hash(this.password, 12);
+  try {
+    const { encryptObject } = require('../utils/encryption');
+    this.sensitiveEnc = encryptObject({
+      email: this.email || null,
+      phone: this.phone || null,
+      nationalId: this.nationalId || null,
+      payoutAccount: this.payoutAccount || null,
+    });
+  } catch (_) { /* encryption optional */ }
   next();
 });
 

@@ -27,7 +27,7 @@ const chatSchema = new mongoose.Schema({
 
   senderRole: {
     type: String,
-    enum: ['patient', 'nurse', 'admin'],
+    enum: ['patient', 'nurse', 'admin', 'assistant'],
     required: true
   },
 

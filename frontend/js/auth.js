@@ -39,6 +39,8 @@ function redirectBasedOnRole() {
         window.location.href = '/nurse/dashboard.html';
     } else if (role === 'admin') {
         window.location.href = '/admin/dashboard.html';
+    } else if (role === 'assistant') {
+        window.location.href = '/admin/assistant-panel.html';
     } else {
         redirectToLogin();
     }
@@ -59,6 +61,36 @@ function requireRole(role) {
         return false;
     }
     return true;
+}
+
+// Allow a page for several roles (e.g. admin + assistant share a panel
+// while sensitive buttons stay admin-only via requireAdmin()).
+function requireAnyRole(roles) {
+    if (!requireAuth()) return false;
+    if (roles.indexOf(getRole()) === -1) {
+        redirectBasedOnRole();
+        return false;
+    }
+    return true;
+}
+
+function isAdmin() {
+    return getRole() === 'admin';
+}
+
+function isAssistant() {
+    return getRole() === 'assistant';
+}
+
+function getAssistantScopes() {
+    const user = getUser();
+    if (!user || user.role !== 'assistant') return [];
+    return Array.isArray(user.assistantScopes) ? user.assistantScopes : [];
+}
+
+function hasScope(scope) {
+    if (isAdmin()) return true;
+    return getAssistantScopes().indexOf(scope) !== -1;
 }
 
 function logout() {

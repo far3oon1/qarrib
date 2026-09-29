@@ -33,4 +33,19 @@ const authorize = (...roles) => {
   };
 };
 
-module.exports = { protect, authorize };
+// Assistant scope gate: admins always pass; assistants need the listed scope.
+const requireScope = (...scopes) => {
+  return (req, res, next) => {
+    if (!req.user) throw new ApiError(401, 'Not authorized, no token');
+    if (req.user.role === 'admin') return next();
+    if (req.user.role !== 'assistant') {
+      throw new ApiError(403, 'Not authorized for this action');
+    }
+    const mine = Array.isArray(req.user.assistantScopes) ? req.user.assistantScopes : [];
+    const ok = scopes.length === 0 || scopes.some((s) => mine.includes(s));
+    if (!ok) throw new ApiError(403, 'Your helper policies do not allow this action');
+    next();
+  };
+};
+
+module.exports = { protect, authorize, requireScope };
