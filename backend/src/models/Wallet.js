@@ -39,7 +39,7 @@ const walletSchema = new mongoose.Schema({
 
   paymentMethod: {
     type: String,
-    enum: ['card', 'wallet', 'instapay', 'vodafone_cash', 'cash', 'bank_transfer', null],
+    enum: ['card', 'wallet', 'instapay', 'vodafone_cash', 'vodafone', 'cash', 'bank_transfer', null],
     default: null
   },
 

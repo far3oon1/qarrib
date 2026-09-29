@@ -36,6 +36,22 @@ const requestWithdrawal = asyncHandler(async (req, res) => {
   const { amount, method, accountDetails, payoutAccount } = req.body;
   if (req.user.role !== 'nurse') throw new ApiError(403, 'Only nurses can withdraw earnings');
   if (!amount || Number(amount) <= 0) throw new ApiError(400, 'Valid amount is required');
+  // Normalize client aliases so old/cached frontends can't trigger a
+  // Mongoose enum ValidationError (e.g. 'vodafone' -> 'vodafone_cash').
+  const rawMethod = String(method || 'bank_transfer').trim().toLowerCase();
+  const METHOD_ALIASES = {
+    vodafone: 'vodafone_cash',
+    vodafone_cash: 'vodafone_cash',
+    'vodafone-cash': 'vodafone_cash',
+    instapay: 'instapay',
+    bank_transfer: 'bank_transfer',
+    banktransfer: 'bank_transfer',
+    'bank-transfer': 'bank_transfer',
+    cash: 'cash',
+    card: 'card',
+    wallet: 'wallet'
+  };
+  const normMethod = METHOD_ALIASES[rawMethod] || 'bank_transfer';
   const user = await User.findById(req.user.id);
   if ((user.walletBalance || 0) < Number(amount)) {
     throw new ApiError(400, 'Insufficient balance');
@@ -44,7 +60,7 @@ const requestWithdrawal = asyncHandler(async (req, res) => {
   const payout = (payoutAccount || accountDetails || user.payoutAccount || '').trim();
   if (payout) {
     user.payoutAccount = payout;
-    if (method) user.payoutMethod = method;
+    user.payoutMethod = normMethod;
     await user.save();
   }
   user.walletBalance = (user.walletBalance || 0) - Number(amount);
@@ -54,8 +70,8 @@ const requestWithdrawal = asyncHandler(async (req, res) => {
     type: 'withdrawal',
     amount: Number(amount),
     status: 'pending',
-    paymentMethod: method || 'bank_transfer',
-    description: `Withdrawal request - ${method || 'bank transfer'} -> ${payout || accountDetails || ''}`.trim(),
+    paymentMethod: normMethod,
+    description: `Withdrawal request - ${normMethod} -> ${payout || accountDetails || ''}`.trim(),
     balanceAfter: user.walletBalance
   });
   // Notify all admins with nurse payout info
