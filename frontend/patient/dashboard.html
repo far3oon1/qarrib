@@ -2,8 +2,15 @@
 <html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Dashboard - Qarrib</title>
+    <link rel="apple-touch-icon" href="../icon-180.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="../manifest.webmanifest">
+    <meta name="description" content="Qarrib Healthcare - nursing care at your door.">
+    <meta name="theme-color" content="#0B5F5A">
     <link rel="stylesheet" href="../css/main.css">
     <style>
         body { background: #F6F3EC; }
@@ -45,6 +52,7 @@
         <a href="track-nurse.html">Track nurse</a>
         <a href="chat.html">Chat</a>
         <a href="wallet.html">Wallet</a>
+        <a href="../plans.html">Plans <span id="planBadge" class="q-badge" style="margin-inline-start:6px;">Free</span></a>
         <a href="#" class="logout" onclick="logout();return false;">Log out</a>
     </nav>
 
@@ -115,6 +123,8 @@
 <script src="../js/api.js?v=6"></script>
 <script src="../js/auth.js?v=6"></script>
 <script src="../js/notifications.js"></script>
+<script src="../js/notify-popup.js?v=1"></script>
+<script src="../js/permissions.js?v=1"></script>
 <script>
     if (!requireRole('patient')) { redirectToLogin(); }
     function getStatusText(s){ var m={pending:'Pending',open:'Open',under_review:'Under review',price_approved:'Price suggested',accepted:'Accepted',in_progress:'In progress',completed:'Completed',cancelled:'Cancelled',offers_received:'Offers received',assigned:'Assigned'}; return m[s]||s; }
@@ -179,6 +189,28 @@
         b.addEventListener('click', function(){ location.href = 'request-service.html?service=' + encodeURIComponent(b.getAttribute('data-svc')); });
     });
     loadDashboard();
+    try { if (window.QarribPerms) { document.addEventListener('DOMContentLoaded', function(){ QarribPerms.requireGate('patient'); }); } } catch(e){}
+    // Plan badge + VIP hotline banner
+    (async function planBadge(){
+        try {
+            var r = await api.getMySubscription();
+            if (r.success) {
+                var b = document.getElementById('planBadge');
+                if (b) b.textContent = (r.data.plan||'free').toUpperCase();
+                if (r.data.plan === 'vip') {
+                    var t = document.createElement('a'); t.href = '../plans.html';
+                    t.className = 'q-btn q-btn-sm'; t.style.cssText = 'text-decoration:none;margin-top:8px;';
+                    t.textContent = '👑 VIP · Call admin 24/7';
+                    document.querySelector('.dash-top').appendChild(t);
+                } else {
+                    var u = document.createElement('a'); u.href = '../plans.html';
+                    u.style.cssText = 'font-size:13px;font-weight:700;color:#0B5F5A;';
+                    u.textContent = 'Upgrade to Pro 250 / VIP 500 →';
+                    document.querySelector('.dash-top').appendChild(u);
+                }
+            }
+        } catch(e){}
+    })();
 </script>
 </body>
 </html>

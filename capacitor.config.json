@@ -2,7 +2,14 @@
   "appId": "com.qarrab.healthcare",
   "appName": "Qarrab Healthcare",
   "webDir": "frontend",
+  "backgroundColor": "#F6F3EC",
   "server": {
-    "androidScheme": "https"
+    "androidScheme": "https",
+    "cleartext": true,
+    "allowNavigation": ["qarrib1.vercel.app", "qarrib.onrender.com", "*.onrender.com", "*.vercel.app"]
+  },
+  "android": {
+    "allowMixedContent": true,
+    "captureInput": true
   }
 }

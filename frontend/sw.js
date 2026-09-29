@@ -1,12 +1,19 @@
-const CACHE_NAME = 'qarrib-mobile-v4';
+const CACHE_NAME = 'qarrib-mobile-v6';
 const APP_SHELL = [
   '/',
+  '/index.html',
   '/login.html',
   '/register.html',
+  '/plans.html',
   '/css/main.css',
+  '/css/qarrib-design.css',
+  '/css/autofit.css',
   '/js/api.js',
   '/js/auth.js',
-  '/js/language.js?v=3',
+  '/js/autofit.js',
+  '/js/language.js?v=4',
+  '/js/notify-popup.js?v=1',
+  '/js/permissions.js?v=1',
   '/js/native-bridge.js?v=1',
   '/manifest.webmanifest',
   '/icon-192.png',

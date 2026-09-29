@@ -327,8 +327,8 @@ const cancelOrder = asyncHandler(async (req, res) => {
 const getOrderCompat = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id)
     .populate('service', 'nameAr basePrice')
-    .populate('patient', 'fullName phone')
-    .populate('assignedNurse', 'fullName phone rating');
+    .populate('patient', 'fullName phone locationSharing permissions consents')
+    .populate('assignedNurse', 'fullName phone rating locationSharing permissions consents');
   if (!order) throw new ApiError(404, 'Order not found');
   if (req.user.role !== 'admin') {
     const uid = String(req.user.id);
@@ -341,6 +341,39 @@ const getOrderCompat = asyncHandler(async (req, res) => {
     }
   }
   const out = shapeOrder(order);
+  // --- Online location permission gate ---
+  // Live dots + registered phone numbers are only exposed when the OWNER
+  // approved sharing (account → location toggle, or admin GUI approval).
+  try {
+    const nurseDoc = order.assignedNurse;
+    const patientDoc = order.patient;
+    const nurseShare = !nurseDoc || (nurseDoc.locationSharing?.shareLiveLocation !== false && nurseDoc.locationSharing?.approvedByAdmin !== false && nurseDoc.locationSharing?.shareWithPatient !== false);
+    const patientShare = !patientDoc || (patientDoc.locationSharing?.shareLiveLocation !== false && patientDoc.locationSharing?.approvedByAdmin !== false && patientDoc.locationSharing?.shareWithNurse !== false);
+    if (!nurseShare) {
+      out.nurseLiveLocation = null;
+      if (out.nurse) { out.nurse.shareLiveLocation = false; }
+    }
+    if (!patientShare) {
+      out.patientLiveLocation = null;
+      if (out.patient) { out.patient.shareLiveLocation = false; }
+    }
+    // Call permission: hide phone numbers when the owner revoked calling
+    const { effectivePermissions } = require('./permissions.controller');
+    if (nurseDoc) {
+      const p = effectivePermissions(nurseDoc);
+      out.nurseCanCall = p.call_nurse !== false && p.call_patient !== false;
+      if (p.call_nurse === false && req.user.role === 'patient') {
+        if (out.nurse) { out.nurse.phone = null; out.nurse.callDisabled = true; }
+      }
+    }
+    if (patientDoc) {
+      const p = effectivePermissions(patientDoc);
+      if (p.call_patient === false && req.user.role === 'nurse') {
+        if (out.patient) { out.patient.phone = null; out.patient.callDisabled = true; }
+      }
+    }
+    out.locationSharing = { nurseShare: !!nurseShare, patientShare: !!patientShare };
+  } catch (_) { /* gating is best-effort */ }
   ResponseHelper.success(res, out, 'Order details');
 });
 
@@ -639,4 +672,46 @@ const respondToAssignment = asyncHandler(async (req, res) => {
   ResponseHelper.success(res, { orderId: order._id, status: order.status, accepted: false }, 'تم تسجيل رفضك — عاد الطلب للممرضين');
 });
 
-module.exports = { createSimple, acceptOrder, startService, confirmOrder, cancelOrder, getOrderCompat, rateOrder, approveOffer, payManual, submitOffer, acceptSuggestedPrice, respondToAssignment };
+// POST /api/orders/:id/complete-cash {cashReceived: true, amount?} (assigned nurse only)
+// Nurse ends the visit when the patient hands over the cash balance.
+const completeCash = asyncHandler(async (req, res) => {
+  const order = await Order.findById(req.params.id).populate('patient assignedNurse');
+  if (!order) throw new ApiError(404, 'Order not found');
+  const uid = String(req.user.id);
+  const isNurse = order.assignedNurse && String(order.assignedNurse._id || order.assignedNurse) === uid;
+  if (!isNurse) throw new ApiError(403, 'Only the assigned nurse can close this visit');
+  if (!['assigned', 'in_progress'].includes(order.status)) throw new ApiError(400, 'Service must be in progress');
+  if (req.body.cashReceived !== true && req.body.cashReceived !== 'true') {
+    throw new ApiError(400, 'Confirm that you received the cash balance');
+  }
+  const cashAmount = req.body.amount != null ? Number(req.body.amount) : Number(order.finalPrice || 0);
+  order.nurseConfirmed = true;
+  order.nurseConfirmedAt = new Date();
+  order.status = 'completed';
+  order.completedAt = new Date();
+  order.paymentMethod = order.paymentMethod || 'cash';
+  order.paymentStatus = 'paid';
+  order.escrowStatus = order.escrowStatus === 'held' ? order.escrowStatus : 'none';
+  order.statusHistory.push({ status: 'completed', changedBy: req.user.id, notes: `Nurse received cash ${cashAmount} EGP and ended service` });
+  await order.save();
+
+  const otherId = order.patient && (order.patient._id || order.patient);
+  if (otherId) {
+    await Notification.create({
+      recipient: otherId, title: 'تم إنهاء الخدمة — تم استلام المبلغ',
+      message: `الممرض أنهى الزيارة واستلم ${cashAmount} ج.م نقداً للطلب #${order.orderNumber} — قيّمه بالنجوم`, type: 'order', data: { orderId: order._id, cashAmount }
+    });
+  }
+  const doneAdmins = await User.find({ role: 'admin' }).select('_id');
+  for (const a of doneAdmins) {
+    await Notification.create({ recipient: a._id, title: 'خدمة مكتملة نقداً', message: `الممرض استلم ${cashAmount} ج.م نقداً وأنهى الطلب #${order.orderNumber}`, type: 'order', data: { orderId: order._id, cashAmount } });
+  }
+  try {
+    const { emitToOrder, emitToUser } = require('../sockets');
+    emitToOrder(String(order._id), 'order_update', { orderId: order._id, status: 'completed', cashReceived: true, cashAmount });
+    if (otherId) emitToUser(String(otherId), 'notification', { title: 'تم إنهاء الخدمة — قيّم الممرض', orderId: order._id });
+  } catch (_) {}
+  ResponseHelper.success(res, { orderId: order._id, status: 'completed', cashAmount }, 'تم إنهاء الخدمة بعد استلام المبلغ نقداً');
+});
+
+module.exports = { createSimple, acceptOrder, startService, confirmOrder, cancelOrder, getOrderCompat, rateOrder, approveOffer, payManual, submitOffer, acceptSuggestedPrice, respondToAssignment, completeCash };

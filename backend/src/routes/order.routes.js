@@ -37,6 +37,7 @@ router.post('/create', orderFlow.createSimple);
 router.post('/:id/accept', orderFlow.acceptOrder);
 router.post('/:id/start', orderFlow.startService);
 router.post('/:id/confirm', orderFlow.confirmOrder);
+router.post('/:id/complete-cash', orderFlow.completeCash);
 router.post('/:id/cancel', orderFlow.cancelOrder);
 router.post('/:id/rate', orderFlow.rateOrder);
 router.post('/:id/pay', orderFlow.payManual);

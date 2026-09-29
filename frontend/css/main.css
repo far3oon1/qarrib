@@ -1,5 +1,6 @@
 /* Qarrib App - Global Styles (themed from files/qarrib-design-spec.md) */
 @import url('./qarrib-design.css');
+@import url('./autofit.css');
 :root {
     --primary: #0B5F5A;
     --primary-dark: #0B4A46;

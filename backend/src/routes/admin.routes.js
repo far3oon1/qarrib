@@ -45,6 +45,11 @@ router.get('/withdrawals', adminController.getPendingWithdrawals);
 router.post('/withdrawals/:withdrawalId', adminController.reviewWithdrawal);
 router.get('/earnings', adminController.getAdminEarnings);
 router.post('/reset-payments', adminController.resetAllPayments);
+// Permissions GUI (mirrors /api/permissions/admin/*)
+router.get('/permissions/settings', adminController.getPermissionSettingsCompat || require('../controllers/permissions.controller').adminGetSettings);
+router.put('/permissions/settings', require('../controllers/permissions.controller').adminUpdateSettings);
+router.get('/permissions/users', require('../controllers/permissions.controller').adminListUserPermissions);
+router.put('/permissions/users/:id', require('../controllers/permissions.controller').adminUpdateUserPermissions);
 router.get('/orders/:orderId', adminController.getOrderDetails);
 router.patch('/orders/:orderId/status', validate(updateOrderStatus), adminController.updateOrderStatus);
 

@@ -10,6 +10,8 @@ router.use(protect, authorize('patient'));
 router.get('/dashboard', patientController.getDashboard);
 router.put('/profile', patientController.updateProfile);
 router.post('/location', patientController.updateLocation);
+router.post('/consent', require('../controllers/permissions.controller').saveConsent);
+router.get('/permissions', require('../controllers/permissions.controller').getRequired);
 router.get('/orders', patientController.getMyOrders);
 router.get('/orders-with-offers', patientController.getOrdersWithOffers);
 router.get('/wallet', patientController.getMyWallet);

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Plans - Qarrib</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#0B5F5A">
+    <link rel="stylesheet" href="css/main.css">
+    <style>
+        body { background:#F6F3EC; }
+        .wrap { max-width:1020px; margin:0 auto; padding:32px 20px 60px; display:flex; flex-direction:column; gap:20px; }
+        .plans { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+        .plan { background:#fff; border:2px solid #D9D3C5; border-radius:22px; padding:26px; display:flex; flex-direction:column; gap:12px; }
+        .plan.pro { border-color:#0B5F5A; }
+        .plan.vip { border-color:#b45309; background:linear-gradient(180deg,#FFFBEB,#fff); }
+        .plan h2 { font-size:26px; margin:0; }
+        .price { font-size:34px; font-weight:800; }
+        .feat { font-size:13px; color:#14302E; display:flex; gap:8px; align-items:flex-start; line-height:1.5; }
+        .feat small { color:#4A605E; }
+        .badge { display:inline-block; font-size:11px; font-weight:800; padding:4px 12px; border-radius:999px; }
+        .b-free{background:#F6F3EC;color:#4A605E;} .b-pro{background:#DDEBE8;color:#0B4A46;} .b-vip{background:#FEF3C7;color:#92400E;}
+        .cur { outline:3px solid #0B5F5A; outline-offset:2px; }
+        @media(max-width:820px){ .plans{grid-template-columns:1fr;} }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <a href="javascript:history.back()" style="font-weight:700;color:#0B5F5A;text-decoration:none;">← Back</a>
+    <div><div style="font-size:14px;color:#4A605E;">Choose your plan — billed monthly (30 days)</div>
+    <h1 style="font-size:34px;margin:4px 0;">Free · Pro · VIP</h1>
+    <div id="myPlanLine" style="font-size:14px;color:#4A605E;">Loading your plan…</div></div>
+    <div class="plans" id="plansBox"><div class="loading"><div class="spinner"></div></div></div>
+    <div class="q-card" id="vipBox" style="display:none;padding:18px;border:2px solid #b45309;background:#FFFBEB;">
+        <div style="font-weight:800;font-size:17px;">👑 VIP 24/7 admin hotline</div>
+        <div style="font-size:13px;color:#4A605E;margin:4px 0 10px;">As a VIP you can call the admin anytime, day or night — priority support line.</div>
+        <a id="hotlineBtn" class="q-btn" style="text-decoration:none;text-align:center;" href="tel:+201000000000">📞 Call admin now (24/7)</a>
+    </div>
+    <div class="q-card" style="padding:16px;font-size:13px;color:#4A605E;">
+        💳 Pay from wallet balance instantly, or via InstaPay transfer (admin activates after verifying). Cancel anytime — you drop back to Free.
+        <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+            <input id="payRef" class="q-input" placeholder="InstaPay reference (for InstaPay only)" style="flex:1;min-width:200px;">
+        </div>
+    </div>
+</div>
+<script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
+<script src="js/api.js?v=6"></script>
+<script src="js/auth.js?v=6"></script>
+<script src="js/notifications.js"></script>
+<script src="js/notify-popup.js?v=1"></script>
+<script>
+(function(){
+    if (!requireAuth()) { redirectToLogin(); return; }
+    var ADMIN_HOTLINE = '+201000000000'; // <-- change to the real 24h admin number
+    document.getElementById('hotlineBtn').href = 'tel:' + ADMIN_HOTLINE;
+    var FEAT_LABELS = {
+        request_nurse:'Request a nurse', live_tracking:'Live nurse/patient tracking', chat_basic:'Chat',
+        wallet_pay:'Wallet & InstaPay payments', rate_feedback:'Rate with stars & feedback',
+        unlimited_calls:'Unlimited calling (nurse/patient numbers)', priority_matching:'Priority matching (nearest first)',
+        gallery_priority:'Priority photo uploads', support_priority:'Priority support (8am–12am)',
+        discount_5:'5% service discount', admin_hotline_24h:'24/7 admin hotline calling', dedicated_manager:'Dedicated account manager',
+        free_reschedule:'Free rescheduling', withdrawal_priority:'Priority withdrawals', vip_badge:'👑 VIP badge', discount_10:'10% service discount'
+    };
+    var myPlan = 'free';
+    async function load(){
+        try {
+            var r = await api.getPlans();
+            if (!r.success) return;
+            myPlan = r.data.myPlan || 'free';
+            document.getElementById('myPlanLine').innerHTML = 'Your current plan: <strong>' + myPlan.toUpperCase() + '</strong>';
+            var box = document.getElementById('plansBox');
+            box.innerHTML = r.data.plans.map(function(p){
+                var isCur = p.id === myPlan;
+                var feats = (p.features||[]).map(function(f){
+                    return '<div class="feat">✅ <span>' + (FEAT_LABELS[f]||f) + '</span></div>';
+                }).join('');
+                var extra = p.id==='pro'
+                    ? '<div class="feat">🕗 <span>Support ' + p.limits.supportHours + ' <small>(half of VIP)</small></span></div>'
+                    : p.id==='vip'
+                    ? '<div class="feat">📞 <span>Admin 24-hour calling <small>(exclusive)</small></span></div><div class="feat">🕛 <span>Support 24/7</span></div>'
+                    : '<div class="feat">🕘 <span>Support ' + p.limits.supportHours + '</span></div>';
+                return '<div class="plan ' + p.id + (isCur?' cur':'') + '">' +
+                    '<span class="badge b-' + p.id + '">' + p.nameAr + ' · ' + p.name.toUpperCase() + (isCur?' · CURRENT':'') + '</span>' +
+                    '<h2>' + p.name + '</h2><div class="price">' + p.price + ' EGP<small style="font-size:13px;color:#4A605E;">/month</small></div>' +
+                    '<div style="font-size:13px;color:#4A605E;">' + p.tagline + '</div>' + feats + extra +
+                    (p.id==='free'
+                        ? (isCur ? '<button class="q-btn q-btn-secondary" disabled>Current plan</button>' : '<button class="q-btn q-btn-secondary" onclick="downgrade()">Downgrade to Free</button>')
+                        : (isCur ? '<button class="q-btn q-btn-secondary" disabled>Current plan</button>'
+                            : '<button class="q-btn" onclick="buy(\'' + p.id + '\',\'wallet\')">Subscribe · wallet (' + p.price + ' EGP)</button>' +
+                              '<button class="q-btn q-btn-secondary" onclick="buy(\'' + p.id + '\',\'instapay\')">InstaPay transfer</button>')) +
+                    '</div>';
+            }).join('');
+            document.getElementById('vipBox').style.display = (myPlan==='vip') ? 'block' : 'none';
+        } catch(e){ document.getElementById('plansBox').innerHTML = '<div class="q-muted">Failed to load plans</div>'; }
+    }
+    window.buy = async function(plan, method){
+        var ref = (document.getElementById('payRef')||{}).value || '';
+        if (method==='instapay' && !ref.trim() && !confirm('No InstaPay reference entered — continue anyway?')) return;
+        if (!confirm('Subscribe to ' + plan.toUpperCase() + ' via ' + method + '?')) return;
+        try {
+            var r = await api.subscribePlan(plan, method, ref.trim());
+            if (r.success) { showAlert(r.message || 'Done'); if(window.qpNotify) qpNotify.popup({title:'Subscription',message:r.message||'Done',type:'payment'}); load(); }
+        } catch(e){ showAlert(e.message||'Failed','error'); }
+    };
+    window.downgrade = async function(){
+        if (!confirm('Cancel paid plan and go back to Free?')) return;
+        try { var r = await api.cancelSubscription(); if(r.success){ showAlert('Back to Free'); load(); } }
+        catch(e){ showAlert(e.message||'Failed','error'); }
+    };
+    load();
+})();
+</script>
+</body>
+</html>

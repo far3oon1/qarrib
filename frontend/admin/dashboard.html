@@ -1,245 +1,168 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة الأدمن - قرّب</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Admin Dashboard - Qarrib</title>
+    <link rel="apple-touch-icon" href="../icon-180.png">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="../manifest.webmanifest">
+    <meta name="theme-color" content="#0B5F5A">
     <link rel="stylesheet" href="../css/main.css">
     <style>
-        .admin-header {
-            background: linear-gradient(135deg, #1e293b, #0f172a);
-            color: white;
-            padding: 20px;
-        }
-        .admin-nav {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
-            padding: 20px;
-        }
-        .admin-nav-item {
-            background: white;
-            border-radius: 16px;
-            padding: 24px;
-            text-align: center;
-            text-decoration: none;
-            color: #1e293b;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            transition: all 0.3s;
-        }
-        .admin-nav-item:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
-        .admin-nav-icon {
-            font-size: 40px;
-            margin-bottom: 12px;
-        }
-        .admin-nav-title {
-            font-weight: 700;
-            font-size: 16px;
-        }
-        .stats-overview {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
-            padding: 0 20px 20px;
-        }
-        .stat-box {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            text-align: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .stat-box-value {
-            font-size: 32px;
-            font-weight: 800;
-            color: #2563eb;
-        }
-        .stat-box-label {
-            font-size: 13px;
-            color: #64748b;
-            margin-top: 4px;
-        }
+        body { background: #F6F3EC; }
+        .web-dash { min-height: 100vh; display: flex; background: #F6F3EC; }
+        .dash-main { flex: 1; box-sizing: border-box; padding: 36px 44px; display: flex; flex-direction: column; gap: 28px; min-width: 0; }
+        .dash-top { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+        .dash-top h1 { font-size: 36px; }
+        .stats { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 20px; }
+        .stat { padding: 24px; border-radius: 20px; }
+        .stat.brand { background: #0B5F5A; color: #fff; border: 0; }
+        .stat.plain { background: #fff; border: 1px solid #D9D3C5; }
+        .stat .lbl { font-size: 15px; } .stat.brand .lbl { color: #D5EAE7; } .stat.plain .lbl { color: #4A605E; }
+        .stat .val { margin-top: 8px; font-size: 30px; font-weight: 700; }
+        .panels { display: grid; grid-template-columns: 1.6fr 1fr; gap: 20px; }
+        .panel { padding: 28px; border-radius: 20px; background: #fff; border: 1px solid #D9D3C5; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+        .tool-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; }
+        .tool-grid a { background:#F6F3EC; border-radius:14px; padding:16px; text-align:center; text-decoration:none; color:#14302E; font-weight:700; font-size:14px; }
+        .tool-grid a span { display:block; font-size:26px; margin-bottom:6px; }
+        .mobile-home { display: none; padding: 28px 22px 100px; flex-direction: column; gap: 18px; }
+        @media (max-width: 900px) { .dash-main { display: none; } .mobile-home { display: flex; } .stats{grid-template-columns:1fr 1fr;} .panels{grid-template-columns:1fr;} .tool-grid{grid-template-columns:repeat(2,1fr);} }
     </style>
 </head>
 <body>
-    <div class="app-container">
-        <div class="admin-header">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <div style="font-size: 14px; opacity: 0.8;">لوحة التحكم</div>
-                    <div style="font-size: 24px; font-weight: 800;">الأدمن</div>
+<div class="web-dash">
+    <nav class="q-sidebar">
+        <div class="q-logo" style="font-size:30px;padding:0 12px 24px;">Qarrib · Admin</div>
+        <a href="dashboard.html" class="active">Home</a>
+        <a href="permissions.html">🔐 Permissions</a>
+        <a href="subscriptions.html">💎 Subscriptions</a>
+        <a href="users.html">Users</a>
+        <a href="verification.html">Verification</a>
+        <a href="orders.html">Orders</a>
+        <a href="offers.html">Nurse prices</a>
+        <a href="payments.html">Payments</a>
+        <a href="feedbacks.html">⭐ Feedbacks</a>
+        <a href="nurse-reports.html">Nurse reports</a>
+        <a href="chat.html">Chat</a>
+        <a href="../notifications.html">Notifications <span id="notifBadge" style="display:none;background:#ef4444;color:white;border-radius:10px;padding:2px 8px;font-size:12px;"></span></a>
+        <a href="#" class="logout" onclick="logout();return false;">Log out</a>
+    </nav>
+
+    <main class="dash-main">
+        <div class="dash-top">
+            <div><div style="font-size:15px;color:#4A605E;">Control center</div><h1>Admin</h1></div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <a href="permissions.html" class="q-btn" style="text-decoration:none;">🔐 Permissions</a>
+                <button class="q-btn q-btn-secondary" onclick="loadEarnings()">💰 Refresh earnings</button>
+            </div>
+        </div>
+        <div class="stats">
+            <div class="stat brand"><div class="lbl">Platform revenue</div><div class="val"><span id="totalRevenue">0</span> EGP</div><div class="lbl" style="margin-top:6px;">Fees: <span id="totalPlatformFees">0</span> · Nurses: <span id="totalNurseEarnings">0</span></div></div>
+            <div class="stat plain"><div class="lbl">Users</div><div class="val" id="totalUsers">–</div></div>
+            <div class="stat plain"><div class="lbl">Orders</div><div class="val" id="totalOrders">–</div></div>
+            <div class="stat plain"><div class="lbl">Pending verification</div><div class="val" id="pendingVerifications">–</div></div>
+        </div>
+        <div class="panels">
+            <section class="panel">
+                <h2 style="font-size:20px;">Management tools</h2>
+                <div class="tool-grid">
+                    <a href="subscriptions.html"><span>💎</span>Subscriptions</a>
+                    <a href="permissions.html"><span>🔐</span>Permissions</a>
+                    <a href="users.html"><span>👥</span>Users</a>
+                    <a href="verification.html"><span>✅</span>Verification</a>
+                    <a href="orders.html"><span>📋</span>Orders</a>
+                    <a href="offers.html"><span>💰</span>Nurse prices</a>
+                    <a href="payments.html"><span>💳</span>Payments</a>
+                    <a href="feedbacks.html"><span>⭐</span>Feedbacks</a>
+                    <a href="nurse-reports.html"><span>📊</span>Reports</a>
+                    <a href="support-chat.html"><span>🎧</span>Support</a>
                 </div>
-                <button onclick="logout()" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 16px; border-radius: 8px; cursor: pointer;">خروج</button>
-            </div>
+                <div id="versionInfo" style="display:none;background:#f0fdf4;padding:12px 16px;border-radius:8px;border:1px solid #bbf7d0;"></div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                    <button class="q-btn q-btn-secondary q-btn-sm" onclick="checkVersion()">ℹ️ Version</button>
+                    <button class="q-btn q-btn-sm" style="background:#dc2626;" onclick="resetPayments()">🔄 Reset payments</button>
+                </div>
+            </section>
+            <section class="panel">
+                <h2 style="font-size:20px;">Money overview</h2>
+                <div style="display:flex;flex-direction:column;gap:10px;font-size:15px;">
+                    <div style="display:flex;justify-content:space-between;"><span>Withdrawals paid</span><strong id="totalWithdrawals">0</strong></div>
+                    <div style="display:flex;justify-content:space-between;"><span>Withdrawals pending</span><strong id="pendingWithdrawals">0</strong></div>
+                    <div style="display:flex;justify-content:space-between;"><span>Topups pending</span><strong id="topupsPending">0</strong></div>
+                </div>
+                <a href="payments.html" class="q-btn q-btn-secondary q-btn-sm" style="text-decoration:none;text-align:center;">Open payments</a>
+                <div class="q-card" style="padding:14px;background:#F6F3EC;border:0;font-size:13px;color:#4A605E;">🔔 You get a bell popup + sound for every new request, payment and feedback — on web, desktop and mobile.</div>
+            </section>
         </div>
+    </main>
 
-        <div class="stats-overview" id="statsOverview">
-            <div class="stat-box">
-                <div class="stat-box-value" id="totalUsers">0</div>
-                <div class="stat-box-label">المستخدمين</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-box-value" id="totalOrders">0</div>
-                <div class="stat-box-label">الطلبات</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-box-value" id="totalRevenue">0</div>
-                <div class="stat-box-label">الإيرادات</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-box-value" id="totalPlatformFees">0</div>
-                <div class="stat-box-label">عمولات المنصة</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-box-value" id="totalNurseEarnings">0</div>
-                <div class="stat-box-label">أرباح الممرضات</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-box-value" id="totalWithdrawals">0</div>
-                <div class="stat-box-label">السحوبات المدفوعة</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-box-value" id="pendingWithdrawals">0</div>
-                <div class="stat-box-label">سحوبات معلقة</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-box-value" id="pendingVerifications">0</div>
-                <div class="stat-box-label">بانتظار التوثيق</div>
-            </div>
+    <main class="mobile-home" style="flex:1;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div class="q-logo" style="font-size:26px;">Qarrib · Admin</div>
+            <button class="icon-btn" style="width:44px;height:44px;border-radius:22px;border:1px solid #D9D3C5;background:#fff;" onclick="location.href='../notifications.html'">🔔</button>
         </div>
-
-        <div style="padding: 0 20px 20px;">
-            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-                <button onclick="loadEarnings()" style="background: #2563eb; color: white; border: none; padding: 12px 24px; border-radius: 12px; cursor: pointer; font-size: 14px;">💰 تحديث الأرباح</button>
-                <button onclick="resetPayments()" style="background: #dc2626; color: white; border: none; padding: 12px 24px; border-radius: 12px; cursor: pointer; font-size: 14px;">🔄 إعادة تعيين المدفوعات</button>
-                <button onclick="checkVersion()" style="background: #059669; color: white; border: none; padding: 12px 24px; border-radius: 12px; cursor: pointer; font-size: 14px;">ℹ️ معلومات النسخة</button>
-            </div>
-            <div id="versionInfo" style="margin-top: 12px; display: none; background: #f0fdf4; padding: 12px 16px; border-radius: 8px; border: 1px solid #bbf7d0;">
-            </div>
+        <h1 style="font-size:30px;">Control center.</h1>
+        <div class="tool-grid">
+            <a href="permissions.html"><span>🔐</span>Permissions</a>
+            <a href="users.html"><span>👥</span>Users</a>
+            <a href="orders.html"><span>📋</span>Orders</a>
+            <a href="payments.html"><span>💳</span>Payments</a>
         </div>
+        <nav class="q-bottomnav" style="position:fixed;bottom:0;left:0;right:0;">
+            <a href="dashboard.html" class="active">Home</a>
+            <a href="orders.html">Orders</a>
+            <a href="permissions.html">Permissions</a>
+            <a href="chat.html">Chat</a>
+        </nav>
+    </main>
+</div>
 
-        <div class="admin-nav">
-            <a href="users.html" class="admin-nav-item">
-                <div class="admin-nav-icon">👥</div>
-                <div class="admin-nav-title">المستخدمين</div>
-            </a>
-            <a href="verification.html" class="admin-nav-item">
-                <div class="admin-nav-icon">✅</div>
-                <div class="admin-nav-title">التوثيق</div>
-            </a>
-            <a href="orders.html" class="admin-nav-item">
-                <div class="admin-nav-icon">📋</div>
-                <div class="admin-nav-title">الطلبات</div>
-            </a>
-            <a href="offers.html" class="admin-nav-item">
-                <div class="admin-nav-icon">💰</div>
-                <div class="admin-nav-title">أسعار الممرضين</div>
-            </a>
-            <a href="payments.html" class="admin-nav-item">
-                <div class="admin-nav-icon">💰</div>
-                <div class="admin-nav-title">المدفوعات</div>
-            </a>
-            <a href="chat.html" class="admin-nav-item">
-                <div class="admin-nav-icon">💬</div>
-                <div class="admin-nav-title">الشات (ممرض/مريض)</div>
-            </a>
-            <a href="support-chat.html" class="admin-nav-item">
-                <div class="admin-nav-icon">🎧</div>
-                <div class="admin-nav-title">شات الدعم (الممرضون)</div>
-            </a>
-            <a href="nurse-reports.html" class="admin-nav-item">
-                <div class="admin-nav-icon">📊</div>
-                <div class="admin-nav-title">تقارير الممرضين</div>
-            </a>
-            <a href="feedbacks.html" class="admin-nav-item">
-                <div class="admin-nav-icon">⭐</div>
-                <div class="admin-nav-title">تقييمات المرضى</div>
-            </a>
-            <a href="../notifications.html" class="admin-nav-item">
-                <div class="admin-nav-icon">🔔</div>
-                <div class="admin-nav-title">الإشعارات <span id="notifBadge" style="display:none;background:#ef4444;color:white;border-radius:10px;padding:2px 8px;font-size:12px;"></span></div>
-            </a>
-        </div>
-    </div>
-
-    <script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
-    <script src="../js/api.js?v=6"></script>
-    <script src="../js/auth.js?v=6"></script>
-    <script src="../js/notifications.js"></script>
-    <script>
-        if (!requireRole('admin')) redirectToLogin();
-
-        async function loadStats() {
-            try {
-                const result = await api.getAdminDashboard();
-                if (result.success) {
-                    const stats = result.data.stats;
-                    document.getElementById('totalUsers').textContent = stats.totalUsers;
-                    document.getElementById('totalOrders').textContent = stats.totalOrders;
-                    document.getElementById('totalRevenue').textContent = stats.totalRevenue;
-                    document.getElementById('pendingVerifications').textContent = stats.pendingVerifications;
-                }
-            } catch (error) {
-                showAlert('فشل تحميل الإحصائيات', 'error');
+<script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
+<script src="../js/api.js?v=6"></script>
+<script src="../js/auth.js?v=6"></script>
+<script src="../js/notifications.js"></script>
+<script src="../js/notify-popup.js?v=1"></script>
+<script src="../js/permissions.js?v=1"></script>
+<script>
+    if (!requireRole('admin')) redirectToLogin();
+    async function loadStats() {
+        try {
+            var r = await api.getAdminDashboard();
+            if (r.success) {
+                var s = r.data.stats;
+                document.getElementById('totalUsers').textContent = s.totalUsers;
+                document.getElementById('totalOrders').textContent = s.totalOrders;
+                document.getElementById('totalRevenue').textContent = s.totalRevenue;
+                document.getElementById('pendingVerifications').textContent = s.pendingVerifications;
             }
-        }
-
-        async function loadEarnings() {
-            try {
-                const result = await api.getAdminEarnings();
-                if (result.success) {
-                    const e = result.data.earnings;
-                    document.getElementById('totalRevenue').textContent = e.totalRevenue || 0;
-                    document.getElementById('totalPlatformFees').textContent = e.totalPlatformFees || 0;
-                    document.getElementById('totalNurseEarnings').textContent = e.totalNurseEarnings || 0;
-                    document.getElementById('totalWithdrawals').textContent = e.totalWithdrawalsPaid || 0;
-                    document.getElementById('pendingWithdrawals').textContent = e.pendingWithdrawals || 0;
-                    showAlert('تم تحديث الأرباح بنجاح', 'success');
-                }
-            } catch (error) {
-                showAlert('فشل تحميل الأرباح', 'error');
+        } catch(e){}
+    }
+    async function loadEarnings() {
+        try {
+            var r = await api.getAdminEarnings();
+            if (r.success) {
+                var e = r.data.earnings;
+                document.getElementById('totalRevenue').textContent = e.totalRevenue || 0;
+                document.getElementById('totalPlatformFees').textContent = e.totalPlatformFees || 0;
+                document.getElementById('totalNurseEarnings').textContent = e.totalNurseEarnings || 0;
+                document.getElementById('totalWithdrawals').textContent = e.totalWithdrawalsPaid || 0;
+                document.getElementById('pendingWithdrawals').textContent = e.pendingWithdrawals || 0;
+                document.getElementById('topupsPending').textContent = (r.data.topupsPending||0);
+                showAlert('Earnings refreshed');
             }
-        }
-
-        function resetPayments() {
-            if (!confirm('⚠️ هل أنت متأكد؟ سيتم إعادة تعيين جميع المدفوعات والرصيد إلى الصفر.')) return;
-            api.resetPayments().then(function (result) {
-                if (result.success) {
-                    showAlert('تم إعادة تعيين جميع المدفوعات إلى الصفر', 'success');
-                    loadStats();
-                    loadEarnings();
-                } else {
-                    showAlert(result.message || 'فشل إعادة التعيين', 'error');
-                }
-            }).catch(function (error) {
-                showAlert(error.message || 'حدث خطأ', 'error');
-            });
-        }
-
-        async function checkVersion() {
-            try {
-                const info = await api.getVersion();
-                const el = document.getElementById('versionInfo');
-                el.style.display = 'block';
-                el.innerHTML = '<strong>نسخة التطبيق:</strong> ' + (info.appName || info.version || 'N/A') +
-                    '<br><strong>المنصة:</strong> ' + (info.platform || 'web') +
-                    '<br><strong>الهندسة:</strong> ' + (info.arch || 'N/A');
-            } catch (e) {
-                document.getElementById('versionInfo').style.display = 'block';
-                document.getElementById('versionInfo').innerHTML = '<strong>نسخة الويب:</strong> 1.0.0 (Web App)';
-            }
-        }
-
-        function logout() {
-            api.logout();
-            clearAuth();
-            window.location.href = '../login.html';
-        }
-
-        loadStats();
-    </script>
+        } catch(e){ showAlert('Failed','error'); }
+    }
+    function resetPayments() {
+        if (!confirm('Reset all payments to zero?')) return;
+        api.resetPayments().then(function(r){ if(r.success){ showAlert('Reset done'); loadStats(); loadEarnings(); } }).catch(function(e){ showAlert(e.message||'Error','error'); });
+    }
+    async function checkVersion() {
+        try { var i = await api.getVersion(); var el=document.getElementById('versionInfo'); el.style.display='block'; el.innerHTML='<strong>API:</strong> '+(i.version||'ok')+' · '+new Date().toLocaleString(); }
+        catch(e){ var el2=document.getElementById('versionInfo'); el2.style.display='block'; el2.textContent='Web 1.0.0'; }
+    }
+    function logout(){ api.logout(); clearAuth(); location.href='../login.html'; }
+    loadStats(); loadEarnings();
+</script>
 </body>
 </html>

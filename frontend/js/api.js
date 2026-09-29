@@ -408,6 +408,53 @@ API.prototype.rejectOffer = function (orderId, offerId, notes) {
 API.prototype.getVersion = function () {
     return this.request('GET', '/health');
 };
+// Nurse ends visit on cash received (balance handed over)
+API.prototype.completeCash = function (orderId, amount) {
+    return this.request('POST', '/orders/' + orderId + '/complete-cash', { cashReceived: true, amount: amount });
+};
+// Device/legal consents + online location-sharing permission
+API.prototype.getPermissionState = function () {
+    return this.request('GET', '/permissions/required');
+};
+API.prototype.saveConsents = function (data) {
+    return this.request('POST', '/permissions/consent', data);
+};
+API.prototype.getPermSettings = function () {
+    return this.request('GET', '/permissions/admin/settings');
+};
+API.prototype.savePermSettings = function (data) {
+    return this.request('PUT', '/permissions/admin/settings', data);
+};
+API.prototype.getUserPermissions = function (query) {
+    if (query === undefined) query = '';
+    return this.request('GET', '/permissions/admin/users' + query);
+};
+API.prototype.saveUserPermissions = function (id, data) {
+    return this.request('PUT', '/permissions/admin/users/' + id, data);
+};
+// Subscriptions: Free / Pro (250) / VIP (500)
+API.prototype.getPlans = function () {
+    return this.request('GET', '/subscriptions/plans');
+};
+API.prototype.getMySubscription = function () {
+    return this.request('GET', '/subscriptions/me');
+};
+API.prototype.subscribePlan = function (plan, method, reference) {
+    return this.request('POST', '/subscriptions/subscribe', { plan: plan, method: method, reference: reference });
+};
+API.prototype.cancelSubscription = function () {
+    return this.request('POST', '/subscriptions/cancel', {});
+};
+API.prototype.getAllSubscriptions = function (query) {
+    if (query === undefined) query = '';
+    return this.request('GET', '/subscriptions/admin/all' + query);
+};
+API.prototype.reviewSubscription = function (id, action) {
+    return this.request('POST', '/subscriptions/admin/' + id, { action: action });
+};
+API.prototype.savePlanPrices = function (data) {
+    return this.request('PUT', '/subscriptions/admin/prices', data);
+};
 
 var api = new API();
 if (typeof window !== 'undefined') {
@@ -417,10 +464,45 @@ if (typeof window !== 'undefined') {
     if (typeof document !== 'undefined' && document.createElement) {
         var apiScript = document.currentScript;
         var languageScript = document.createElement('script');
-        languageScript.src = apiScript && apiScript.src
-            ? apiScript.src.replace(/api\.js(?:\?.*)?$/, 'language.js?v=3')
-            : 'js/language.js?v=3';
+                languageScript.src = apiScript && apiScript.src
+                    ? apiScript.src.replace(/api\.js(?:\?.*)?$/, 'language.js?v=4')
+                    : 'js/language.js?v=4';
         document.head.appendChild(languageScript);
+
+        // Autofit v1: same responsive/platform behaviour on web, desktop & mobile installs
+        (function loadAutofit() {
+            function base() {
+                if (apiScript && apiScript.src) {
+                    if (/autofit\.js/.test(apiScript.src)) return null; // already loaded explicitly
+                    var m = apiScript.src.replace(/api\.js(?:\?.*)?$/, 'autofit.js?v=1');
+                    if (m !== apiScript.src) return m;
+                }
+                var path = window.location.pathname || '/';
+                var depth = (path.match(/\//g) || []).length - 1;
+                return (depth >= 1 ? '../'.repeat(depth) : '') + 'js/autofit.js?v=1';
+            }
+            var src = base();
+            if (src && !document.querySelector('script[src*="autofit.js"]')) {
+                var s = document.createElement('script');
+                s.src = src;
+                s.defer = true;
+                document.head.appendChild(s);
+            }
+            if (!document.querySelector('link[href*="autofit.css"]')) {
+                var cssSrc = src ? src.replace(/js\/autofit\.js.*$/, 'css/autofit.css?v=1') : 'css/autofit.css?v=1';
+                var l = document.createElement('link');
+                l.rel = 'stylesheet';
+                l.href = cssSrc;
+                document.head.appendChild(l);
+            }
+            // viewport-fit=cover upgrade for installed notch devices (no-op if already set)
+            try {
+                var vp = document.querySelector('meta[name="viewport"]');
+                if (vp && vp.content.indexOf('viewport-fit') === -1) {
+                    vp.content = vp.content.replace(/,\s*$/, '') + ', viewport-fit=cover';
+                }
+            } catch (e) {}
+        })();
 
         if (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) {
             var nativeBridgeScript = document.createElement('script');
@@ -438,7 +520,7 @@ if (typeof window !== 'undefined') {
         if (!document.querySelector('meta[name="theme-color"]')) {
             var themeColor = document.createElement('meta');
             themeColor.name = 'theme-color';
-            themeColor.content = '#2563eb';
+            themeColor.content = '#0B5F5A';
             document.head.appendChild(themeColor);
         }
 
