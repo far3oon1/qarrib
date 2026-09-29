@@ -1,239 +1,176 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة التحكم - مريض</title>
+    <title>Dashboard - Qarrib</title>
     <link rel="stylesheet" href="../css/main.css">
     <style>
-        .welcome-header {
-            background: linear-gradient(135deg, #2563eb, #1d4ed8);
-            color: white;
-            padding: 24px 20px;
-            border-radius: 0 0 24px 24px;
-        }
-        .welcome-text {
-            font-size: 14px;
-            opacity: 0.9;
-        }
-        .welcome-name {
-            font-size: 24px;
-            font-weight: 800;
-            margin-top: 4px;
-        }
-        .quick-actions {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
-            padding: 20px;
-        }
-        .header-actions {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-        }
-        .header-actions button {
-            background: rgba(255,255,255,0.2);
-            border: none;
-            color: white;
-            padding: 8px 12px;
-            border-radius: 999px;
-            cursor: pointer;
-        }
-        .quick-action {
-            background: white;
-            border-radius: 16px;
-            padding: 20px;
-            text-align: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            text-decoration: none;
-            color: #1e293b;
-            transition: all 0.3s;
-        }
-        .quick-action:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
-        .quick-action-icon {
-            font-size: 32px;
-            margin-bottom: 8px;
-        }
-        .quick-action-title {
-            font-weight: 700;
-            font-size: 14px;
-        }
-        .section {
-            padding: 0 20px 20px;
-        }
-        .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-        }
-        .section-title {
-            font-size: 18px;
-            font-weight: 700;
-        }
-        .order-item {
-            background: white;
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 12px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            border-right: 4px solid #e2e8f0;
-        }
-        .order-item.pending { border-right-color: #f59e0b; }
-        .order-item.accepted { border-right-color: #3b82f6; }
-        .order-item.in_progress { border-right-color: #10b981; }
-        .order-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-        }
-        .order-service {
-            font-weight: 700;
-        }
-        .order-meta {
-            display: flex;
-            gap: 16px;
-            font-size: 13px;
-            color: #64748b;
+        body { background: #F6F3EC; }
+        .web-dash { min-height: 100vh; display: flex; background: #F6F3EC; }
+        .dash-main { flex: 1; box-sizing: border-box; padding: 36px 44px; display: flex; flex-direction: column; gap: 28px; min-width: 0; }
+        .dash-top { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+        .dash-top h1 { font-size: 36px; }
+        .stats { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 20px; }
+        .stat { padding: 24px; border-radius: 20px; }
+        .stat.brand { background: #0B5F5A; color: #fff; border: 0; }
+        .stat.plain { background: #fff; border: 1px solid #D9D3C5; }
+        .stat .lbl { font-size: 15px; }
+        .stat.brand .lbl { color: #D5EAE7; }
+        .stat.plain .lbl { color: #4A605E; }
+        .stat .val { margin-top: 8px; font-size: 34px; font-weight: 700; }
+        .panels { display: grid; grid-template-columns: 1.6fr 1fr; gap: 20px; }
+        .panel { padding: 28px; border-radius: 20px; background: #fff; border: 1px solid #D9D3C5; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+        .order-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+        .offer-row { display: flex; gap: 12px; align-items: center; padding: 14px; border-radius: 14px; background: #F6F3EC; }
+        /* mobile service grid (Main.dc.html) — shown only on small screens */
+        .mobile-home { display: none; padding: 28px 22px 100px; flex-direction: column; gap: 18px; }
+        .mobile-top { display: flex; justify-content: space-between; align-items: center; }
+        .icon-btn { width: 44px; height: 44px; border-radius: 22px; border: 1px solid #D9D3C5; background: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .search { display: flex; align-items: center; gap: 10px; height: 52px; padding: 0 16px; background: #fff; border: 1px solid #D9D3C5; border-radius: 14px; }
+        .search input { border: 0; outline: 0; background: transparent; font-size: 16px; font-family: inherit; flex-grow: 1; color: #14302E; }
+        @media (max-width: 900px) {
+            .dash-main { display: none; }
+            .mobile-home { display: flex; }
         }
     </style>
 </head>
 <body>
-    <div class="app-container">
-        <div class="welcome-header">
-            <div class="header-actions">
-                <div class="welcome-text">مرحباً بك</div>
-                <button type="button" onclick="logout()">خروج</button>
-            </div>
-            <div class="welcome-name" id="userName">...</div>
-            <div style="margin-top: 12px; font-size: 14px; opacity: 0.9;">
-                الرصيد: <span id="walletBalance">0</span> جنيه
-            </div>
-        </div>
+<div class="web-dash">
+    <nav class="q-sidebar">
+        <div class="q-logo" style="font-size:30px;padding:0 12px 24px;">Qarrib</div>
+        <a href="dashboard.html" class="active">Home</a>
+        <a href="request-service.html">Request a nurse</a>
+        <a href="offers.html">Nurse offers</a>
+        <a href="track-nurse.html">Track nurse</a>
+        <a href="chat.html">Chat</a>
+        <a href="wallet.html">Wallet</a>
+        <a href="#" class="logout" onclick="logout();return false;">Log out</a>
+    </nav>
 
-        <div class="quick-actions">
-            <a href="dashboard.html" class="quick-action">
-                <div class="quick-action-icon">🏠</div>
-                <div class="quick-action-title">الرئيسية</div>
-            </a>
-            <a href="offers.html" class="quick-action">
-                <div class="quick-action-icon">💰</div>
-                <div class="quick-action-title">عروض الممرضات</div>
-            </a>
-            <a href="request-service.html" class="quick-action">
-                <div class="quick-action-icon">➕</div>
-                <div class="quick-action-title">طلب</div>
-            </a>
-            <a href="wallet.html" class="quick-action">
-                <div class="quick-action-icon">💳</div>
-                <div class="quick-action-title">المحفظة</div>
-            </a>
-            <a href="track-nurse.html" class="quick-action">
-                <div class="quick-action-icon">📍</div>
-                <div class="quick-action-title">تتبع الممرض</div>
-            </a>
-            <a href="chat.html" class="quick-action">
-                <div class="quick-action-icon">💬</div>
-                <div class="quick-action-title">الشات</div>
-            </a>
+    <!-- Web dashboard (desktop) -->
+    <main class="dash-main">
+        <div class="dash-top">
+            <div><div style="font-size:15px;color:#4A605E;">Welcome back</div><h1 id="userName">...</h1></div>
+            <a href="request-service.html" class="q-btn" style="text-decoration:none;">Request a nurse</a>
         </div>
-
-        <div class="section">
-            <div class="section-header">
-                <div class="section-title">الطلبات النشطة</div>
-                <a href="#" style="color: #2563eb; font-size: 14px;">الكل</a>
-            </div>
-            <div id="activeOrders">
-                <div class="loading"><div class="spinner"></div></div>
-            </div>
+        <div class="stats">
+            <div class="stat brand"><div class="lbl">Wallet balance</div><div class="val"><span id="walletBalance">0</span> EGP</div></div>
+            <div class="stat plain"><div class="lbl">Active orders</div><div class="val" id="statActive">–</div></div>
+            <div class="stat plain"><div class="lbl">New nurse offers</div><div class="val" id="statOffers">–</div></div>
         </div>
+        <div class="panels">
+            <section class="panel">
+                <div style="display:flex;justify-content:space-between;align-items:center;"><h2 style="font-size:20px;">Active orders</h2><a href="track-nurse.html" style="font-size:15px;font-weight:600;color:#0B5F5A;">View all</a></div>
+                <div id="activeOrders"><div class="loading"><div class="spinner"></div></div></div>
+                <div id="activeProgress" style="display:none;">
+                    <div class="q-progress"><i class="done"></i><i class="done"></i><i></i><i></i></div>
+                    <div style="display:flex;justify-content:space-between;font-size:14px;color:#4A605E;margin-top:8px;"><span>Accepted</span><span>On the way</span><span>Arrived</span><span>Completed</span></div>
+                </div>
+                <div style="display:flex;gap:12px;margin-top:auto;flex-wrap:wrap;">
+                    <a href="track-nurse.html" class="q-btn q-btn-sm" style="text-decoration:none;" id="trackBtn">Track nurse</a>
+                    <a href="chat.html" class="q-btn q-btn-secondary q-btn-sm" style="text-decoration:none;">Chat</a>
+                </div>
+            </section>
+            <section class="panel">
+                <h2 style="font-size:20px;">Nurse offers</h2>
+                <div id="offersPreview" style="display:flex;flex-direction:column;gap:12px;"><div class="q-muted">Loading offers…</div></div>
+                <a href="offers.html" class="q-btn q-btn-secondary q-btn-sm" style="text-decoration:none;text-align:center;">View all offers</a>
+            </section>
+        </div>
+    </main>
 
-        <nav class="bottom-nav">
-            <a href="dashboard.html" class="nav-item active">
-                <span class="nav-icon">🏠</span>
-                <span>الرئيسية</span>
-            </a>
-            <a href="request-service.html" class="nav-item">
-                <span class="nav-icon">➕</span>
-                <span>طلب</span>
-            </a>
-            <a href="wallet.html" class="nav-item">
-                <span class="nav-icon">💳</span>
-                <span>المحفظة</span>
-            </a>
-            <a href="chat.html" class="nav-item">
-                <span class="nav-icon">💬</span>
-                <span>الشات</span>
-            </a>
+    <!-- Mobile home (Main.dc.html) -->
+    <main class="mobile-home" style="flex:1;">
+        <div class="mobile-top">
+            <div class="q-logo" style="font-size:26px;">Qarrib</div>
+            <button class="icon-btn" aria-label="Notifications" onclick="location.href='../notifications.html'"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#14302E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 17V11a6 6 0 0112 0v6l2 2H4z"/><path d="M10 21h4"/></svg></button>
+        </div>
+        <h1 style="font-size:32px;line-height:1.15;">Nursing care, at your door.</h1>
+        <label class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4A605E" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="serviceSearch" placeholder="Search a service"></label>
+        <div style="font-size:14px;font-weight:600;color:#4A605E;letter-spacing:.04em;">SERVICES</div>
+        <div class="q-services" id="serviceGrid">
+            <button class="q-service" data-svc="Injections & IV"><svg width="24" height="24" viewBox="0 0 24 24" class="q-icon" stroke="#0B5F5A"><path d="M12 5v14M5 12h14"/></svg><span>Injections &amp; IV</span></button>
+            <button class="q-service" data-svc="Wound care"><svg width="24" height="24" viewBox="0 0 24 24" class="q-icon" stroke="#0B5F5A"><path d="M12 3s6 6 6 10a6 6 0 01-12 0c0-4 6-10 6-10z"/></svg><span>Wound care</span></button>
+            <button class="q-service" data-svc="Elderly care"><svg width="24" height="24" viewBox="0 0 24 24" class="q-icon" stroke="#0B5F5A"><path d="M12 21s-7-4.5-7-10a4 4 0 017-2.5A4 4 0 0119 11c0 5.5-7 10-7 10z"/></svg><span>Elderly care</span></button>
+            <button class="q-service" data-svc="Vitals check"><svg width="24" height="24" viewBox="0 0 24 24" class="q-icon" stroke="#0B5F5A"><path d="M3 12h4l2-6 4 12 2-6h6"/></svg><span>Vitals check</span></button>
+            <button class="q-service" data-svc="Post-surgery"><svg width="24" height="24" viewBox="0 0 24 24" class="q-icon" stroke="#0B5F5A"><rect x="4" y="9" width="16" height="6" rx="3" transform="rotate(-35 12 12)"/></svg><span>Post-surgery</span></button>
+            <button class="q-service" data-svc="More"><svg width="24" height="24" viewBox="0 0 24 24" class="q-icon" stroke="#0B5F5A"><circle cx="6" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="18" cy="12" r="1.5"/></svg><span>More services</span></button>
+        </div>
+        <a href="request-service.html" class="q-btn" style="text-decoration:none;">Request a nurse</a>
+        <div class="q-card" style="padding:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><strong>Active orders</strong><a href="track-nurse.html" style="color:#0B5F5A;font-size:14px;font-weight:600;">View all</a></div>
+            <div id="activeOrdersMobile"><div class="q-muted">Loading…</div></div>
+        </div>
+        <nav class="q-bottomnav" style="position:fixed;bottom:0;left:0;right:0;">
+            <a href="dashboard.html" class="active">Home</a>
+            <a href="track-nurse.html">Visits</a>
+            <a href="chat.html">Messages</a>
+            <a href="wallet.html">Profile</a>
         </nav>
-    </div>
+    </main>
+</div>
 
-    <script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
-    <script src="../js/api.js?v=6"></script>
-    <script src="../js/auth.js?v=6"></script>
-    <script>
-        if (!requireRole('patient')) {
-            redirectToLogin();
-        }
-
-        async function loadDashboard() {
-            try {
-                const result = await api.getPatientDashboard();
-                if (result.success) {
-                    const data = result.data;
-                    document.getElementById('userName').textContent = data.user.name;
-                    document.getElementById('walletBalance').textContent = data.user.walletBalance;
-
-                    const ordersContainer = document.getElementById('activeOrders');
-                    if (data.activeOrders.length === 0) {
-                        ordersContainer.innerHTML = `
-                            <div class="empty-state">
-                                <div class="empty-state-icon">📋</div>
-                                <p>لا توجد طلبات نشطة</p>
-                                <a href="request-service.html" class="btn btn-primary btn-sm" style="width: auto; margin-top: 12px;">اطلب الآن</a>
-                            </div>
-                        `;
-                    } else {
-                        ordersContainer.innerHTML = data.activeOrders.map(order => `
-                            <div class="order-item ${order.status}">
-                                <div class="order-header">
-                                    <span class="order-service">${order.serviceType}</span>
-                                    <span class="badge badge-${order.status}">${getStatusText(order.status)}</span>
-                                </div>
-                                <div class="order-meta">
-                                    <span>💰 ${order.amount} جنيه</span>
-                                    <span>📅 ${formatDate(order.createdAt)}</span>
-                                </div>
-                                <div style="margin-top: 8px; font-size: 13px; color: #64748b;">
-                                    📍 ${order.address}
-                                </div>
-                            </div>
-                        `).join('');
-                    }
-                }
-            } catch (error) {
-                showAlert('فشل تحميل البيانات', 'error');
+<script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
+<script src="../js/api.js?v=6"></script>
+<script src="../js/auth.js?v=6"></script>
+<script>
+    if (!requireRole('patient')) { redirectToLogin(); }
+    function getStatusText(s){ var m={pending:'Pending',accepted:'Accepted',in_progress:'In progress',completed:'Completed',cancelled:'Cancelled',offers_received:'Offers received',assigned:'Assigned'}; return m[s]||s; }
+    function orderCard(o){
+        return '<div class="offer-row" style="background:#fff;border:1px solid #D9D3C5;">' +
+          '<div style="flex:1;"><div style="font-weight:700;">'+(o.serviceType||'Service')+'</div>' +
+          '<div style="font-size:13px;color:#4A605E;">'+(o.amount||0)+' EGP · '+(o.address||'')+'</div></div>' +
+          '<span class="q-badge">'+getStatusText(o.status)+'</span></div>';
+    }
+    async function loadDashboard() {
+        try {
+            var result = await api.getPatientDashboard();
+            if (!result.success) return;
+            var data = result.data;
+            document.getElementById('userName').textContent = data.user.name;
+            document.getElementById('walletBalance').textContent = data.user.walletBalance;
+            var orders = data.activeOrders || [];
+            document.getElementById('statActive').textContent = orders.length;
+            var box = document.getElementById('activeOrders');
+            var boxM = document.getElementById('activeOrdersMobile');
+            if (orders.length === 0) {
+                box.innerHTML = '<div class="q-muted">No active orders. <a href="request-service.html" style="color:#0B5F5A;font-weight:600;">Request now</a></div>';
+                boxM.innerHTML = '<div class="q-muted">No active orders.</div>';
+            } else {
+                box.innerHTML = orders.slice(0,3).map(orderCard).join('');
+                boxM.innerHTML = orders.slice(0,3).map(orderCard).join('');
+                document.getElementById('activeProgress').style.display = 'block';
+                var first = orders[0];
+                if (first && first.id) document.getElementById('trackBtn').href = 'track-nurse.html?order=' + first.id;
             }
-        }
-
-        function getStatusText(status) {
-            const statusMap = {
-                'pending': 'قيد الانتظار',
-                'accepted': 'مقبول',
-                'in_progress': 'جاري التنفيذ',
-                'completed': 'مكتمل',
-                'cancelled': 'ملغي'
-            };
-            return statusMap[status] || status;
-        }
-
-        loadDashboard();
-    </script>
+            // offers preview
+            try {
+                var off = await api.getOrdersWithOffers();
+                var list = (off.data || []).filter(function(o){ return o.status === 'offers_received' || o.status === 'assigned'; });
+                var count = 0; list.forEach(function(o){ (o.offers||[]).forEach(function(x){ if (x.status === 'pending_review') count++; }); });
+                document.getElementById('statOffers').textContent = count;
+                var prev = document.getElementById('offersPreview');
+                if (!list.length) { prev.innerHTML = '<div class="q-muted">No offers yet.</div>'; }
+                else {
+                    var rows = [];
+                    list.slice(0,2).forEach(function(o){ (o.offers||[]).slice(0,2).forEach(function(x){
+                        rows.push('<div class="offer-row"><div class="q-avatar" style="width:44px;height:44px;">'+((x.nurse&&x.nurse.name)||'N').charAt(0)+'</div><div style="flex:1"><div style="font-weight:600;">'+((x.nurse&&x.nurse.name)||'Nurse')+'</div><div style="font-size:14px;color:#4A605E;">★ ' + ((x.nurse&&x.nurse.rating)||'New') + '</div></div><div style="font-weight:700;color:#0B5F5A;">'+x.price+' EGP</div></div>');
+                    }); });
+                    prev.innerHTML = rows.join('') || '<div class="q-muted">Waiting for nurse offers…</div>';
+                }
+            } catch (e) { document.getElementById('statOffers').textContent = '0'; }
+        } catch (e) { /* silent */ }
+    }
+    // mobile service search + preselect
+    document.getElementById('serviceSearch').addEventListener('input', function(e){
+        var q = e.target.value.toLowerCase();
+        document.querySelectorAll('#serviceGrid .q-service').forEach(function(b){ b.style.display = b.textContent.toLowerCase().includes(q) ? 'flex' : 'none'; });
+    });
+    document.querySelectorAll('#serviceGrid .q-service').forEach(function(b){
+        b.addEventListener('click', function(){ location.href = 'request-service.html?service=' + encodeURIComponent(b.getAttribute('data-svc')); });
+    });
+    loadDashboard();
+</script>
 </body>
 </html>

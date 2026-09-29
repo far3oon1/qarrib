@@ -196,6 +196,21 @@
                 document.getElementById('serviceType').value = type.dataset.value;
             });
         });
+        // Preselect from dashboard service grid (?service=Injections & IV etc.)
+        (function preselect(){
+            try {
+                var q = new URLSearchParams(window.location.search).get('service') || '';
+                if (!q) return;
+                q = q.toLowerCase();
+                var map = { 'injection': 'injection', 'iv': 'iv', 'wound': 'wound', 'elderly': 'elderly', 'vital': 'checkup', 'checkup': 'checkup', 'post': 'other', 'surgery': 'other' };
+                var key = null;
+                Object.keys(map).forEach(function(k){ if (q.indexOf(k) !== -1 && !key) key = map[k]; });
+                if (key) {
+                    var el = document.querySelector('.service-type[data-value="' + key + '"]');
+                    if (el) { el.classList.add('selected'); document.getElementById('serviceType').value = key; }
+                }
+            } catch (e) {}
+        })();
 
         // Show the admin-set price under each service card (per service type)
         var SERVICE_KEYS = { injection: 'injection', wound: 'wound_care', checkup: 'checkup', elderly: 'elderly_care', iv: 'iv_therapy', other: 'other' };
