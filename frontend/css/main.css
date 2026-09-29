@@ -1,21 +1,22 @@
-/* Qarrib App - Global Styles */
+/* Qarrib App - Global Styles (themed from files/qarrib-design-spec.md) */
+@import url('./qarrib-design.css');
 :root {
-    --primary: #2563eb;
-    --primary-dark: #1d4ed8;
-    --primary-light: #dbeafe;
-    --secondary: #10b981;
-    --secondary-dark: #059669;
-    --danger: #ef4444;
+    --primary: #0B5F5A;
+    --primary-dark: #0B4A46;
+    --primary-light: #DDEBE8;
+    --secondary: #0B5F5A;
+    --secondary-dark: #0B4A46;
+    --danger: #B42318;
     --warning: #f59e0b;
-    --info: #3b82f6;
-    --dark: #1e293b;
-    --gray: #64748b;
-    --light-gray: #f1f5f9;
+    --info: #0B5F5A;
+    --dark: #14302E;
+    --gray: #4A605E;
+    --light-gray: #F6F3EC;
     --white: #ffffff;
-    --shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-    --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
-    --radius: 12px;
-    --radius-sm: 8px;
+    --shadow: 0 2px 8px rgba(20,48,46,0.08);
+    --shadow-lg: 0 12px 32px rgba(20,48,46,0.12);
+    --radius: 20px;
+    --radius-sm: 12px;
     --transition: all 0.3s ease;
 }
 

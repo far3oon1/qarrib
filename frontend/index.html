@@ -1,221 +1,99 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>قرّب - خدمات التمريض المنزلية</title>
+    <title>Qarrib - Nursing care, at your door</title>
     <link rel="stylesheet" href="css/main.css">
     <style>
-        .hero {
-            background: linear-gradient(135deg, #2563eb, #1d4ed8);
-            color: white;
-            padding: 60px 20px;
-            text-align: center;
-        }
-        .hero h1 {
-            font-size: 48px;
-            margin-bottom: 16px;
-        }
-        .hero p {
-            font-size: 18px;
-            opacity: 0.9;
-            margin-bottom: 32px;
-        }
-        .features {
-            padding: 40px 20px;
-        }
-        .feature-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 24px;
-            margin-top: 24px;
-        }
-        .feature-card {
-            background: white;
-            padding: 24px;
-            border-radius: 16px;
-            text-align: center;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        .feature-icon {
-            font-size: 48px;
-            margin-bottom: 16px;
-        }
-        .feature-card h3 {
-            margin-bottom: 8px;
-            color: #1e293b;
-        }
-        .feature-card p {
-            color: #64748b;
-        }
-        .cta-section {
-            background: #f1f5f9;
-            padding: 60px 20px;
-            text-align: center;
-        }
-        .cta-buttons {
-            display: flex;
-            gap: 16px;
-            justify-content: center;
-            margin-top: 24px;
-            flex-wrap: wrap;
-        }
-        .cta-buttons .btn {
-            width: auto;
-            min-width: 200px;
-        }
-        .how-it-works {
-            padding: 40px 20px;
-        }
-        .steps {
-            display: flex;
-            flex-direction: column;
-            gap: 24px;
-            margin-top: 24px;
-        }
-        .step {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            background: white;
-            padding: 24px;
-            border-radius: 16px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .step-number {
-            width: 50px;
-            height: 50px;
-            background: #2563eb;
-            color: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            font-weight: 800;
-            flex-shrink: 0;
-        }
-        .step-content h3 {
-            margin-bottom: 4px;
-        }
-        .step-content p {
-            color: #64748b;
-        }
-        .footer {
-            background: #1e293b;
-            color: white;
-            padding: 40px 20px;
-            text-align: center;
-        }
-        @media (min-width: 768px) {
-            .feature-grid {
-                grid-template-columns: repeat(3, 1fr);
-            }
-            .steps {
-                flex-direction: row;
-                flex-wrap: wrap;
-            }
-            .step {
-                flex: 1;
-                min-width: 300px;
-                flex-direction: column;
-                text-align: center;
-            }
+        body { background: #F6F3EC; }
+        .landing { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+        .topbar { display: flex; justify-content: space-between; align-items: center; padding: 24px 0; }
+        .logo { font-family: Fraunces, Georgia, serif; font-size: 30px; font-weight: 600; color: #0B5F5A; }
+        .hero { display: grid; grid-template-columns: 1.1fr .9fr; gap: 40px; align-items: center; padding: 40px 0 56px; }
+        .hero h1 { font-size: 56px; line-height: 1.05; color: #14302E; }
+        .hero p { font-size: 18px; color: #4A605E; margin-top: 16px; max-width: 520px; }
+        .hero-cta { display: flex; gap: 12px; margin-top: 28px; flex-wrap: wrap; }
+        .hero-card { background: #0B5F5A; color: #fff; border-radius: 20px; padding: 32px; }
+        .hero-card h2 { font-size: 28px; margin-bottom: 12px; }
+        .hero-card ul { list-style: none; padding: 0; margin: 20px 0 0; display: flex; flex-direction: column; gap: 12px; color: #D5EAE7; font-size: 16px; }
+        .hero-card li { display: flex; gap: 10px; align-items: center; }
+        .grid3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 20px; margin: 16px 0 48px; }
+        .feat { background: #fff; border: 1px solid #D9D3C5; border-radius: 20px; padding: 28px; }
+        .feat h3 { font-family: Fraunces, Georgia, serif; font-size: 22px; margin: 14px 0 8px; }
+        .feat p { color: #4A605E; font-size: 16px; margin: 0; }
+        .steps { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; margin-bottom: 48px; }
+        .step { background: #fff; border: 1px solid #D9D3C5; border-radius: 20px; padding: 24px; }
+        .step-n { width: 44px; height: 44px; border-radius: 50%; background: #DDEBE8; color: #0B4A46; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px; margin-bottom: 12px; }
+        .footer { text-align: center; color: #4A605E; padding: 32px 0 48px; font-size: 14px; }
+        @media (max-width: 900px) {
+            .hero { grid-template-columns: 1fr; }
+            .hero h1 { font-size: 38px; }
+            .grid3, .steps { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 <body>
-    <div class="app-container">
-        <nav class="header">
-            <div class="header-content container">
-                <div class="logo">قرّب</div>
-                <div>
-                    <a href="login.html" class="btn btn-outline" style="width:auto; padding: 8px 20px;">تسجيل الدخول</a>
-                </div>
+    <div class="landing">
+        <nav class="topbar">
+            <div class="logo">Qarrib</div>
+            <div style="display:flex;gap:12px;">
+                <a href="login.html" class="q-btn q-btn-secondary q-btn-sm" style="text-decoration:none;">Sign in</a>
+                <a href="register.html?role=patient" class="q-btn q-btn-sm" style="text-decoration:none;">Get care</a>
             </div>
         </nav>
 
         <section class="hero">
-            <h1>قرّب</h1>
-            <p>أقرب ممرض لك في أي وقت وفي أي مكان</p>
-            <p style="font-size: 16px; margin-top: 16px;">اطلب خدمة تمريض منزلية واحصل على رعاية طبية احترافية بضغطة زر</p>
-            <div class="cta-buttons" style="margin-top: 32px;">
-                <a href="register.html?role=patient" class="btn btn-secondary">أنا مريض</a>
-                <a href="register.html?role=nurse" class="btn" style="background: white; color: #2563eb;">أنا ممرض</a>
+            <div>
+                <h1>Nursing care, at your door.</h1>
+                <p>Request a licensed nurse in Egypt, compare clear offers, and follow every visit live — all from Qarrib.</p>
+                <div class="hero-cta">
+                    <a href="register.html?role=patient" class="q-btn" style="text-decoration:none;">Request a nurse</a>
+                    <a href="register.html?role=nurse" class="q-btn q-btn-secondary" style="text-decoration:none;">Join as a nurse</a>
+                </div>
+                <div style="display:flex;gap:16px;margin-top:24px;color:#4A605E;font-size:15px;">
+                    <span>Licensed &amp; verified</span><span>·</span><span>Live tracking</span><span>·</span><span>Secure wallet</span>
+                </div>
+            </div>
+            <div class="hero-card">
+                <h2>The nearest nurse, whenever you need one.</h2>
+                <ul>
+                    <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D5EAE7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6 6 10a6 6 0 01-12 0c0-4 6-10 6-10z"/></svg>Licensed, verified nurses</li>
+                    <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D5EAE7" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>Clear offers from nurses near you</li>
+                    <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D5EAE7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-6 4 12 2-6h6"/></svg>Follow every visit live</li>
+                </ul>
             </div>
         </section>
 
-        <section class="features container">
-            <h2 style="text-align: center; font-size: 32px; color: #1e293b;">لماذا قرّب؟</h2>
-            <div class="feature-grid">
-                <div class="feature-card">
-                    <div class="feature-icon">⚡</div>
-                    <h3>سرعة الوصول</h3>
-                    <p>أقرب ممرض متاح يصلك في دقائق معدودة</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🔒</div>
-                    <h3>أمان تام</h3>
-                    <p>جميع الممرضين موثقين ومعتمدين من الوزارة</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">💳</div>
-                    <h3>دفع آمن</h3>
-                    <p>ادفع بفيزا، فودافون كاش، أو انستا باي</p>
-                </div>
+        <section class="grid3">
+            <div class="feat">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0B5F5A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></svg>
+                <h3>Fast access</h3><p>The nearest available nurse reaches you in minutes.</p>
+            </div>
+            <div class="feat">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0B5F5A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3.5 8-7 9-3.5-1-7-4-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg>
+                <h3>Verified safety</h3><p>Every nurse is licensed and identity-verified.</p>
+            </div>
+            <div class="feat">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0B5F5A" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg>
+                <h3>Secure payment</h3><p>Wallet, card and InstaPay with escrow protection.</p>
             </div>
         </section>
 
-        <section class="how-it-works container">
-            <h2 style="text-align: center; font-size: 32px; color: #1e293b;">كيف يعمل؟</h2>
-            <div class="steps">
-                <div class="step">
-                    <div class="step-number">1</div>
-                    <div class="step-content">
-                        <h3>اطلب الخدمة</h3>
-                        <p>اختر نوع الخدمة وحدد موقعك</p>
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">2</div>
-                    <div class="step-content">
-                        <h3>قبول الطلب</h3>
-                        <p>أقرب ممرض يقبل طلبك فوراً</p>
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">3</div>
-                    <div class="step-content">
-                        <h3>تتبع الموقع</h3>
-                        <p>تابع مكان الممرض لحظة بلحظة</p>
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">4</div>
-                    <div class="step-content">
-                        <h3>الدفع الآمن</h3>
-                        <p>ادفع بعد التأكد من إتمام الخدمة</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section class="cta-section">
-            <h2 style="font-size: 32px; color: #1e293b; margin-bottom: 16px;">ابدأ الآن</h2>
-            <p style="color: #64748b; font-size: 18px;">سجل مجاناً واستمتع بخدماتنا</p>
-            <div class="cta-buttons">
-                <a href="register.html?role=patient" class="btn btn-primary">سجل كمريض</a>
-                <a href="register.html?role=nurse" class="btn btn-secondary">سجل كممرض</a>
-            </div>
+        <h2 style="font-size:32px;margin-bottom:16px;">How it works</h2>
+        <section class="steps">
+            <div class="step"><div class="step-n">1</div><strong>Request</strong><p class="q-muted" style="margin:6px 0 0;">Choose a service and your location.</p></div>
+            <div class="step"><div class="step-n">2</div><strong>Compare offers</strong><p class="q-muted" style="margin:6px 0 0;">Nurses near you send clear prices.</p></div>
+            <div class="step"><div class="step-n">3</div><strong>Track live</strong><p class="q-muted" style="margin:6px 0 0;">Watch your nurse arrive on the map.</p></div>
+            <div class="step"><div class="step-n">4</div><strong>Pay safely</strong><p class="q-muted" style="margin:6px 0 0;">Release payment after the visit report.</p></div>
         </section>
 
         <footer class="footer">
-            <div class="logo" style="margin-bottom: 16px;">قرّب</div>
-            <p id="appVersion">جميع الحقوق محفوظة © 2026</p>
-            <p id="appMode" style="font-size: 12px; color: #94a3b8; margin-top: 4px;"></p>
+            <div class="logo" style="margin-bottom:8px;">Qarrib</div>
+            <div id="appVersion">All rights reserved © 2026</div>
+            <div id="appMode" style="font-size:12px;margin-top:4px;"></div>
         </footer>
     </div>
-
     <script>
         window.QARRAB_API_URL = 'https://qarrib1.vercel.app';
         var ver = (window.desktopAPI && window.desktopAPI.getVersion) ? 'Desktop App' : 'Web App';
