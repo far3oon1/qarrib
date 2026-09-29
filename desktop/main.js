@@ -7,12 +7,41 @@ let mainWindow = null;
 let backendProcess = null;
 let isReady = false;
 
+const ONLINE_URL = (process.env.QARRAB_SERVER_URL || 'https://qarrib1.vercel.app').replace(/\/+$/, '');
+const OFFLINE_MODE = process.env.QARRAB_OFFLINE === '1' || process.argv.includes('--offline');
+
 function getBackendPort() {
-  return process.env.BACKEND_PORT || 5000;
+  return process.env.BACKEND_PORT || process.env.PORT || 5000;
 }
 
+function getLocalUrl() {
+  return `http://localhost:${getBackendPort()}`;
+}
+
+// Online-first: if the Vercel deployment answers, the desktop app runs
+// against it (same data as web/mobile). Otherwise fall back to the bundled
+// local backend so the app still opens offline.
+function checkOnline() {
+  return new Promise((resolve) => {
+    if (OFFLINE_MODE) return resolve(false);
+    try {
+      const lib = ONLINE_URL.startsWith('https') ? require('https') : http;
+      const req = lib.get(ONLINE_URL + '/api/health', { timeout: 6000 }, (res) => {
+        res.resume();
+        resolve(res.statusCode && res.statusCode < 500);
+      });
+      req.on('timeout', () => { req.destroy(); resolve(false); });
+      req.on('error', () => resolve(false));
+    } catch (_) {
+      resolve(false);
+    }
+  });
+}
+
+let onlineMode = false;
 function getServerUrl() {
-  return process.env.QARRAB_SERVER_URL || `http://localhost:${getBackendPort()}`;
+  if (process.env.QARRAB_SERVER_URL) return ONLINE_URL;
+  return onlineMode ? ONLINE_URL : getLocalUrl();
 }
 
 function startBackend() {
@@ -73,7 +102,6 @@ function startBackend() {
 }
 
 function createWindow() {
-  const port = getBackendPort();
   const serverUrl = getServerUrl();
 
   const iconPath = path.join(__dirname, 'assets', 'icon.png');
@@ -130,26 +158,30 @@ function createWindow() {
 async function setupApp() {
   await app.whenReady();
   try {
-    if (!process.env.QARRAB_SERVER_URL) {
+    onlineMode = await checkOnline();
+    if (onlineMode) {
+      console.log(`[Qarrib] Online mode: using ${ONLINE_URL}`);
+    } else if (!process.env.QARRAB_SERVER_URL) {
+      console.log('[Qarrib] Offline or unreachable — starting local backend...');
       await startBackend();
     }
     createWindow();
   } catch (err) {
-    console.error('Failed to start backend:', err.message);
-    dialog.showErrorBox('Backend Error', err.message + '\n\nThe application cannot start without the backend server.');
-    app.quit();
+    console.error('Failed to start:', err.message);
+    // Last resort: still open the window against the online URL so the
+    // user gets the live app instead of a dead screen.
+    try {
+      onlineMode = true;
+      createWindow();
+    } catch (_) {
+      dialog.showErrorBox('Startup Error', err.message + '\n\nThe application cannot start.');
+      app.quit();
+    }
   }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      if (!process.env.QARRAB_SERVER_URL) {
-        startBackend().then(createWindow).catch((err) => {
-          console.error('Failed to start backend:', err.message);
-          app.quit();
-        });
-      } else {
-        createWindow();
-      }
+      createWindow();
     }
   });
 }
@@ -177,6 +209,12 @@ ipcMain.handle('get-version', async () => {
     arch: process.arch
   };
 });
+
+ipcMain.handle('get-connection-mode', async () => ({
+  online: onlineMode,
+  serverUrl: getServerUrl(),
+  onlineUrl: ONLINE_URL,
+}));
 
 ipcMain.handle('show-save-dialog', async (event, options) => {
   const result = await dialog.showSaveDialog(mainWindow, options);

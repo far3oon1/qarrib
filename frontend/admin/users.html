@@ -94,6 +94,23 @@
             <button class="filter-btn active" onclick="filterUsers('all')">الكل</button>
             <button class="filter-btn" onclick="filterUsers('patient')">مرضى</button>
             <button class="filter-btn" onclick="filterUsers('nurse')">ممرضين</button>
+            <button class="filter-btn" style="border-color:#0B5F5A;color:#0B5F5A;font-weight:700;" onclick="toggleAddForm()">＋ إضافة حساب</button>
+        </div>
+
+        <div id="addForm" style="display:none;background:#fff;margin:0 20px 16px;border-radius:12px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+            <h4 style="margin:0 0 12px;" id="addFormTitle">إضافة حساب جديد</h4>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <input id="new-name" class="form-input" placeholder="الاسم الكامل">
+                <input id="new-email" class="form-input" type="email" placeholder="البريد الإلكتروني" dir="ltr">
+                <input id="new-phone" class="form-input" placeholder="01xxxxxxxxx" dir="ltr">
+                <input id="new-password" class="form-input" type="password" placeholder="كلمة المرور (6 أحرف+)" dir="ltr">
+                <input id="new-nationalId" class="form-input" placeholder="الرقم القومي (14 رقم)" maxlength="14" dir="ltr">
+                <select id="new-role" class="form-input">
+                    <option value="patient">مريض</option>
+                    <option value="nurse">ممرض</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" style="margin-top:12px;" id="addBtn" onclick="createUser()">إنشاء الحساب</button>
         </div>
 
         <div class="user-list" id="userList">
@@ -106,6 +123,51 @@
     <script src="../js/auth.js?v=6"></script>
     <script>
         if (!requireRole('admin')) redirectToLogin();
+
+        // Language-aware alerts: backend returns { message (ar), message_en }.
+        function currentLang() {
+            try {
+                if (typeof window.getQarribLanguage === 'function') return window.getQarribLanguage();
+                return window.qarribLanguage || localStorage.getItem('qarrib-language') || 'ar';
+            } catch (e) { return 'ar'; }
+        }
+        function L(ar, en) { return currentLang() === 'en' ? en : ar; }
+        function serverMsg(result, fallbackAr, fallbackEn) {
+            if (typeof window.pickLocalizedMessage === 'function') return window.pickLocalizedMessage(result, L(fallbackAr, fallbackEn));
+            if (result && (result.message || result.message_en)) {
+                return currentLang() === 'en' ? (result.message_en || result.message) : (result.message || result.message_en);
+            }
+            return L(fallbackAr, fallbackEn);
+        }
+
+        function toggleAddForm() {
+            const f = document.getElementById('addForm');
+            f.style.display = f.style.display === 'none' ? 'block' : 'none';
+        }
+
+        async function createUser() {
+            const btn = document.getElementById('addBtn');
+            btn.disabled = true;
+            try {
+                const payload = {
+                    fullName: document.getElementById('new-name').value.trim(),
+                    email: document.getElementById('new-email').value.trim(),
+                    phone: document.getElementById('new-phone').value.trim(),
+                    password: document.getElementById('new-password').value,
+                    nationalId: document.getElementById('new-nationalId').value.trim(),
+                    role: document.getElementById('new-role').value
+                };
+                const result = await api.adminCreateUser(payload);
+                showAlert(serverMsg(result, 'تم إنشاء المستخدم بنجاح', 'User created successfully'));
+                ['new-name','new-email','new-phone','new-password','new-nationalId'].forEach(id => document.getElementById(id).value = '');
+                document.getElementById('addForm').style.display = 'none';
+                loadUsers();
+            } catch (error) {
+                showAlert(error.message || L('فشل إنشاء الحساب', 'Failed to create the account'), 'error');
+            } finally {
+                btn.disabled = false;
+            }
+        }
 
         async function loadUsers(role = '') {
             try {
@@ -123,26 +185,41 @@
                             <div class="user-actions">
                                 <button class="btn-sm" style="background: ${user.isActive ? '#fee2e2' : '#d1fae5'}; color: ${user.isActive ? '#991b1b' : '#065f46'};"
                                     onclick="toggleUser('${user.id}', ${!user.isActive})">
-                                    ${user.isActive ? 'تعطيل' : 'تفعيل'}
+                                    ${user.isActive ? L('تعطيل', 'Disable') : L('تفعيل', 'Enable')}
+                                </button>
+                                <button class="btn-sm" style="background:#fee2e2;color:#991b1b;"
+                                    onclick="deleteUser('${user.id}', '${(user.name || '').replace(/'/g, '')}')">
+                                    ${L('حذف', 'Delete')}
                                 </button>
                             </div>
                         </div>
                     `).join('');
                 } else {
-                    container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">👥</div><p>لا يوجد مستخدمين</p></div>`;
+                    container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">👥</div><p>${L('لا يوجد مستخدمين', 'No users found')}</p></div>`;
                 }
             } catch (error) {
-                showAlert('فشل تحميل المستخدمين', 'error');
+                showAlert(error.message || L('فشل تحميل المستخدمين', 'Failed to load users'), 'error');
             }
         }
 
         async function toggleUser(userId, isActive) {
             try {
                 await api.updateAdminUser(userId, { isActive });
-                showAlert(isActive ? 'تم تفعيل المستخدم' : 'تم تعطيل المستخدم');
+                showAlert(isActive ? L('تم تفعيل المستخدم', 'User enabled') : L('تم تعطيل المستخدم', 'User disabled'));
                 loadUsers();
             } catch (error) {
-                showAlert('فشل التحديث', 'error');
+                showAlert(error.message || L('فشل التحديث', 'Update failed'), 'error');
+            }
+        }
+
+        async function deleteUser(userId, name) {
+            if (!confirm(L(`حذف حساب "${name}" نهائياً؟`, `Permanently delete "${name}"?`))) return;
+            try {
+                const result = await api.adminDeleteUser(userId);
+                showAlert(serverMsg(result, 'تم حذف المستخدم بنجاح', 'User deleted successfully'));
+                loadUsers();
+            } catch (error) {
+                showAlert(error.message || L('فشل الحذف', 'Delete failed'), 'error');
             }
         }
 

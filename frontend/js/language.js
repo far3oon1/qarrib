@@ -615,6 +615,26 @@
         'ملغي': 'Cancelled',
         'مفتوح': 'Open',
         'قيد مراجعة السعر': 'Price under review',
+        // --- JS-driven register/auth strings (so toggling language
+        // translates "everything in code" too, not just static HTML) ---
+        'جاري الإنشاء...': 'Creating...',
+        'إنشاء حساب ممرض': 'Create nurse account',
+        'إنشاء حساب مريض': 'Create patient account',
+        'اختر التخصص من فضلك': 'Please choose a specialty',
+        'حجم الملفات كبير — اختر صوراً أصغر (الحد 4MB لإجمالي الملفات)': 'Files are too large — please choose smaller images (4MB total limit)',
+        'حجم الملفات أكبر من المسموح (4MB) — صغّر الصور وحاول مجدداً': 'Files exceed the allowed size (4MB) — shrink the images and try again',
+        'رد غير صالح من السيرفر': 'Invalid response from the server',
+        'فشل إنشاء الحساب': 'Failed to create the account',
+        'تم إنشاء الحساب بنجاح!': 'Account created successfully!',
+        'فشل إنشاء الحساب بنجاح!': 'Account created successfully!',
+        'تعذر الاتصال بالسيرفر': 'Could not reach the server',
+        'البريد الإلكتروني مسجل مسبقاً': 'Email already registered',
+        'رقم الهاتف مسجل مسبقاً': 'Phone number already registered',
+        'الرقم القومي مسجل مسبقاً': 'National ID already registered',
+        'تم تسجيل الدخول بنجاح': 'Signed in successfully',
+        'البريد الإلكتروني أو كلمة المرور غير صحيحة': 'Incorrect email or password',
+        'يرجى إدخال البريد الإلكتروني وكلمة المرور': 'Please enter email and password',
+        'تم تسجيل الدخول بنجاح! جاري التحويل...': 'Signed in! Redirecting...',
     };
 
     var prefixes = [
@@ -637,9 +657,18 @@
     var language = 'ar';
     var button;
 
+    // Exact-match only on purpose: the old substring/prefix replacement
+    // used to mangle full backend sentences such as
+    // "البريد الإلكتروني مسجل مسبقاً" into mixed-language garbage
+    // ("Email address مسجل مسبقاً") every time the user toggled language,
+    // which looked like a false "account exists" error. Backend sentences
+    // are now translated via message/message_en instead.
     function translate(value, targetLanguage) {
+        if (value == null) return value;
+        var str = String(value);
+        if (!str.trim()) return value;
         var sourceLanguage = targetLanguage === 'en' ? 'ar' : 'en';
-        var trimmed = value.trim();
+        var trimmed = str.trim();
         var translated = sourceLanguage === 'ar' ? translations[trimmed] : reverseTranslations[trimmed];
 
         if (!translated) {
@@ -647,41 +676,61 @@
                 var from = sourceLanguage === 'ar' ? prefixes[i][0] : prefixes[i][1];
                 var to = sourceLanguage === 'ar' ? prefixes[i][1] : prefixes[i][0];
                 if (trimmed.indexOf(from) === 0) {
-                    translated = to + trimmed.slice(from.length);
-                    break;
+                    var rest = trimmed.slice(from.length);
+                    // Only keep the prefix behaviour for short "Label: value"
+                    // style strings, never for long backend sentences.
+                    if (rest.length <= 40) {
+                        translated = to + rest;
+                        break;
+                    }
                 }
             }
-        }
-
-        if (!translated) {
-            var sourceMap = sourceLanguage === 'ar' ? translations : reverseTranslations;
-            var sourcePhrases = Object.keys(sourceMap).sort(function (a, b) {
-                return b.length - a.length;
-            });
-            var replacedPhrase = false;
-            translated = trimmed;
-            for (var phraseIndex = 0; phraseIndex < sourcePhrases.length; phraseIndex += 1) {
-                var phrase = sourcePhrases[phraseIndex];
-                if (translated.indexOf(phrase) !== -1) {
-                    translated = translated.split(phrase).join(sourceMap[phrase]);
-                    replacedPhrase = true;
-                }
-            }
-            if (!replacedPhrase) translated = undefined;
         }
 
         if (!translated) return value;
-        var leading = value.match(/^\s*/)[0];
-        var trailing = value.match(/\s*$/)[0];
+        var leading = str.match(/^\s*/)[0];
+        var trailing = str.match(/\s*$/)[0];
         return leading + translated + trailing;
     }
 
     var reverseTranslations = {};
     Object.keys(translations).forEach(function (arabic) {
-        reverseTranslations[translations[arabic]] = arabic;
+        // First write wins: several Arabic strings share one English
+        // translation (e.g. متصل/متصلين -> Online). Keeping the first keeps
+        // toggling back to Arabic stable instead of flip-flopping.
+        if (reverseTranslations[translations[arabic]] === undefined) {
+            reverseTranslations[translations[arabic]] = arabic;
+        }
     });
 
+    // Never auto-translate these: live backend messages, code, form values.
+    function shouldSkipElement(element) {
+        if (!element || element.nodeType !== 1) return false;
+        var tag = (element.tagName || '').toUpperCase();
+        if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'CODE' || tag === 'PRE' || tag === 'TEXTAREA') return true;
+        if (element.hasAttribute && (element.hasAttribute('data-no-translate') || element.hasAttribute('data-i18n-lock') || element.hasAttribute('data-i18n'))) return true;
+        if (element.classList && (element.classList.contains('alert') || element.closest('.alert'))) return true;
+        if (element.id === 'qarrib-language-toggle' || element.id === 'langToggle') return true;
+        return false;
+    }
+
+    // Translate a backend payload to the active language.
+    // Backend now returns { message (ar), message_en }; old payloads only
+    // have message. This keeps every tab/register/login consistent.
+    function localizeMessage(payload, fallback) {
+        if (!payload) return fallback || '';
+        if (typeof payload === 'string') {
+            return translate(payload, language);
+        }
+        if (language === 'en') {
+            return payload.message_en || payload.message || fallback || '';
+        }
+        return payload.message || payload.message_en || fallback || '';
+    }
+
     function translateTextNode(node) {
+        var parent = node.parentElement || null;
+        if (parent && shouldSkipElement(parent)) return;
         var current = node.nodeValue;
         var original = textOriginals.get(node);
         var lastRendered = textRendered.get(node);
@@ -699,6 +748,7 @@
     }
 
     function translateAttributes(element) {
+        if (shouldSkipElement(element)) return;
         var names = ['placeholder', 'title', 'aria-label', 'alt'];
         var originals = attributeOriginals.get(element) || {};
         var rendered = attributeRendered.get(element) || {};
@@ -725,18 +775,32 @@
             return;
         }
         if (root.nodeType !== 1 && root.nodeType !== 9 && root.nodeType !== 11) return;
-        if (root.nodeType === 1) translateAttributes(root);
+        if (root.nodeType === 1) {
+            if (shouldSkipElement(root)) return;
+            translateAttributes(root);
+        }
 
         var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
         var node;
         while ((node = walker.nextNode())) translateTextNode(node);
         if (root.querySelectorAll) {
             var elements = root.querySelectorAll('*');
-            for (var i = 0; i < elements.length; i += 1) translateAttributes(elements[i]);
+            for (var i = 0; i < elements.length; i += 1) {
+                if (!shouldSkipElement(elements[i])) translateAttributes(elements[i]);
+            }
         }
     }
 
     function updateButton() {
+        if (!button) return;
+        // A page with its own toggle (e.g. login.html #langToggle) owns the
+        // label — just keep it in sync instead of fighting it.
+        if (button.id === 'langToggle') {
+            if (button.textContent !== (language === 'ar' ? 'English' : 'العربية')) {
+                button.textContent = language === 'ar' ? 'English' : 'العربية';
+            }
+            return;
+        }
         button.textContent = language === 'ar' ? 'English' : 'العربية';
         button.setAttribute('aria-label', language === 'ar' ? 'Switch to English' : 'التبديل إلى العربية');
         button.title = language === 'ar' ? 'Switch to English' : 'التبديل إلى العربية';
@@ -768,7 +832,8 @@
     }
 
     function initialize() {
-        if (document.getElementById('qarrib-language-toggle')) return;
+        if (window.__qarribLanguageInit) return;
+        window.__qarribLanguageInit = true;
 
         try {
             language = localStorage.getItem('qarrib-language') || document.documentElement.lang || 'ar';
@@ -776,15 +841,30 @@
             language = document.documentElement.lang || 'ar';
         }
         language = language === 'en' ? 'en' : 'ar';
+        window.qarribLanguage = language;
+        window.t = function (text) { return translate(text, language); };
+        window.localizeMessage = localizeMessage;
+        window.getQarribLanguage = function () { return language; };
+        window.setQarribLanguage = setLanguage;
 
-        button = document.createElement('button');
-        button.id = 'qarrib-language-toggle';
-        button.type = 'button';
-        button.style.cssText = 'position:fixed;top:16px;right:16px;z-index:2147483647;border:0;border-radius:999px;padding:10px 16px;background:#0f766e;color:#fff;font:600 14px/1.2 system-ui,sans-serif;box-shadow:0 4px 14px rgba(15,23,42,.22);cursor:pointer;';
-        button.addEventListener('click', function () {
-            setLanguage(language === 'ar' ? 'en' : 'ar');
-        });
-        document.body.appendChild(button);
+        // Pages like login.html ship their own toggle: reuse it so there is
+        // exactly one toggle and tabs/register never get double-translated.
+        var existingToggle = document.getElementById('langToggle');
+        if (existingToggle) {
+            button = existingToggle;
+        } else if (!document.getElementById('qarrib-language-toggle')) {
+            button = document.createElement('button');
+            button.id = 'qarrib-language-toggle';
+            button.type = 'button';
+            button.setAttribute('data-no-translate', 'true');
+            button.style.cssText = 'position:fixed;top:16px;right:16px;z-index:2147483647;border:0;border-radius:999px;padding:10px 16px;background:#0f766e;color:#fff;font:600 14px/1.2 system-ui,sans-serif;box-shadow:0 4px 14px rgba(15,23,42,.22);cursor:pointer;';
+            button.addEventListener('click', function () {
+                setLanguage(language === 'ar' ? 'en' : 'ar');
+            });
+            document.body.appendChild(button);
+        } else {
+            button = document.getElementById('qarrib-language-toggle');
+        }
 
         setLanguage(language);
         new MutationObserver(function (records) {

@@ -10,6 +10,18 @@ var API_BASE_URL = (function () {
     var currentOrigin = window.location && window.location.origin ? window.location.origin : '';
     var protocol = String(window.location && window.location.protocol ? window.location.protocol : '');
 
+    // Capacitor native apps (Play Store / App Store builds) run from
+    // capacitor://localhost, so same-origin would be dead — always use the
+    // live Vercel API online.
+    try {
+        if (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) {
+            return configuredUrl ? configuredUrl.replace(/\/$/, '') + '/api' : 'https://qarrib1.vercel.app/api';
+        }
+    } catch (e) {}
+    if (currentHost === 'localhost' && protocol.indexOf('capacitor') === 0) {
+        return 'https://qarrib1.vercel.app/api';
+    }
+
     // Prefer same-origin requests whenever the frontend is served by the backend itself.
     if (IS_DESKTOP) {
         return '/api';
@@ -51,6 +63,16 @@ function safeRemoveToken() {
     try { localStorage.removeItem('token'); } catch (e) {}
 }
 
+function getQarribLanguage() {
+    try {
+        return window.qarribLanguage || window.getQarribLanguage?.() || localStorage.getItem('qarrib-language') || document.documentElement.lang || 'ar';
+    } catch (e) { return (document.documentElement && document.documentElement.lang) || 'ar'; }
+}
+function qarribLangHeaders() {
+    var lang = (getQarribLanguage() === 'en') ? 'en' : 'ar';
+    return { 'Accept-Language': lang, 'X-Lang': lang };
+}
+
 function API() {
     this.baseURL = API_BASE_URL;
     this.token = safeGetToken();
@@ -68,6 +90,9 @@ API.prototype.clearToken = function () {
 
 API.prototype.getHeaders = function () {
     var headers = { 'Content-Type': 'application/json' };
+    var langHeaders = qarribLangHeaders();
+    headers['Accept-Language'] = langHeaders['Accept-Language'];
+    headers['X-Lang'] = langHeaders['X-Lang'];
     if (this.token) {
         headers['Authorization'] = 'Bearer ' + this.token;
     }
@@ -78,6 +103,9 @@ API.prototype.request = function (method, endpoint, data, isFormData) {
     var self = this;
     var url = self.baseURL + endpoint;
     var headers = isFormData ? {} : self.getHeaders();
+    var langHeaders = qarribLangHeaders();
+    headers['Accept-Language'] = langHeaders['Accept-Language'];
+    headers['X-Lang'] = langHeaders['X-Lang'];
     if (isFormData && self.token) {
         headers['Authorization'] = 'Bearer ' + self.token;
     }
@@ -362,6 +390,12 @@ API.prototype.getAdminUser = function (id) {
 API.prototype.updateAdminUser = function (id, data) {
     return this.request('PUT', '/admin/users/' + id, data);
 };
+API.prototype.adminCreateUser = function (data) {
+    return this.request('POST', '/admin/users', data);
+};
+API.prototype.adminDeleteUser = function (id) {
+    return this.request('DELETE', '/admin/users/' + id);
+};
 API.prototype.getPendingVerifications = function () {
     return this.request('GET', '/admin/verifications');
 };
@@ -469,6 +503,18 @@ API.prototype.savePlanPrices = function (data) {
 var api = new API();
 if (typeof window !== 'undefined') {
     window.api = api;
+    window.getQarribLanguage = getQarribLanguage;
+    window.qarribLangHeaders = qarribLangHeaders;
+    // Pick the right language string from a backend payload:
+    // backend returns { message (ar), message_en } on success AND errors.
+    window.pickLocalizedMessage = function (payload, fallback) {
+        if (typeof window.localizeMessage === 'function') return window.localizeMessage(payload, fallback);
+        if (!payload) return fallback || '';
+        if (typeof payload === 'string') return payload;
+        var lang = getQarribLanguage();
+        if (lang === 'en') return payload.message_en || payload.message || fallback || '';
+        return payload.message || payload.message_en || fallback || '';
+    };
     window.API_BASE_URL = API_BASE_URL;
 
     if (typeof document !== 'undefined' && document.createElement) {
