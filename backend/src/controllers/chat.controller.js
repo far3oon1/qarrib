@@ -33,8 +33,9 @@ const getMessages = asyncHandler(async (req, res) => {
 
 const getMyChats = asyncHandler(async (req, res) => {
   // Admin: all recent orders. Nurse/patient: own orders. Used by chat list + admin-nurse chat.
+  // 'open' requests (waiting for nurse acceptance) are hidden from patients.
   let query = {};
-  if (req.user.role === 'patient') query = { patient: req.user.id };
+  if (req.user.role === 'patient') query = { patient: req.user.id, status: { $ne: 'open' } };
   else if (req.user.role === 'nurse') query = { $or: [{ assignedNurse: req.user.id }, { 'offers.nurse': req.user.id }] };
   const orders = await Order.find(query)
     .populate('patient', 'fullName phone')

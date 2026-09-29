@@ -330,6 +330,10 @@ const getOrderCompat = asyncHandler(async (req, res) => {
     const isPatient = String(order.patient._id || order.patient) === uid;
     const isNurse = order.assignedNurse && String(order.assignedNurse._id || order.assignedNurse) === uid;
     if (!isPatient && !isNurse) throw new ApiError(403, 'Not authorized');
+    // Requests open for nurses to accept are never shown to the patient
+    if (isPatient && !isNurse && order.status === 'open') {
+      throw new ApiError(403, 'This request is with nurses for acceptance');
+    }
   }
   const out = shapeOrder(order);
   ResponseHelper.success(res, out, 'Order details');
