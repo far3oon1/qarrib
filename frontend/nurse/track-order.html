@@ -40,6 +40,13 @@
                 <span class="badge" id="statusBadge" style="background:#DDEBE8;color:#0B4A46;">...</span>
             </div>
             <div id="statusLine" style="font-size:13px;color:#4A605E;margin-bottom:8px;">موقعك يُبث مباشرة للمريض والإدارة</div>
+            <div id="respondBox" style="display:none;background:#FFFBEB;border:1px solid #FDE68A;border-radius:12px;padding:12px;margin-bottom:8px;">
+                <div style="font-weight:700;margin-bottom:8px;">تم اختيارك لهذه الخدمة — موافق على السعر؟</div>
+                <div style="display:flex;gap:8px;">
+                    <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="respondAssignment(true)">موافق ✅</button>
+                    <button class="btn btn-outline btn-sm" style="flex:1;" onclick="respondAssignment(false)">رفض ❌</button>
+                </div>
+            </div>
             <div class="actions">
                 <button class="btn btn-primary btn-sm" id="startBtn" style="display:none;" onclick="doStart()">بدء الخدمة ▶</button>
                 <button class="btn btn-secondary btn-sm" id="doneBtn" style="display:none;" onclick="doComplete()">إنهاء الخدمة ✅</button>
@@ -102,13 +109,18 @@
             try { document.getElementById('callBtn').onclick = function(){ window.location.href = 'tel:' + (o.patient.phone || ''); }; } catch(e){}
             document.getElementById('startBtn').style.display = o.status === 'assigned' ? 'block' : 'none';
             document.getElementById('doneBtn').style.display = (o.status === 'assigned' || o.status === 'in_progress') ? 'block' : 'none';
+            document.getElementById('respondBox').style.display = (o.status === 'assigned' && o.nurseAccepted !== true) ? 'block' : 'none';
             var pl = o.patientLocation || (o.location && o.location.coordinates) || o.patientLiveLocation;
             if (pl && pl.lat != null) { patientLoc = { lat: Number(pl.lat), lng: Number(pl.lng) }; patientMarker.setLatLng([patientLoc.lat, patientLoc.lng]); draw(); }
             if (o.nurseLiveLocation && o.nurseLiveLocation.lat != null && !me) { me = { lat: o.nurseLiveLocation.lat, lng: o.nurseLiveLocation.lng }; meMarker.setLatLng([me.lat, me.lng]); draw(); }
         } catch(e){}
     }
-    async function doStart(){
-        try { var r = await api.startService(orderId); if (r.success) { showAlert('بدأت الخدمة'); loadOrder(); } }
+    async function respondAssignment(accept){
+        if (!accept && !confirm('رفض الخدمة؟ سيعود الطلب للممرضين الآخرين.')) return;
+        try { var r = await api.respondToAssignment(orderId, accept); if (r.success) { showAlert(accept ? 'تم قبول الخدمة!' : 'تم تسجيل رفضك.'); loadOrder(); } }
+        catch(e){ showAlert(e.message || 'فشلت العملية', 'error'); }
+    }
+    async function doStart(){        try { var r = await api.startService(orderId); if (r.success) { showAlert('بدأت الخدمة'); loadOrder(); } }
         catch(e){ showAlert(e.message || 'فشل البدء', 'error'); }
     }
     async function doComplete(){

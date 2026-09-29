@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>أسعار الممرضين - أدمن</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        .page-header { background: #0B5F5A; color: #fff; padding: 20px; display: flex; align-items: center; gap: 12px; }
+        .back-btn { background: rgba(255,255,255,.2); border: 0; color: #fff; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 20px; }
+        .offers-container { padding: 20px; }
+        .offer-card { background: #fff; border-radius: 16px; padding: 20px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.08); border: 1px solid #D9D3C5; }
+        .price-big { font-size: 24px; font-weight: 800; color: #0B5F5A; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="page-header">
+            <button class="back-btn" onclick="history.back()">→</button>
+            <div style="font-size:20px;font-weight:700;">أسعار الممرضين (اقتراحات الأسعار)</div>
+        </div>
+        <div class="filter-bar" style="padding:16px 20px;display:flex;gap:8px;">
+            <button class="filter-btn active" onclick="setFilter('', this)">بانتظار المراجعة</button>
+            <button class="filter-btn" onclick="setFilter('?status=approved', this)">مقبولة</button>
+            <button class="filter-btn" onclick="setFilter('?status=rejected', this)">مرفوضة</button>
+            <button class="filter-btn" onclick="setFilter('?status=all', this)">الكل</button>
+        </div>
+        <div class="offers-container" id="offersList"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+<script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
+<script src="../js/api.js?v=6"></script>
+<script src="../js/auth.js?v=6"></script>
+<script src="../js/notifications.js"></script>
+<script>
+    if (!requireRole('admin')) redirectToLogin();
+    function esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+    function setFilter(q, btn){
+        document.querySelectorAll('.filter-btn').forEach(function(b){ b.classList.remove('active'); });
+        if (btn) btn.classList.add('active');
+        loadOffers(q);
+    }
+    async function loadOffers(q){
+        q = q || '';
+        try {
+            var r = await api.getAllOffers(q);
+            var box = document.getElementById('offersList');
+            if (!r.success || !r.data.length) { box.innerHTML = '<div class="empty-state"><div class="empty-state-icon">💰</div><p>لا توجد أسعار</p></div>'; return; }
+            box.innerHTML = r.data.map(function(x){
+                var o = x.offer;
+                var pending = o.status === 'pending_review';
+                return '<div class="offer-card">' +
+                    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
+                        '<strong>طلب #' + esc(x.orderNumber) + ' — ' + esc(x.service || '') + '</strong>' +
+                        '<span class="price-big">' + o.price + ' ج.م</span>' +
+                    '</div>' +
+                    '<div style="font-size:14px;color:#4A605E;">الممرض: ' + esc(o.nurse ? o.nurse.name : '') + ' ⭐ ' + (o.nurse && o.nurse.rating != null ? o.nurse.rating : 'جديد') + ' | ' + esc((o.nurse && o.nurse.specialization) || '') + ' | ' + esc((o.nurse && o.nurse.phone) || '') + '</div>' +
+                    '<div style="font-size:14px;color:#4A605E;">المريض: ' + esc(x.patient ? x.patient.name : '') + ' | حالة الطلب: ' + esc(x.status) + '</div>' +
+                    (o.notes ? '<div style="font-size:13px;margin-top:4px;">ملاحظة الممرض: ' + esc(o.notes) + '</div>' : '') +
+                    '<div style="font-size:12px;color:#94a3b8;">' + new Date(o.createdAt).toLocaleString('ar-EG') + '</div>' +
+                    (pending ? '<div style="display:flex;gap:8px;margin-top:12px;">' +
+                        '<button class="btn btn-secondary btn-sm" style="flex:1;" onclick="acceptOffer(\'' + x.orderId + '\',\'' + o.id + '\')">قبول السعر وتعيين الممرض ✅</button>' +
+                        '<button class="btn btn-outline btn-sm" style="flex:1;" onclick="rejectOffer(\'' + x.orderId + '\',\'' + o.id + '\')">رفض ❌</button>' +
+                    '</div>' : '<div style="margin-top:8px;font-size:13px;color:#4A605E;">الحالة: ' + (o.status === 'approved' ? 'مقبول ✅' : 'مرفوض ❌') + '</div>') +
+                '</div>';
+            }).join('');
+        } catch(e){ document.getElementById('offersList').innerHTML = '<div class="empty-state"><p>فشل التحميل</p></div>'; }
+    }
+    async function acceptOffer(orderId, offerId){
+        if (!confirm('قبول هذا السعر وتعيين الممرض؟ سيُطلب من الممرض التأكيد (موافق/رفض).')) return;
+        try { var r = await api.adminApproveOffer(orderId, offerId); if (r.success) { showAlert('تم القبول وتعيين الممرض'); loadOffers(''); } }
+        catch(e){ showAlert(e.message || 'فشل القبول', 'error'); }
+    }
+    async function rejectOffer(orderId, offerId){
+        var notes = prompt('سبب الرفض (اختياري):', '');
+        if (notes === null) return;
+        try { var r = await api.rejectOffer(orderId, offerId, notes); if (r.success) { showAlert('تم الرفض وإشعار الممرض'); loadOffers(''); } }
+        catch(e){ showAlert(e.message || 'فشل الرفض', 'error'); }
+    }
+    loadOffers('');
+</script>
+</body>
+</html>

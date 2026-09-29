@@ -216,6 +216,18 @@ const orderSchema = new mongoose.Schema({
     default: null
   },
 
+  // Nurse response to an admin/patient-approved assignment at a fixed price:
+  // null = waiting for the nurse to say OK or decline, true = accepted, false = declined.
+  nurseAccepted: {
+    type: Boolean,
+    default: null
+  },
+
+  nurseAcceptedAt: {
+    type: Date,
+    default: null
+  },
+
   statusHistory: [{
     status: String,
     changedBy: {

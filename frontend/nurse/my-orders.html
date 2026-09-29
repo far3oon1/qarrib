@@ -106,6 +106,16 @@
                                     <button class="btn btn-secondary btn-sm" onclick="suggestPrice('${order.id}')">اقتراح سعر 💰</button>
                                 </div>
                             ` : ''}
+                            ${(order.status === 'assigned' && order.nurseAccepted !== true) ? `
+                                <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:12px;padding:12px;margin-bottom:8px;">
+                                    <div style="font-weight:700;margin-bottom:4px;">تم اختيارك بسعر ${order.amount ? order.amount + ' ج.م' : ''} — موافق؟</div>
+                                    <div style="font-size:13px;color:#92400E;margin-bottom:8px;">اقبل لبدء التتبع أو ارفض ليعود الطلب للممرضين</div>
+                                    <div style="display:flex;gap:8px;">
+                                        <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="respondAssignment('${order.id}', true)">موافق ✅</button>
+                                        <button class="btn btn-outline btn-sm" style="flex:1;" onclick="respondAssignment('${order.id}', false)">رفض ❌</button>
+                                    </div>
+                                </div>
+                            ` : ''}
                             <div class="order-actions">
                                 ${order.status === 'assigned' ? `
                                     <button class="btn btn-primary btn-sm" onclick="startService('${order.id}')">بدء الخدمة</button>
@@ -159,8 +169,21 @@
             }
         }
 
-        async function startService(orderId) {
+        async function respondAssignment(orderId, accept) {
+            if (!accept && !confirm('رفض الخدمة؟ سيعود الطلب للممرضين الآخرين.')) return;
             try {
+                const result = await api.respondToAssignment(orderId, accept);
+                if (result.success) {
+                    showAlert(accept ? 'تم قبول الخدمة! توجه للمريض.' : 'تم تسجيل رفضك.');
+                    if (accept) setTimeout(function(){ window.location.href = 'track-order.html?order=' + orderId; }, 800);
+                    else loadOrders();
+                }
+            } catch (error) {
+                showAlert(error.message || 'فشلت العملية', 'error');
+            }
+        }
+
+        async function startService(orderId) {            try {
                 const result = await api.startService(orderId);
                 if (result.success) {
                     showAlert('تم بدء الخدمة!');

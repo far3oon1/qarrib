@@ -33,6 +33,8 @@ router.post('/orders/:orderId/set-price', adminController.setOrderPrice);
 router.post('/orders/:orderId/suggest-price', adminController.suggestOrderPrice);
 router.post('/orders/:orderId/approve-service', adminController.approveService);
 router.post('/orders/:orderId/approve-offer', adminController.approveNurseOffer);
+router.post('/orders/:orderId/reject-offer', adminController.rejectNurseOffer);
+router.get('/offers', adminController.getAllOffers);
 router.get('/feedbacks', adminController.getFeedbacks);
 router.get('/nurse-reports', adminController.getNurseReports);
 router.patch('/services/:serviceId', adminController.updateService);

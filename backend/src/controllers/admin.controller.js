@@ -703,10 +703,13 @@ const approveNurseOffer = asyncHandler(async (req, res) => {
   order.assignedNurse = offer.nurse;
   order.status = 'assigned';
   order.acceptedAt = order.acceptedAt || new Date();
+  // The assigned nurse must confirm OK or decline before starting
+  order.nurseAccepted = null;
+  order.nurseAcceptedAt = null;
   order.statusHistory.push({ status: 'assigned', changedBy: req.user.id, notes: `Admin approved price ${offer.price}` });
   await order.save();
   await Notification.create({ recipient: order.patient, title: 'تم قبول السعر — ادفع الآن', message: `الإدارة قبلت سعر ${offer.price} ج.م لطلبك #${order.orderNumber} — ادفع من المحفظة أو InstaPay`, type: 'order', data: { orderId: order._id, finalPrice: offer.price } });
-  await Notification.create({ recipient: offer.nurse, title: 'الإدارة قبلت سعرك', message: `قبلت الإدارة سعرك ${offer.price} ج.م للطلب #${order.orderNumber}`, type: 'order', data: { orderId: order._id } });
+  await Notification.create({ recipient: offer.nurse, title: 'تم اختيارك لطلب — أكّد القبول', message: `قبلت الإدارة سعرك ${offer.price} ج.م للطلب #${order.orderNumber} — افتح طلباتك واضغط "موافق" أو "رفض"`, type: 'order', data: { orderId: order._id } });
   try {
     const { emitToOrder, emitToUser } = require('../sockets');
     emitToOrder(String(order._id), 'order_update', { orderId: order._id, status: 'assigned', finalPrice: offer.price });
@@ -716,6 +719,76 @@ const approveNurseOffer = asyncHandler(async (req, res) => {
   ResponseHelper.success(res, { orderId: order._id, status: 'assigned', finalPrice: offer.price }, 'تم قبول سعر الممرض — بانتظار دفع المريض');
 });
 
+// POST /admin/orders/:orderId/reject-offer {offerId, notes?}
+// Admin rejects one nurse price offer and notifies the nurse.
+const rejectNurseOffer = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+  const { offerId, notes } = req.body;
+  if (!offerId) throw new ApiError(400, 'offerId is required');
+  const order = await Order.findById(orderId);
+  if (!order) throw new ApiError(404, 'الطلب غير موجود');
+  const offer = order.offers.id(offerId);
+  if (!offer) throw new ApiError(404, 'Offer not found');
+  if (offer.status !== 'pending_review') throw new ApiError(400, 'Offer is not available');
+  offer.status = 'rejected';
+  offer.reviewedBy = req.user.id;
+  offer.reviewedAt = new Date();
+  offer.adminNotes = notes || null;
+  order.statusHistory.push({ status: order.status, changedBy: req.user.id, notes: `Admin rejected price ${offer.price}` });
+  await order.save();
+  await Notification.create({ recipient: offer.nurse, title: 'تم رفض سعرك', message: `رفضت الإدارة سعرك ${offer.price} ج.م للطلب #${order.orderNumber}${notes ? ' — ' + notes : ''}`, type: 'order', data: { orderId: order._id } });
+  ResponseHelper.success(res, { orderId, offerId, status: offer.status }, 'تم رفض العرض وإشعار الممرض');
+});
+
+// GET /admin/offers — every nurse price (any service) awaiting review, newest first
+const getAllOffers = asyncHandler(async (req, res) => {
+  const { status } = req.query; // pending_review (default) | approved | rejected | all
+  const wanted = status || 'pending_review';
+  const orders = await Order.aggregate([
+    { $match: { offers: { $exists: true, $not: { $size: 0 } } } },
+    { $unwind: '$offers' },
+    ...(wanted === 'all' ? [] : [{ $match: { 'offers.status': wanted } }]),
+    { $sort: { 'offers.createdAt': -1 } },
+    { $limit: 100 },
+    {
+      $lookup: { from: 'users', localField: 'offers.nurse', foreignField: '_id', as: 'nurseDoc' }
+    },
+    {
+      $lookup: { from: 'users', localField: 'patient', foreignField: '_id', as: 'patientDoc' }
+    },
+    {
+      $lookup: { from: 'services', localField: 'service', foreignField: '_id', as: 'serviceDoc' }
+    },
+    {
+      $project: {
+        orderId: '$_id', orderNumber: 1, status: '$status', finalPrice: 1,
+        service: { $arrayElemAt: ['$serviceDoc.nameAr', 0] },
+        patient: {
+          $let: {
+            vars: { p: { $arrayElemAt: ['$patientDoc', 0] } },
+            in: { id: '$$p._id', name: '$$p.fullName', phone: '$$p.phone' }
+          }
+        },
+        offer: {
+          id: '$offers._id', price: '$offers.price', status: '$offers.status',
+          notes: '$offers.notes', adminNotes: '$offers.adminNotes', createdAt: '$offers.createdAt',
+          nurse: {
+            $let: {
+              vars: { n: { $arrayElemAt: ['$nurseDoc', 0] } },
+              in: { id: '$$n._id', name: '$$n.fullName', phone: '$$n.phone', rating: '$$n.rating', specialization: '$$n.specialization' }
+            }
+          }
+        }
+      }
+    }
+  ]);
+  ResponseHelper.success(res, orders.map((o) => ({
+    ...o,
+    orderId: String(o.orderId),
+    patient: o.patient && o.patient.id ? { ...o.patient, id: String(o.patient.id) } : null,
+    offer: { ...o.offer, id: String(o.offer.id), nurse: o.offer.nurse && o.offer.nurse.id ? { ...o.offer.nurse, id: String(o.offer.nurse.id) } : null }
+  })), 'قائمة أسعار الممرضين');
+});
 // Reset all financial data to zero (fresh start)
 const resetAllPayments = asyncHandler(async (req, res) => {
   await User.updateMany({ role: { $in: ['patient', 'nurse'] } }, { $set: { walletBalance: 0 } });
@@ -890,6 +963,7 @@ module.exports = {
   getPendingTopups, reviewTopup, completeOrder,
   getPendingWithdrawals, reviewWithdrawal, approveNurseOffer,
   approveService, suggestOrderPrice, getFeedbacks, getNurseReports, updateService,
+  rejectNurseOffer, getAllOffers,
   getAdminEarnings, resetAllPayments,
   getAllNurses, getAllPatients, setPrice, getPrices, deletePrice, getTransactions, sendCredentials, updateNurseStatus
 };

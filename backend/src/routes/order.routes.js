@@ -27,6 +27,7 @@ router.get('/available', orderController.getAvailableOrders);
 router.post('/:orderId/offer', validate(submitOffer), orderFlow.submitOffer);
 router.post('/:id/approve-offer', orderFlow.approveOffer);
 router.post('/:id/accept-price', orderFlow.acceptSuggestedPrice);
+router.post('/:id/respond', orderFlow.respondToAssignment);
 router.get('/my-offers', orderController.getMyOffers);
 router.get('/assigned', orderController.getAssignedOrders);
 router.patch('/:orderId/status', orderController.updateNurseOrderStatus);
