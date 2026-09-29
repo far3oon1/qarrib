@@ -269,7 +269,7 @@ const getAllOrders = asyncHandler(async (req, res) => {
 
   const skip = (parseInt(page) - 1) * parseInt(limit);
   const [orders, total] = await Promise.all([
-    Order.find(query).populate('patient', 'fullName phone').populate('service', 'nameAr basePrice').populate('assignedNurse', 'fullName phone').sort({ createdAt: -1 }).skip(skip).limit(parseInt(limit)).lean(),
+    Order.find(query).populate('patient', 'fullName phone').populate('service', 'nameAr basePrice').populate('assignedNurse', 'fullName phone').populate('offers.nurse', 'fullName phone rating').sort({ createdAt: -1 }).skip(skip).limit(parseInt(limit)).lean(),
     Order.countDocuments(query)
   ]);
 
@@ -280,7 +280,12 @@ const getAllOrders = asyncHandler(async (req, res) => {
     serviceType: o.service?.nameAr || 'تمريض منزلي',
     patient: o.patient ? { ...o.patient, id: String(o.patient._id), name: o.patient.fullName } : null,
     nurse: o.assignedNurse ? { ...o.assignedNurse, id: String(o.assignedNurse._id), name: o.assignedNurse.fullName } : null,
-    amount: o.finalPrice ?? o.service?.basePrice ?? 0
+    amount: o.finalPrice ?? o.service?.basePrice ?? 0,
+    offers: (o.offers || []).map((of) => ({
+      id: String(of._id), price: of.price, status: of.status, notes: of.notes || null,
+      createdAt: of.createdAt || null,
+      nurse: of.nurse ? { id: String(of.nurse._id || of.nurse), name: of.nurse.fullName || null, phone: of.nurse.phone || null, rating: of.nurse.rating ?? null } : null
+    }))
   }));
 
   ResponseHelper.paginated(res, mapped, { page: parseInt(page), limit: parseInt(limit), total }, 'قائمة الطلبات');
@@ -387,6 +392,153 @@ const setOrderPrice = asyncHandler(async (req, res) => {
   } catch (_) { /* sockets optional */ }
 
   ResponseHelper.success(res, { orderId, status: 'open', finalPrice: price }, 'تم تحديد السعر وإتاحة الطلب للممرضين');
+});
+
+// POST /admin/orders/:orderId/approve-service
+// Approves the service so the request becomes visible to nurses (nearest first).
+// Requires a price (catalog price or a manually set one).
+const approveService = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+  const order = await Order.findById(orderId).populate('service', 'nameAr basePrice');
+  if (!order) throw new ApiError(404, 'الطلب غير موجود');
+  if (order.status !== 'under_review') throw new ApiError(400, 'الطلب ليس بانتظار الاعتماد');
+  const price = Number(order.finalPrice ?? order.service?.basePrice);
+  if (!Number.isFinite(price) || price <= 0) {
+    throw new ApiError(400, 'حدد السعر أولاً قبل اعتماد الخدمة');
+  }
+  const rate = Number(order.commissionRate) > 0 ? Number(order.commissionRate) : 10;
+  order.finalPrice = price;
+  order.commission = Math.round(price * (rate / 100) * 100) / 100;
+  order.nurseEarnings = Math.round((price - order.commission) * 100) / 100;
+  order.platformFee = order.commission;
+  order.status = 'open';
+  order.statusHistory.push({ status: 'open', changedBy: req.user.id, notes: `Admin approved service at ${price}` });
+  await order.save();
+
+  await Notification.create({
+    recipient: order.patient, title: 'الإدارة اعتمدت طلبك',
+    message: `اعتمدت الإدارة طلبك #${order.orderNumber} بسعر ${price} ج.م — ظهر الآن لأقرب الممرضين`,
+    type: 'order', data: { orderId: order._id, finalPrice: price }
+  });
+  const { notifyNewOrder } = require('../utils/notifyOrder');
+  const gov = (order.location && order.location.governorate) || 'Cairo';
+  const { nurses } = await notifyNewOrder({ order, serviceDoc: order.service, gov, amount: price, skipAdmins: true });
+  try {
+    const { emitToOrder, emitToUser } = require('../sockets');
+    emitToOrder(String(order._id), 'order_update', { orderId: order._id, status: 'open', finalPrice: price });
+    nurses.forEach((n) => emitToUser(String(n._id), 'notification', { title: 'طلب جديد متاح', orderId: order._id }));
+  } catch (_) { /* sockets optional */ }
+
+  ResponseHelper.success(res, { orderId, status: 'open', finalPrice: price }, 'تم اعتماد الخدمة وإتاحة الطلب للممرضين');
+});
+
+// POST /admin/orders/:orderId/suggest-price {price}
+// Admin suggests a price: patient must accept it before the request opens to nurses.
+const suggestOrderPrice = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+  const price = Number(req.body.price);
+  if (!Number.isFinite(price) || price <= 0) throw new ApiError(400, 'السعر يجب أن يكون أكبر من صفر');
+  const order = await Order.findById(orderId);
+  if (!order) throw new ApiError(404, 'الطلب غير موجود');
+  if (!['under_review', 'open'].includes(order.status)) {
+    throw new ApiError(400, 'لا يمكن اقتراح سعر في الحالة الحالية');
+  }
+  const rate = Number(order.commissionRate) > 0 ? Number(order.commissionRate) : 10;
+  order.finalPrice = price;
+  order.commission = Math.round(price * (rate / 100) * 100) / 100;
+  order.nurseEarnings = Math.round((price - order.commission) * 100) / 100;
+  order.platformFee = order.commission;
+  order.status = 'price_approved';
+  order.statusHistory.push({ status: 'price_approved', changedBy: req.user.id, notes: `Admin suggested price ${price} — waiting for patient` });
+  await order.save();
+
+  await Notification.create({
+    recipient: order.patient, title: 'الإدارة اقترحت سعراً',
+    message: `اقترحت الإدارة ${price} ج.م لطلبك #${order.orderNumber} — اقبل السعر ليظهر طلبك للممرضين`,
+    type: 'order', data: { orderId: order._id, finalPrice: price }
+  });
+  try {
+    const { emitToOrder, emitToUser } = require('../sockets');
+    emitToOrder(String(order._id), 'order_update', { orderId: order._id, status: 'price_approved', finalPrice: price });
+    emitToUser(String(order.patient), 'notification', { title: 'الإدارة اقترحت سعراً', orderId: order._id, finalPrice: price });
+  } catch (_) { /* sockets optional */ }
+  ResponseHelper.success(res, { orderId, status: 'price_approved', finalPrice: price }, 'تم إرسال السعر المقترح للمريض');
+});
+
+// GET /admin/feedbacks — patient ratings with comments for the admin panel
+const getFeedbacks = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 20, minRating } = req.query;
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+  const query = { 'patientReview.rating': { $ne: null } };
+  if (minRating != null && minRating !== '') query['patientReview.rating'] = { $gte: Number(minRating) };
+  const [orders, total] = await Promise.all([
+    Order.find(query)
+      .populate('patient', 'fullName phone')
+      .populate('assignedNurse', 'fullName phone')
+      .populate('service', 'nameAr')
+      .sort({ updatedAt: -1 }).skip(skip).limit(parseInt(limit)).lean(),
+    Order.countDocuments(query)
+  ]);
+  ResponseHelper.paginated(res, orders.map((o) => ({
+    id: String(o._id), orderNumber: o.orderNumber, status: o.status,
+    service: o.service?.nameAr || null,
+    patient: o.patient ? { id: String(o.patient._id), name: o.patient.fullName, phone: o.patient.phone } : null,
+    nurse: o.assignedNurse ? { id: String(o.assignedNurse._id), name: o.assignedNurse.fullName, phone: o.assignedNurse.phone } : null,
+    rating: o.patientReview?.rating ?? null,
+    comment: o.patientReview?.comment || null,
+    createdAt: o.patientReview?.createdAt || o.updatedAt,
+    finalPrice: o.finalPrice ?? null
+  })), { page: parseInt(page), limit: parseInt(limit), total }, 'تقييمات المرضى');
+});
+
+// GET /admin/nurse-reports — per-nurse performance report
+const getNurseReports = asyncHandler(async (req, res) => {
+  const nurses = await User.find({ role: 'nurse' }).select('fullName phone specialization rating totalReviews isOnline status walletBalance createdAt').lean();
+  const reports = await Promise.all(nurses.map(async (n) => {
+    const [assigned, completed, cancelled, inProgress] = await Promise.all([
+      Order.countDocuments({ assignedNurse: n._id }),
+      Order.countDocuments({ assignedNurse: n._id, status: 'completed' }),
+      Order.countDocuments({ assignedNurse: n._id, status: { $in: ['cancelled', 'refunded'] } }),
+      Order.countDocuments({ assignedNurse: n._id, status: { $in: ['assigned', 'in_progress'] } })
+    ]);
+    const [earnAgg, wdPaidAgg, wdPendAgg] = await Promise.all([
+      Wallet.aggregate([{ $match: { user: n._id, type: 'earning', status: 'completed' } }, { $group: { _id: null, total: { $sum: '$amount' } } }]),
+      Wallet.aggregate([{ $match: { user: n._id, type: 'withdrawal', status: 'completed' } }, { $group: { _id: null, total: { $sum: '$amount' } } }]),
+      Wallet.aggregate([{ $match: { user: n._id, type: 'withdrawal', status: 'pending' } }, { $group: { _id: null, total: { $sum: '$amount' } } }])
+    ]);
+    const done = completed + cancelled;
+    return {
+      id: String(n._id), name: n.fullName, phone: n.phone,
+      specialization: n.specialization || null,
+      rating: n.rating ?? 0, totalReviews: n.totalReviews || 0,
+      isOnline: !!n.isOnline, status: n.status,
+      walletBalance: n.walletBalance || 0,
+      ordersAssigned: assigned, ordersCompleted: completed,
+      ordersCancelled: cancelled, ordersActive: inProgress,
+      completionRate: done ? Math.round((completed / done) * 100) : null,
+      totalEarnings: earnAgg[0]?.total || 0,
+      withdrawalsPaid: wdPaidAgg[0]?.total || 0,
+      withdrawalsPending: wdPendAgg[0]?.total || 0,
+      memberSince: n.createdAt
+    };
+  }));
+  reports.sort((a, b) => b.ordersCompleted - a.ordersCompleted);
+  ResponseHelper.success(res, reports, 'تقارير الممرضين');
+});
+
+// PATCH /admin/services/:serviceId {requireApproval?, isActive?, basePrice?}
+const updateService = asyncHandler(async (req, res) => {
+  const service = await Service.findById(req.params.serviceId);
+  if (!service) throw new ApiError(404, 'Service not found');
+  if (req.body.requireApproval !== undefined) service.requireApproval = !!req.body.requireApproval;
+  if (req.body.isActive !== undefined) service.isActive = !!req.body.isActive;
+  if (req.body.basePrice !== undefined) {
+    const p = Number(req.body.basePrice);
+    if (!Number.isFinite(p) || p < 0) throw new ApiError(400, 'Invalid basePrice');
+    service.basePrice = p;
+  }
+  await service.save();
+  ResponseHelper.success(res, { service }, 'Service updated');
 });
 
 const updateOrderStatus = asyncHandler(async (req, res) => {
@@ -737,6 +889,7 @@ module.exports = {
   getAllOrders, getOrderDetails, reviewOrderPrice, setOrderPrice, updateOrderStatus, getPaymentsStats,
   getPendingTopups, reviewTopup, completeOrder,
   getPendingWithdrawals, reviewWithdrawal, approveNurseOffer,
+  approveService, suggestOrderPrice, getFeedbacks, getNurseReports, updateService,
   getAdminEarnings, resetAllPayments,
   getAllNurses, getAllPatients, setPrice, getPrices, deletePrice, getTransactions, sendCredentials, updateNurseStatus
 };

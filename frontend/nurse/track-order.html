@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تتبع الطلب - ممرض</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <style>
+        .track-container { height: 100vh; display: flex; flex-direction: column; }
+        #map { flex: 1; width: 100%; z-index: 1; }
+        .info-bar { background: white; padding: 16px 20px; border-radius: 20px 20px 0 0; box-shadow: 0 -4px 12px rgba(0,0,0,.1); z-index: 1000; }
+        .order-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+        .order-avatar { width: 50px; height: 50px; border-radius: 50%; background: #0B5F5A; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 22px; font-weight: 700; }
+        .actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 12px; }
+        .distance-info { background: #DDEBE8; border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; font-size: 13px; color: #0B4A46; display: flex; align-items: center; gap: 8px; }
+        .back-btn { position: absolute; top: 16px; left: 16px; z-index: 1000; background: white; border: none; width: 40px; height: 40px; border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,.2); cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center; }
+        .loading-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,.9); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; }
+        .loading-overlay.hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="app-container track-container">
+        <button class="back-btn" onclick="history.back()">←</button>
+        <div id="map"></div>
+        <div class="loading-overlay" id="loadingOverlay">
+            <div class="spinner" style="width:50px;height:50px;border-width:5px;"></div>
+            <p style="margin-top:16px;color:#64748b;">جاري تحميل الخريطة...</p>
+        </div>
+        <div class="info-bar">
+            <div class="distance-info" id="distanceInfo" style="display:none;">
+                المسافة للمريض: <strong id="distanceValue">--</strong> كم | الوصول: <strong id="etaValue">--</strong> دقيقة
+            </div>
+            <div class="order-head">
+                <div class="order-avatar">P</div>
+                <div style="flex:1;">
+                    <h3 id="patientName" style="font-size:16px;">جاري التحميل...</h3>
+                    <p id="orderInfo" style="font-size:13px;color:#64748b;">...</p>
+                </div>
+                <span class="badge" id="statusBadge" style="background:#DDEBE8;color:#0B4A46;">...</span>
+            </div>
+            <div id="statusLine" style="font-size:13px;color:#4A605E;margin-bottom:8px;">موقعك يُبث مباشرة للمريض والإدارة</div>
+            <div class="actions">
+                <button class="btn btn-primary btn-sm" id="startBtn" style="display:none;" onclick="doStart()">بدء الخدمة ▶</button>
+                <button class="btn btn-secondary btn-sm" id="doneBtn" style="display:none;" onclick="doComplete()">إنهاء الخدمة ✅</button>
+                <button class="btn btn-outline btn-sm" id="chatBtn">شات 💬</button>
+                <button class="btn btn-outline btn-sm" id="callBtn">اتصال 📞</button>
+            </div>
+        </div>
+    </div>
+<script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="../js/api.js?v=6"></script>
+<script src="../js/auth.js?v=6"></script>
+<script>
+    if (!requireRole('nurse')) redirectToLogin();
+    var orderId = new URLSearchParams(window.location.search).get('order');
+    if (!orderId) window.location.href = 'my-orders.html';
+    var map, meMarker, patientMarker, routeLine, socket, me = null, patientLoc = null, watcher = null;
+
+    function initMap(){
+        map = L.map('map').setView([30.0444, 31.2357], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap', maxZoom: 19 }).addTo(map);
+        var meIcon = L.divIcon({ className: '', html: '<div style="background:#0B5F5A;width:32px;height:32px;border-radius:50%;border:3px solid white;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;">N</div>', iconSize: [32,32], iconAnchor: [16,16] });
+        var pIcon = L.divIcon({ className: '', html: '<div style="background:#2563eb;width:32px;height:32px;border-radius:50%;border:3px solid white;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;">P</div>', iconSize: [32,32], iconAnchor: [16,16] });
+        meMarker = L.marker([30.0444, 31.2357], { icon: meIcon }).addTo(map).bindPopup('موقعي');
+        patientMarker = L.marker([30.0444, 31.2357], { icon: pIcon }).addTo(map).bindPopup('المريض');
+    }
+    function postLoc(lat, lng){
+        me = { lat: lat, lng: lng };
+        if (meMarker) meMarker.setLatLng([lat, lng]);
+        if (socket && socket.connected) socket.emit('update_location', { lat: lat, lng: lng, orderId: orderId });
+        else if (!window._lastPost || Date.now() - window._lastPost > 15000) {
+            window._lastPost = Date.now();
+            try { api.updateNurseLocation(lat, lng, orderId).catch(function(){}); } catch(e){}
+        }
+        draw();
+    }
+    function draw(){
+        if (me && patientLoc) {
+            if (routeLine) routeLine.setLatLngs([[me.lat, me.lng], [patientLoc.lat, patientLoc.lng]]);
+            else routeLine = L.polyline([[me.lat, me.lng], [patientLoc.lat, patientLoc.lng]], { color: '#0B5F5A', weight: 4, dashArray: '10,10' }).addTo(map);
+            var d = calc(me.lat, me.lng, patientLoc.lat, patientLoc.lng);
+            document.getElementById('distanceInfo').style.display = 'flex';
+            document.getElementById('distanceValue').textContent = d.toFixed(1);
+            document.getElementById('etaValue').textContent = Math.ceil(d / 0.5);
+            map.fitBounds(L.latLngBounds([me, patientLoc]), { padding: [50, 50] });
+        }
+    }
+    function calc(a,b,c,d){ var R=6371, r=Math.PI/180, h=Math.sin((c-a)*r/2)**2+Math.cos(a*r)*Math.cos(c*r)*Math.sin((d-b)*r/2)**2; return R*2*Math.atan2(Math.sqrt(h),Math.sqrt(1-h)); }
+
+    async function loadOrder(){
+        try {
+            var r = await api.getOrder(orderId);
+            if (!r.success) return;
+            var o = r.data;
+            document.getElementById('patientName').textContent = (o.patient && o.patient.name) || o.patientName || 'المريض';
+            document.getElementById('orderInfo').textContent = (o.serviceType || '') + ' | ' + (o.amount || o.finalPrice || '') + ' ج.م | ' + (o.address || '');
+            document.getElementById('statusBadge').textContent = o.status;
+            document.getElementById('chatBtn').onclick = function(){ window.location.href = 'chat-room.html?order=' + orderId; };
+            try { document.getElementById('callBtn').onclick = function(){ window.location.href = 'tel:' + (o.patient.phone || ''); }; } catch(e){}
+            document.getElementById('startBtn').style.display = o.status === 'assigned' ? 'block' : 'none';
+            document.getElementById('doneBtn').style.display = (o.status === 'assigned' || o.status === 'in_progress') ? 'block' : 'none';
+            var pl = o.patientLocation || (o.location && o.location.coordinates) || o.patientLiveLocation;
+            if (pl && pl.lat != null) { patientLoc = { lat: Number(pl.lat), lng: Number(pl.lng) }; patientMarker.setLatLng([patientLoc.lat, patientLoc.lng]); draw(); }
+            if (o.nurseLiveLocation && o.nurseLiveLocation.lat != null && !me) { me = { lat: o.nurseLiveLocation.lat, lng: o.nurseLiveLocation.lng }; meMarker.setLatLng([me.lat, me.lng]); draw(); }
+        } catch(e){}
+    }
+    async function doStart(){
+        try { var r = await api.startService(orderId); if (r.success) { showAlert('بدأت الخدمة'); loadOrder(); } }
+        catch(e){ showAlert(e.message || 'فشل البدء', 'error'); }
+    }
+    async function doComplete(){
+        if (!confirm('إنهاء الخدمة كمكتملة؟ سيتم إشعار المريض والإدارة.')) return;
+        try { var r = await api.confirmOrder(orderId, 'nurse'); if (r.success) { showAlert('تم إنهاء الخدمة! بانتظار موافقة الإدارة للتحويل.'); loadOrder(); } }
+        catch(e){ showAlert(e.message || 'فشل الإنهاء', 'error'); }
+    }
+    function setupSocket(){
+        if (typeof io === 'undefined') { setInterval(loadOrder, 10000); return; }
+        try {
+            socket = io({ auth: { token: localStorage.getItem('token') } });
+            socket.on('connect', function(){ socket.emit('subscribe_location', { orderId: orderId }); });
+            socket.on('location_update', function(d){ if (d.role === 'patient') { patientLoc = { lat: d.lat, lng: d.lng }; patientMarker.setLatLng([d.lat, d.lng]); draw(); } });
+        } catch(e){ setInterval(loadOrder, 10000); }
+    }
+    (function init(){
+        initMap(); loadOrder(); setupSocket();
+        setInterval(loadOrder, 15000);
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(function(p){ postLoc(p.coords.latitude, p.coords.longitude); }, function(){}, { enableHighAccuracy: false, timeout: 15000 });
+            watcher = navigator.geolocation.watchPosition(function(p){ postLoc(p.coords.latitude, p.coords.longitude); }, function(){}, { enableHighAccuracy: false, timeout: 15000, maximumAge: 5000 });
+        }
+        document.getElementById('loadingOverlay').classList.add('hidden');
+    })();
+</script>
+</body>
+</html>

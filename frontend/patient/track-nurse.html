@@ -48,8 +48,11 @@
             <div class="step-row" style="color:#4A605E;"><div class="dot todo"></div><span>Arrived</span></div>
             <div class="step-row" style="color:#4A605E;"><div class="dot todo"></div><span>Visit completed &amp; report</span></div>
         </div>
+        <div id="priceBanner" class="q-card" style="display:none;padding:12px 16px;background:#DDEBE8;border:0;"></div>
         <div id="offersSection" style="margin-top:4px;"></div>
         <div id="paySection" style="margin-top:4px;"></div>
+        <div id="completeSection" style="display:none;"></div>
+        <div id="feedbackSection" style="display:none;"></div>
         <div class="cta-row">
             <button class="q-btn q-btn-secondary" style="flex:1;" id="cancelBtn">Cancel visit</button>
             <button class="q-btn q-btn-danger" style="flex:1;" onclick="alert('Emergency: call 123 (Ambulance) / 122 (Police) immediately.')">Emergency</button>
@@ -132,9 +135,100 @@
                     };
                 }
                 renderSteps(order.status);
+                renderPriceBanner(order);
+                renderOffers(order);
+                renderPay(order);
+                renderComplete(order);
+                renderFeedback(order);
                 if (order.location && order.location.lat!=null){ patientLocation={lat:order.location.lat,lng:order.location.lng}; if(patientMarker)patientMarker.setLatLng([patientLocation.lat,patientLocation.lng]); map.setView([patientLocation.lat,patientLocation.lng],15); }
                 if (order.nurseLiveLocation && order.nurseLiveLocation.lat!=null) updateNurseLocation(order.nurseLiveLocation.lat,order.nurseLiveLocation.lng);
             }catch(e){ console.error(e); }
+        }
+        // Admin suggested price: patient accepts to open the request to nurses
+        function renderPriceBanner(order){
+            var box = document.getElementById('priceBanner');
+            if (!box) return;
+            if (order.status === 'price_approved') {
+                box.style.display = 'block';
+                box.innerHTML = 'Suggested price: <strong>' + order.amount + ' EGP</strong> ' +
+                    '<button class="q-btn q-btn-sm" style="margin-inline-start:8px;" onclick="acceptPrice()">Accept &amp; open to nurses</button>';
+            } else box.style.display = 'none';
+        }
+        async function acceptPrice(){
+            if (!confirm('Accept the suggested price?')) return;
+            try { var r = await api.acceptSuggestedPrice(orderId); if (r.success) { showAlert('Accepted! Your request is now visible to nurses.'); loadOrder(); } }
+            catch(e){ showAlert(e.message || 'Failed', 'error'); }
+        }
+        function renderOffers(order){
+            var box = document.getElementById('offersSection');
+            if (!box) return;
+            var offers = (order.offers || []).filter(function(o){ return o.status === 'pending_review'; });
+            if (!offers.length) { box.innerHTML = ''; return; }
+            box.innerHTML = '<div style="font-weight:700;margin-bottom:8px;">Nurse price offers:</div>' + offers.map(function(o){
+                return '<div class="q-card" style="padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">' +
+                    '<div><strong>' + o.price + ' EGP</strong><div style="font-size:12px;color:#4A605E;">' + ((o.nurse && o.nurse.name) || '') + '</div></div>' +
+                    '<button class="q-btn q-btn-sm" onclick="approveOffer(\'' + o.id + '\')">Accept</button></div>';
+            }).join('');
+        }
+        async function approveOffer(offerId){
+            if (!confirm('Accept this price?')) return;
+            try { var r = await api.approveOffer(orderId, offerId); if (r.success) { showAlert('Price accepted!'); loadOrder(); } }
+            catch(e){ showAlert(e.message || 'Failed', 'error'); }
+        }
+        function renderPay(order){
+            var box = document.getElementById('paySection');
+            if (!box) return;
+            if (!order.hasPrice || order.escrowStatus === 'held' || order.escrowStatus === 'released') { box.innerHTML = ''; return; }
+            box.innerHTML = '<div class="q-card" style="padding:12px;"><div style="font-weight:700;margin-bottom:8px;">Payment (' + order.amount + ' EGP)</div>' +
+                '<button class="q-btn q-btn-sm" style="width:100%;margin-bottom:8px;" onclick="payWallet()">Pay from wallet</button>' +
+                '<div style="display:flex;gap:8px;"><input id="payRef" class="q-input" placeholder="InstaPay reference" style="flex:1;"><button class="q-btn q-btn-secondary q-btn-sm" onclick="payInstapay()">Confirm transfer</button></div></div>';
+        }
+        async function payWallet(){
+            try { var r = await api.payManual(orderId, { method: 'wallet' }); if (r.success) { showAlert('Paid! Amount held in escrow.'); loadOrder(); } }
+            catch(e){ showAlert(e.message || 'Payment failed', 'error'); }
+        }
+        async function payInstapay(){
+            var ref = (document.getElementById('payRef') || {}).value || '';
+            try { var r = await api.payManual(orderId, { method: 'instapay', reference: ref.trim() }); if (r.success) { showAlert('Transfer recorded!'); loadOrder(); } }
+            catch(e){ showAlert(e.message || 'Payment failed', 'error'); }
+        }
+        // Patient can end the service as completed too
+        function renderComplete(order){
+            var box = document.getElementById('completeSection');
+            if (!box) return;
+            if (order.status === 'assigned' || order.status === 'in_progress') {
+                box.style.display = 'block';
+                box.innerHTML = '<button class="q-btn" style="width:100%;" onclick="endService()">End service as completed</button>';
+            } else box.style.display = 'none';
+        }
+        async function endService(){
+            if (!confirm('End this service as completed? The admin will review and release payment.')) return;
+            try { var r = await api.confirmOrder(orderId, 'patient'); if (r.success) { showAlert('Service completed! Please rate your nurse.'); loadOrder(); } }
+            catch(e){ showAlert(e.message || 'Failed', 'error'); }
+        }
+        // Feedback form after completion (sent to nurse rating + admin panel)
+        function renderFeedback(order){
+            var box = document.getElementById('feedbackSection');
+            if (!box) return;
+            if (order.status === 'completed' && !order.patientReview) {
+                box.style.display = 'block';
+                box.innerHTML = '<div class="q-card" style="padding:16px;"><div style="font-weight:700;margin-bottom:8px;">Rate your nurse</div>' +
+                    '<div id="stars" style="display:flex;gap:6px;font-size:28px;margin-bottom:8px;">' +
+                    [1,2,3,4,5].map(function(i){ return '<span style="cursor:pointer;" onclick="setStars(' + i + ')">☆</span>'; }).join('') + '</div>' +
+                    '<textarea id="fbText" class="q-input" rows="2" placeholder="Your feedback (sent to admin too)" style="min-height:64px;padding:10px;"></textarea>' +
+                    '<button class="q-btn q-btn-sm" style="width:100%;margin-top:8px;" onclick="sendFeedback()">Send feedback</button></div>';
+                window._stars = 5; setStars(5);
+            } else box.style.display = 'none';
+        }
+        function setStars(n){
+            window._stars = n;
+            var els = document.getElementById('stars').children;
+            for (var i = 0; i < els.length; i++) els[i].textContent = i < n ? '★' : '☆';
+        }
+        async function sendFeedback(){
+            var txt = (document.getElementById('fbText') || {}).value || '';
+            try { var r = await api.rateOrder(orderId, window._stars || 5, txt); if (r.success) { showAlert('Thank you! Feedback sent.'); loadOrder(); } }
+            catch(e){ showAlert(e.message || 'Failed', 'error'); }
         }
         function setupSocket(){
             if (typeof io==='undefined'){ setInterval(loadOrder,10000); return; }

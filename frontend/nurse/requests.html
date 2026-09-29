@@ -155,8 +155,8 @@
             try {
                 const result = await api.acceptOrder(orderId);
                 if (result.success) {
-                    showAlert('تم قبول الطلب بنجاح!');
-                    setTimeout(() => window.location.href = 'my-orders.html', 1000);
+                    showAlert('تم قبول الطلب بنجاح! جاري فتح التتبع...');
+                    setTimeout(() => window.location.href = 'track-order.html?order=' + orderId, 1000);
                 }
             } catch (error) {
                 showAlert(error.message || 'فشل قبول الطلب', 'error');

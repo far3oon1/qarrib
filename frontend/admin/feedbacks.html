@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تقييمات المرضى - أدمن</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        .page-header { background: #0B5F5A; color: #fff; padding: 20px; display: flex; align-items: center; gap: 12px; }
+        .back-btn { background: rgba(255,255,255,.2); border: 0; color: #fff; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 20px; }
+        .fb-container { padding: 20px; }
+        .fb-card { background: #fff; border-radius: 16px; padding: 20px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.08); border: 1px solid #D9D3C5; }
+        .stars { color: #E8A100; font-size: 20px; letter-spacing: 2px; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="page-header">
+            <button class="back-btn" onclick="history.back()">→</button>
+            <div style="font-size:20px;font-weight:700;">تقييمات المرضى (الفيدباك)</div>
+        </div>
+        <div class="filter-bar" style="padding:16px 20px;display:flex;gap:8px;">
+            <button class="filter-btn active" onclick="loadFb('')">الكل</button>
+            <button class="filter-btn" onclick="loadFb('?minRating=4')">4+ نجوم</button>
+            <button class="filter-btn" onclick="loadFb('?minRating=1')">الأقل تقييماً أولاً</button>
+        </div>
+        <div class="fb-container" id="fbList"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+<script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
+<script src="../js/api.js?v=6"></script>
+<script src="../js/auth.js?v=6"></script>
+<script src="../js/notifications.js"></script>
+<script>
+    if (!requireRole('admin')) redirectToLogin();
+    function stars(n){ var s = ''; for (var i = 1; i <= 5; i++) s += i <= n ? '★' : '☆'; return s; }
+    function esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+    async function loadFb(q){
+        q = q || '';
+        document.querySelectorAll('.filter-btn').forEach(function(b){ b.classList.remove('active'); });
+        try {
+            var r = await api.getAdminFeedbacks(q);
+            var box = document.getElementById('fbList');
+            if (!r.success || !r.data.length) { box.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⭐</div><p>لا توجد تقييمات بعد</p></div>'; return; }
+            var list = r.data.slice();
+            if (q === '?minRating=1') list.sort(function(a,b){ return a.rating - b.rating; });
+            box.innerHTML = list.map(function(f){
+                return '<div class="fb-card">' +
+                    '<div style="display:flex;justify-content:space-between;align-items:center;"><strong>طلب #' + esc(f.orderNumber) + '</strong><span class="stars">' + stars(f.rating) + ' ' + f.rating + '/5</span></div>' +
+                    '<div style="font-size:14px;color:#4A605E;margin-top:8px;">الخدمة: ' + esc(f.service || '') + ' | المبلغ: ' + (f.finalPrice || 0) + ' ج.م</div>' +
+                    '<div style="font-size:14px;margin-top:4px;">المريض: ' + esc(f.patient ? f.patient.name : '') + ' | الممرض: ' + esc(f.nurse ? f.nurse.name : '—') + '</div>' +
+                    (f.comment ? '<div style="margin-top:8px;background:#F6F3EC;border-radius:10px;padding:10px;font-size:14px;">"' + esc(f.comment) + '"</div>' : '') +
+                    '<div style="font-size:12px;color:#94a3b8;margin-top:6px;">' + new Date(f.createdAt).toLocaleString('ar-EG') + '</div>' +
+                '</div>';
+            }).join('');
+        } catch(e){ document.getElementById('fbList').innerHTML = '<div class="empty-state"><p>فشل التحميل</p></div>'; }
+    }
+    loadFb('');
+</script>
+</body>
+</html>

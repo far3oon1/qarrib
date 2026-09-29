@@ -52,6 +52,14 @@ const serviceSchema = new mongoose.Schema({
     default: true
   },
 
+  // When true (default), patient requests for this service wait in
+  // under_review until an admin approves (or sets) the price — nurses
+  // can only see/accept admin-approved requests.
+  requireApproval: {
+    type: Boolean,
+    default: true
+  },
+
   estimatedDuration: {
     type: Number,
     default: 30

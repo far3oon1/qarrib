@@ -267,8 +267,8 @@
             try {
                 const result = await api.acceptOrder(orderId);
                 if (result.success) {
-                    showAlert('تم قبول الطلب!');
-                    loadRequests();
+                    showAlert('تم قبول الطلب! جاري فتح التتبع...');
+                    setTimeout(function(){ window.location.href = 'track-order.html?order=' + orderId; }, 800);
                 }
             } catch (error) {
                 showAlert(error.message || 'فشل قبول الطلب', 'error');

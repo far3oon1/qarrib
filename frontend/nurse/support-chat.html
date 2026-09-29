@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>شات الإدارة - ممرض</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        .page-header { background: #0B5F5A; color: #fff; padding: 20px; display: flex; align-items: center; gap: 12px; }
+        .back-btn { background: rgba(255,255,255,.2); border: 0; color: #fff; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 20px; }
+        .support-wrap { display: flex; min-height: calc(100vh - 160px); }
+        .contacts { width: 260px; border-left: 1px solid #D9D3C5; background: #fff; overflow-y: auto; }
+        .contact { display: flex; gap: 12px; align-items: center; padding: 14px 16px; border-bottom: 1px solid #F1EFE7; cursor: pointer; }
+        .contact.active { background: #DDEBE8; }
+        .contact .avatar { width: 44px; height: 44px; border-radius: 50%; background: #0B5F5A; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; }
+        .contact .name { font-weight: 700; font-size: 15px; }
+        .contact .prev { font-size: 13px; color: #4A605E; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
+        .unread { background: #B42318; color: #fff; border-radius: 12px; padding: 2px 10px; font-size: 12px; font-weight: 700; }
+        .thread { flex: 1; display: flex; flex-direction: column; background: #F6F3EC; min-width: 0; }
+        .thread-head { padding: 14px 20px; background: #fff; border-bottom: 1px solid #D9D3C5; font-weight: 700; }
+        .msgs { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; min-height: 200px; }
+        .msg { max-width: 80%; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.6; }
+        .msg.mine { align-self: flex-end; background: #0B5F5A; color: #fff; }
+        .msg.theirs { align-self: flex-start; background: #fff; border: 1px solid #D9D3C5; }
+        .msg .t { font-size: 11px; opacity: .7; margin-top: 4px; }
+        .composer { display: flex; gap: 8px; padding: 12px; background: #fff; border-top: 1px solid #D9D3C5; }
+        .composer input { flex: 1; padding: 12px 16px; border: 1px solid #C9C2B2; border-radius: 12px; font-size: 15px; font-family: inherit; }
+        .composer button { padding: 0 24px; border: 0; border-radius: 12px; background: #0B5F5A; color: #fff; font-weight: 700; cursor: pointer; min-height: 48px; }
+        @media (max-width: 640px) { .contacts { width: 110px; } .contact .prev { display: none; } }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="page-header">
+            <button class="back-btn" onclick="history.back()">→</button>
+            <div style="font-size:20px;font-weight:700;">شات الإدارة</div>
+        </div>
+        <div class="support-wrap">
+            <div class="contacts" id="contacts"><div style="padding:20px;color:#4A605E;">جاري التحميل...</div></div>
+            <div class="thread">
+                <div class="thread-head" id="threadHead">اختر مشرفاً للمحادثة</div>
+                <div class="msgs" id="msgs"></div>
+                <div class="composer">
+                    <input id="msgInput" placeholder="اكتب رسالتك للإدارة...">
+                    <button onclick="sendMsg()">إرسال</button>
+                </div>
+            </div>
+        </div>
+        <nav class="bottom-nav">
+            <a href="dashboard.html" class="nav-item"><span class="nav-icon">🏠</span><span>الرئيسية</span></a>
+            <a href="requests.html" class="nav-item"><span class="nav-icon">📋</span><span>الطلبات</span></a>
+            <a href="wallet.html" class="nav-item"><span class="nav-icon">💳</span><span>المحفظة</span></a>
+            <a href="chat.html" class="nav-item active"><span class="nav-icon">💬</span><span>الشات</span></a>
+        </nav>
+    </div>
+<script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="../js/api.js?v=6"></script>
+<script src="../js/auth.js?v=6"></script>
+<script>
+    if (!requireRole('nurse')) redirectToLogin();
+    var currentId = null, socket = null, pollTimer = null;
+    function esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+    function fmtT(t){ try { return new Date(t).toLocaleString('ar-EG'); } catch(e){ return ''; } }
+    function myId(){ try { var u = JSON.parse(localStorage.getItem('user') || '{}'); return String(u.id || u._id || ''); } catch(e){ return ''; } }
+
+    async function loadContacts(){
+        try {
+            var r = await api.getDirectContacts();
+            var box = document.getElementById('contacts');
+            if (!r.success || !r.data.length) { box.innerHTML = '<div style="padding:20px;color:#4A605E;">لا يوجد مشرفون</div>'; return; }
+            box.innerHTML = r.data.map(function(c){
+                return '<div class="contact' + (currentId === c.id ? ' active' : '') + '" onclick="openThread(\'' + c.id + '\',\'' + esc(c.name).replace(/'/g,'') + '\')">' +
+                    '<div class="avatar">E</div>' +
+                    '<div><div class="name">' + esc(c.name) + '</div>' +
+                    '<div class="prev">' + esc(c.lastMessage ? c.lastMessage.content : 'الإدارة') + '</div></div>' +
+                    (c.unreadCount ? '<span class="unread">' + c.unreadCount + '</span>' : '') + '</div>';
+            }).join('');
+            if (!currentId && r.data.length) openThread(r.data[0].id, r.data[0].name);
+        } catch(e){ document.getElementById('contacts').innerHTML = '<div style="padding:20px;">فشل التحميل</div>'; }
+    }
+    async function openThread(id, name){
+        currentId = id;
+        document.getElementById('threadHead').textContent = name;
+        await loadThread();
+        loadContacts();
+        setupSocket();
+    }
+    async function loadThread(){
+        if (!currentId) return;
+        try {
+            var r = await api.getDirectMessages(currentId);
+            if (!r.success) return;
+            var me = myId();
+            document.getElementById('msgs').innerHTML = (r.data.messages || []).map(function(m){
+                var mine = String(m.sender) === me;
+                return '<div class="msg ' + (mine ? 'mine' : 'theirs') + '">' + esc(m.content) + '<div class="t">' + fmtT(m.createdAt) + '</div></div>';
+            }).join('');
+            var box = document.getElementById('msgs');
+            box.scrollTop = box.scrollHeight;
+        } catch(e){}
+    }
+    async function sendMsg(){
+        var inp = document.getElementById('msgInput');
+        var v = inp.value.trim();
+        if (!v || !currentId) { if (!currentId) showAlert('اختر مشرفاً أولاً', 'error'); return; }
+        inp.value = '';
+        try {
+            if (socket && socket.connected) { socket.emit('send_direct', { to: currentId, content: v }); setTimeout(loadThread, 800); }
+            else { await api.sendDirectMessage(currentId, v); loadThread(); }
+        } catch(e){ showAlert(e.message || 'فشل الإرسال', 'error'); }
+    }
+    document.getElementById('msgInput').addEventListener('keypress', function(e){ if (e.key === 'Enter') sendMsg(); });
+    function setupSocket(){
+        if (typeof io === 'undefined' || !currentId) { startPoll(); return; }
+        try {
+            if (socket) { try { socket.disconnect(); } catch(e){} }
+            socket = io({ auth: { token: localStorage.getItem('token') } });
+            socket.on('connect', function(){ socket.emit('join_direct', { userId: currentId }); });
+            socket.on('new_direct_message', function(){ loadThread(); });
+        } catch(e){}
+        startPoll();
+    }
+    function startPoll(){ if (pollTimer) return; pollTimer = setInterval(function(){ if (currentId) loadThread(); }, 8000); }
+    (async function init(){
+        var qp = new URLSearchParams(window.location.search).get('admin');
+        await loadContacts();
+        if (qp) openThread(qp, 'الإدارة');
+        startPoll();
+    })();
+</script>
+</body>
+</html>

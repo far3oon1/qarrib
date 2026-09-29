@@ -109,9 +109,11 @@
                             <div class="order-actions">
                                 ${order.status === 'assigned' ? `
                                     <button class="btn btn-primary btn-sm" onclick="startService('${order.id}')">بدء الخدمة</button>
+                                    <button class="btn btn-outline btn-sm" onclick="window.location.href='track-order.html?order=${order.id}'">تتبع 📍</button>
                                 ` : ''}
                                 ${order.status === 'in_progress' ? `
                                     <button class="btn btn-secondary btn-sm" onclick="completeService('${order.id}')">تمت الخدمة ✅</button>
+                                    <button class="btn btn-outline btn-sm" onclick="window.location.href='track-order.html?order=${order.id}'">تتبع 📍</button>
                                 ` : ''}
                                 ${order.status === 'completed' ? `
                                     <button class="btn btn-success btn-sm" disabled>تم الإنجاز ✅</button>
