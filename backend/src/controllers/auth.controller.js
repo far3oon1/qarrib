@@ -167,6 +167,10 @@ const login = asyncHandler(async (req, res) => {
     throw new ApiError(403, 'تم رفض طلب التسجيل، يرجى التواصل مع الدعم');
   }
 
+  if (user.role === 'assistant' && !user.isActive) {
+    throw new ApiError(403, 'Helper account is disabled');
+  }
+
   user.lastLogin = new Date();
   await user.save();
 
@@ -180,7 +184,11 @@ const login = asyncHandler(async (req, res) => {
       phone: user.phone,
       role: user.role,
       status: user.status,
-      gender: user.gender
+      gender: user.gender,
+      ...(user.role === 'assistant' ? {
+        assistantLabel: user.assistantLabel || null,
+        assistantScopes: Array.isArray(user.assistantScopes) ? user.assistantScopes : [],
+      } : {}),
     },
     token
   }, 'تم تسجيل الدخول بنجاح');
@@ -221,7 +229,11 @@ const loginWithPhone = asyncHandler(async (req, res) => {
       phone: user.phone,
       role: user.role,
       status: user.status,
-      gender: user.gender
+      gender: user.gender,
+      ...(user.role === 'assistant' ? {
+        assistantLabel: user.assistantLabel || null,
+        assistantScopes: Array.isArray(user.assistantScopes) ? user.assistantScopes : [],
+      } : {}),
     },
     token
   }, 'تم تسجيل الدخول بنجاح');

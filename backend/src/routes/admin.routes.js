@@ -17,7 +17,16 @@ router.get('/users', adminController.getAllUsers);
 router.post('/users', adminController.createUser);
 router.get('/users/:userId', adminController.getUserById);
 router.put('/users/:userId', adminController.updateUser);
+// Admin-only vault: full credentials + registration info (decrypted, online)
+router.get('/users/:userId/credentials', adminController.getUserCredentials);
+// Admin-only online edit of ANY account field (registration + credentials)
+router.put('/users/:userId/full', adminController.updateUserFull);
 router.delete('/users/:userId', adminController.deleteUser);
+// Helper / assistant accounts with admin-ticked policies
+router.get('/assistants', adminController.listAssistants);
+router.post('/assistants', adminController.createAssistant);
+router.put('/assistants/:id', adminController.updateAssistant);
+router.delete('/assistants/:id', adminController.deleteAssistant);
 router.post('/users/:userId/reset-password', validate(resetPassword), adminController.resetUserPassword);
 router.patch('/users/:userId/toggle-status', adminController.toggleUserStatus);
 router.get('/nurses', adminController.getAllNurses);

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>المساعدون - أدمن</title>
+    <link rel="apple-touch-icon" href="../icon-180.png">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="../manifest.webmanifest">
+    <meta name="theme-color" content="#0B5F5A">
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        .page-header { background: linear-gradient(135deg, #0B5F5A, #134e4a); color: white; padding: 20px; display: flex; align-items: center; gap: 12px; }
+        .back-btn { background: rgba(255,255,255,0.2); border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 20px; }
+        .wrap { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+        .card { background: #fff; border-radius: 14px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .scope-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0; }
+        .scope-grid label { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; background: #F6F3EC; border-radius: 10px; padding: 10px; cursor: pointer; }
+        .asst { border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; margin-bottom: 10px; }
+        .pill { display: inline-block; font-size: 11px; background: #D5EAE7; color: #0B4A46; border-radius: 999px; padding: 3px 10px; margin: 2px; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="page-header">
+            <button class="back-btn" onclick="history.back()">→</button>
+            <div class="page-title">🎧 المساعدون (Helpers)</div>
+        </div>
+
+        <div class="wrap">
+            <div class="card">
+                <h4 style="margin:0 0 4px;">إنشاء حساب مساعد جديد</h4>
+                <p style="font-size:12px;color:#64748b;margin:0 0 12px;">حدّد الصلاحيات (policies) التي سيعمل بها — يساعدك في الإدارة ويساعد الممرضين والمرضى. <strong>لن يرى بيانات التسجيل أبداً</strong> (كل البيانات مشفرة ولا تُفك إلا للأدمن).</p>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                    <input id="a-name" class="form-input" placeholder="اسم المساعد">
+                    <input id="a-label" class="form-input" placeholder="وصف (مثال: دعم مسائي)">
+                    <input id="a-email" class="form-input" type="email" placeholder="البريد" dir="ltr">
+                    <input id="a-phone" class="form-input" placeholder="01xxxxxxxxx" dir="ltr">
+                    <input id="a-password" class="form-input" type="password" placeholder="كلمة المرور (6+)" dir="ltr" style="grid-column:1/-1;">
+                </div>
+                <div class="scope-grid" id="scopeGrid"><div class="loading"><div class="spinner"></div></div></div>
+                <button class="btn btn-primary" id="createBtn" onclick="createAssistant()">＋ إنشاء حساب المساعد</button>
+            </div>
+
+            <div class="card">
+                <h4 style="margin:0 0 12px;">حسابات المساعدين</h4>
+                <div id="asstList"><div class="loading"><div class="spinner"></div></div></div>
+            </div>
+        </div>
+    </div>
+
+    <script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
+    <script src="../js/api.js?v=7"></script>
+    <script src="../js/auth.js?v=7"></script>
+    <script>
+        if (!requireRole('admin')) redirectToLogin();
+        var SCOPES = [];
+        function currentLang() {
+            try { return window.qarribLanguage || localStorage.getItem('qarrib-language') || 'ar'; } catch (e) { return 'ar'; }
+        }
+        function L(ar, en) { return currentLang() === 'en' ? en : ar; }
+        function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+
+        async function loadScopes() {
+            try {
+                const r = await api.getAssistants();
+                SCOPES = (r.data && r.data.scopes) || [];
+                document.getElementById('scopeGrid').innerHTML = SCOPES.map(function(s){
+                    const label = currentLang() === 'en' ? s.en : s.ar;
+                    return '<label><input type="checkbox" class="scope-cb" value="' + s.key + '"><span><strong>' + esc(label) + '</strong><br><span style="color:#64748b;font-size:11px;" dir="ltr">' + esc(s.key) + '</span></span></label>';
+                }).join('');
+                renderAssistants((r.data && r.data.assistants) || []);
+            } catch (e) {
+                document.getElementById('scopeGrid').innerHTML = '<div style="font-size:13px;color:#991b1b;">' + esc(e.message || 'Failed') + '</div>';
+            }
+        }
+
+        function checkedScopes() {
+            return Array.prototype.map.call(document.querySelectorAll('.scope-cb:checked'), function(c){ return c.value; });
+        }
+
+        async function createAssistant() {
+            const btn = document.getElementById('createBtn');
+            btn.disabled = true;
+            try {
+                const r = await api.createAssistant({
+                    fullName: document.getElementById('a-name').value.trim(),
+                    assistantLabel: document.getElementById('a-label').value.trim() || null,
+                    email: document.getElementById('a-email').value.trim(),
+                    phone: document.getElementById('a-phone').value.trim(),
+                    password: document.getElementById('a-password').value,
+                    scopes: checkedScopes()
+                });
+                showAlert(L('تم إنشاء حساب المساعد', 'Assistant created'));
+                ['a-name','a-label','a-email','a-phone','a-password'].forEach(function(id){ document.getElementById(id).value=''; });
+                document.querySelectorAll('.scope-cb').forEach(function(c){ c.checked = false; });
+                loadScopes();
+            } catch (e) { showAlert(e.message || 'Failed', 'error'); }
+            finally { btn.disabled = false; }
+        }
+
+        function renderAssistants(list) {
+            const box = document.getElementById('asstList');
+            if (!list.length) { box.innerHTML = '<p style="font-size:13px;color:#64748b;">لا يوجد مساعدون بعد</p>'; return; }
+            box.innerHTML = list.map(function(a){
+                const pills = (a.assistantScopes || []).map(function(k){ return '<span class="pill">' + esc(k) + '</span>'; }).join('') || '<span style="font-size:12px;color:#64748b;">بدون صلاحيات</span>';
+                const scopeCbs = SCOPES.map(function(s){
+                    const on = (a.assistantScopes || []).indexOf(s.key) !== -1;
+                    const label = currentLang() === 'en' ? s.en : s.ar;
+                    return '<label style="display:flex;gap:6px;align-items:center;font-size:12px;"><input type="checkbox" data-asst="' + a.id + '" value="' + s.key + '"' + (on ? ' checked' : '') + '> ' + esc(label) + '</label>';
+                }).join('');
+                return '<div class="asst" id="asst-' + a.id + '">' +
+                    '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">' +
+                    '<div><strong>' + esc(a.fullName) + '</strong> <span style="font-size:12px;color:#64748b;">' + esc(a.assistantLabel || '') + '</span>' +
+                    '<div style="font-size:12px;color:#64748b;" dir="ltr">' + esc(a.email) + ' · ' + esc(a.phone) + '</div>' +
+                    '<div style="margin-top:6px;">' + pills + '</div></div>' +
+                    '<div style="display:flex;gap:6px;">' +
+                    '<button class="btn-sm" style="background:' + (a.isActive ? '#fee2e2;color:#991b1b' : '#d1fae5;color:#065f46') + ';" onclick="toggleAsst(\'' + a.id + '\',' + (!a.isActive) + ')">' + (a.isActive ? 'تعطيل' : 'تفعيل') + '</button>' +
+                    '<button class="btn-sm" style="background:#fee2e2;color:#991b1b;" onclick="deleteAsst(\'' + a.id + '\')">حذف</button>' +
+                    '</div></div>' +
+                    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px;">' + scopeCbs + '</div>' +
+                    '<button class="btn btn-primary" style="margin-top:10px;" onclick="saveScopes(\'' + a.id + '\')">💾 حفظ الصلاحيات</button>' +
+                    '</div>';
+            }).join('');
+        }
+
+        async function saveScopes(id) {
+            const scopes = Array.prototype.map.call(document.querySelectorAll('input[data-asst="' + id + '"]:checked'), function(c){ return c.value; });
+            try {
+                await api.updateAssistant(id, { scopes: scopes });
+                showAlert(L('تم حفظ الصلاحيات', 'Policies saved'));
+                loadScopes();
+            } catch (e) { showAlert(e.message || 'Failed', 'error'); }
+        }
+
+        async function toggleAsst(id, isActive) {
+            try { await api.updateAssistant(id, { isActive: isActive }); showAlert(isActive ? 'تم التفعيل' : 'تم التعطيل'); loadScopes(); }
+            catch (e) { showAlert(e.message || 'Failed', 'error'); }
+        }
+
+        async function deleteAsst(id) {
+            if (!confirm(L('حذف حساب المساعد نهائياً؟', 'Delete this helper permanently?'))) return;
+            try { await api.deleteAssistant(id); showAlert(L('تم الحذف', 'Deleted')); loadScopes(); }
+            catch (e) { showAlert(e.message || 'Failed', 'error'); }
+        }
+
+        loadScopes();
+    </script>
+</body>
+</html>

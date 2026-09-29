@@ -1063,6 +1063,202 @@ const updateNurseStatus = asyncHandler(async (req, res) => {
   ResponseHelper.success(res, { nurseId: nurse._id, isOnline: nurse.isOnline }, 'Nurse status updated');
 });
 
+// ============================================================
+// ADMIN-ONLY: full credentials + registration vault + online edit
+// + helper/assistant accounts with ticked policies.
+// All online (same /api origin). Assistants NEVER hit these endpoints
+// (router guards authorize('admin')); they get masked views via
+// /api/assistant/* instead. Passwords are bcrypt-hashed: readable NEVER,
+// resettable ALWAYS.
+// ============================================================
+const { adminView } = require('../utils/accountView');
+const { normalizeScopes, ASSISTANT_SCOPES, ASSISTANT_SCOPE_KEYS } = require('../utils/accountView');
+
+// GET /admin/users/:userId/credentials — every credential + registration
+// field for ONE account, decrypted, admin panel only.
+const getUserCredentials = asyncHandler(async (req, res) => {
+  const { userId } = req.params;
+  const user = await User.findById(userId).select('+sensitiveEnc');
+  if (!user) throw new ApiError(404, 'المستخدم غير موجود');
+  if (user.role === 'admin') throw new ApiError(403, 'لا يمكن عرض بيانات أدمن آخر');
+
+  let vault = null;
+  try {
+    const { decryptObject } = require('../utils/encryption');
+    vault = user.sensitiveEnc ? decryptObject(user.sensitiveEnc) : null;
+  } catch (_) { vault = null; }
+
+  const view = adminView(user);
+  ResponseHelper.success(res, {
+    ...view,
+    vaultDecrypted: vault || {
+      email: user.email, phone: user.phone,
+      nationalId: user.nationalId, payoutAccount: user.payoutAccount,
+    },
+    encryption: { algorithm: 'AES-256-GCM', source: vault ? 'sensitiveEnc' : 'live-fields' },
+  }, 'بيانات الحساب الكاملة (مشفرة — للأدمن فقط)');
+});
+
+// PUT /admin/users/:userId/full — online edit of ANY account field.
+const updateUserFull = asyncHandler(async (req, res) => {
+  const { userId } = req.params;
+  const user = await User.findById(userId).select('+password');
+  if (!user) throw new ApiError(404, 'المستخدم غير موجود');
+  if (user.role === 'admin') throw new ApiError(403, 'لا يمكن تعديل حساب أدمن');
+  if (user.role === 'assistant') throw new ApiError(403, 'Helper accounts are edited from the Helpers page');
+
+  const b = req.body || {};
+  const set = {};
+
+  // Identity / registration
+  for (const k of ['fullName', 'email', 'phone', 'nationalId', 'gender', 'status', 'specialization', 'bio', 'payoutMethod', 'payoutAccount']) {
+    if (b[k] !== undefined) set[k] = b[k];
+  }
+  if (b.yearsOfExperience !== undefined) {
+    const y = Number(b.yearsOfExperience);
+    if (!Number.isFinite(y) || y < 0 || y > 50) throw new ApiError(400, 'yearsOfExperience must be 0-50');
+    set.yearsOfExperience = y;
+  }
+  if (b.isActive !== undefined) set.isActive = !!b.isActive;
+  if (b.isOnline !== undefined) set.isOnline = !!b.isOnline;
+  if (b.role !== undefined) {
+    if (!['patient', 'nurse'].includes(b.role)) throw new ApiError(400, 'Role can only change between patient/nurse here');
+    set.role = b.role;
+  }
+  // Location object (merge)
+  if (b.location && typeof b.location === 'object') {
+    user.location = user.location || {};
+    for (const k of ['governorate', 'city', 'address']) {
+      if (b.location[k] !== undefined) user.location[k] = b.location[k];
+    }
+    if (b.location.lat !== undefined || b.location.lng !== undefined) {
+      user.location.coordinates = user.location.coordinates || {};
+      if (b.location.lat !== undefined) user.location.coordinates.lat = Number(b.location.lat);
+      if (b.location.lng !== undefined) user.location.coordinates.lng = Number(b.location.lng);
+    }
+  }
+  // Flat location aliases
+  for (const k of ['governorate', 'city', 'address']) {
+    if (b[k] !== undefined) {
+      user.location = user.location || {};
+      user.location[k] = b[k];
+    }
+  }
+
+  // Uniqueness guard for changed identifiers
+  for (const field of ['email', 'phone', 'nationalId']) {
+    if (set[field] !== undefined && set[field] !== user[field]) {
+      const clash = await User.findOne({ [field]: set[field], _id: { $ne: user._id } });
+      if (clash) throw new ApiError(409, `${field} is already registered to another account`);
+    }
+  }
+
+  Object.assign(user, set);
+
+  // Optional password set (min 6). Hashed on save — never returned.
+  let passwordChanged = false;
+  if (b.password !== undefined && b.password !== null && String(b.password) !== '') {
+    if (String(b.password).length < 6) throw new ApiError(400, 'Password must be at least 6 characters');
+    user.password = String(b.password);
+    passwordChanged = true;
+  }
+
+  await user.save();
+
+  await Notification.create({
+    recipient: user._id, title: 'تحديث بيانات حسابك',
+    message: 'حدّثت الإدارة بيانات حسابك — راجع ملفك الشخصي', type: 'system'
+  }).catch(() => {});
+  try {
+    const { emitToUser } = require('../sockets');
+    emitToUser(String(user._id), 'notification', { title: 'تحديث بيانات حسابك' });
+  } catch (_) {}
+
+  const fresh = await User.findById(user._id);
+  ResponseHelper.success(res, { user: adminView(fresh), passwordChanged }, 'تم حفظ التعديلات أونلاين');
+});
+
+// --- Helper / assistant accounts (admin creates, ticks policies) ---
+const listAssistants = asyncHandler(async (req, res) => {
+  const assistants = await User.find({ role: 'assistant' }).select('-password').sort({ createdAt: -1 }).lean();
+  ResponseHelper.success(res, {
+    scopes: ASSISTANT_SCOPES,
+    assistants: assistants.map((a) => ({
+      id: String(a._id), fullName: a.fullName, email: a.email, phone: a.phone,
+      assistantLabel: a.assistantLabel || null,
+      assistantScopes: Array.isArray(a.assistantScopes) ? a.assistantScopes : [],
+      isActive: a.isActive, status: a.status, lastLogin: a.lastLogin || null,
+      createdAt: a.createdAt,
+    })),
+  }, 'Helper accounts');
+});
+
+const createAssistant = asyncHandler(async (req, res) => {
+  const { fullName, email, phone, password, assistantLabel, scopes } = req.body || {};
+  if (!fullName || !email || !phone || !password) {
+    throw new ApiError(400, 'fullName, email, phone and password are required');
+  }
+  if (String(password).length < 6) throw new ApiError(400, 'Password must be at least 6 characters');
+  const cleanScopes = normalizeScopes(scopes);
+
+  const clash = await User.findOne({ $or: [{ email }, { phone }] });
+  if (clash) {
+    if (clash.email === email) throw new ApiError(409, 'Email already registered');
+    throw new ApiError(409, 'Phone already registered');
+  }
+
+  const assistant = await User.create({
+    fullName, email, phone, password,
+    // Assistants don't register with national ID; keep a unique placeholder.
+    nationalId: `9${Date.now().toString().slice(-12)}${String(Math.floor(Math.random() * 10))}`.slice(0, 14).padEnd(14, '0'),
+    role: 'assistant',
+    status: 'active',
+    isActive: true,
+    assistantLabel: assistantLabel || null,
+    assistantScopes: cleanScopes,
+    createdBy: req.user.id,
+  });
+
+  ResponseHelper.success(res, {
+    assistant: {
+      id: String(assistant._id), fullName: assistant.fullName, email: assistant.email,
+      phone: assistant.phone, assistantLabel: assistant.assistantLabel,
+      assistantScopes: assistant.assistantScopes,
+    },
+    scopes: ASSISTANT_SCOPES,
+  }, 'تم إنشاء حساب المساعد بنجاح', 201);
+});
+
+const updateAssistant = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const a = await User.findOne({ _id: id, role: 'assistant' });
+  if (!a) throw new ApiError(404, 'Assistant not found');
+  const b = req.body || {};
+  if (b.fullName !== undefined) a.fullName = b.fullName;
+  if (b.assistantLabel !== undefined) a.assistantLabel = b.assistantLabel;
+  if (b.scopes !== undefined) a.assistantScopes = normalizeScopes(b.scopes);
+  if (b.isActive !== undefined) a.isActive = !!b.isActive;
+  if (b.password !== undefined && String(b.password) !== '') {
+    if (String(b.password).length < 6) throw new ApiError(400, 'Password must be at least 6 characters');
+    a.password = String(b.password);
+  }
+  await a.save();
+  ResponseHelper.success(res, {
+    assistant: {
+      id: String(a._id), fullName: a.fullName, email: a.email, phone: a.phone,
+      assistantLabel: a.assistantLabel, assistantScopes: a.assistantScopes, isActive: a.isActive,
+    },
+  }, 'تم تحديث حساب المساعد');
+});
+
+const deleteAssistant = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const a = await User.findOne({ _id: id, role: 'assistant' });
+  if (!a) throw new ApiError(404, 'Assistant not found');
+  await User.findByIdAndDelete(id);
+  ResponseHelper.success(res, { id }, 'تم حذف حساب المساعد');
+});
+
 module.exports = {
   getDashboardStats, getPendingVerifications, getVerificationsCompat, getNurseVerificationDetails, verifyNurse,
   getAllUsers, getUserById, createUser, updateUser, deleteUser, resetUserPassword, toggleUserStatus,
@@ -1072,5 +1268,7 @@ module.exports = {
   approveService, suggestOrderPrice, getFeedbacks, getNurseReports, updateService,
   rejectNurseOffer, getAllOffers,
   getAdminEarnings, resetAllPayments,
-  getAllNurses, getAllPatients, setPrice, getPrices, deletePrice, getTransactions, sendCredentials, updateNurseStatus
+  getAllNurses, getAllPatients, setPrice, getPrices, deletePrice, getTransactions, sendCredentials, updateNurseStatus,
+  getUserCredentials, updateUserFull,
+  listAssistants, createAssistant, updateAssistant, deleteAssistant
 };

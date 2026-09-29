@@ -396,6 +396,51 @@ API.prototype.adminCreateUser = function (data) {
 API.prototype.adminDeleteUser = function (id) {
     return this.request('DELETE', '/admin/users/' + id);
 };
+// Admin vault: full credentials + registration info (decrypted, admin panel only)
+API.prototype.getUserCredentials = function (id) {
+    return this.request('GET', '/admin/users/' + id + '/credentials');
+};
+// Admin online edit of ANY account field
+API.prototype.updateUserFull = function (id, data) {
+    return this.request('PUT', '/admin/users/' + id + '/full', data);
+};
+// Helper / assistant accounts (admin creates with ticked policies)
+API.prototype.getAssistants = function () {
+    return this.request('GET', '/admin/assistants');
+};
+API.prototype.createAssistant = function (data) {
+    return this.request('POST', '/admin/assistants', data);
+};
+API.prototype.updateAssistant = function (id, data) {
+    return this.request('PUT', '/admin/assistants/' + id, data);
+};
+API.prototype.deleteAssistant = function (id) {
+    return this.request('DELETE', '/admin/assistants/' + id);
+};
+// Assistant workspace (masked — never returns registration secrets)
+API.prototype.getAssistantMe = function () {
+    return this.request('GET', '/assistant/me');
+};
+API.prototype.getAssistantUsers = function (query) {
+    if (query === undefined) query = '';
+    return this.request('GET', '/assistant/users' + query);
+};
+API.prototype.assistantToggleUser = function (id, isActive) {
+    return this.request('PATCH', '/assistant/users/' + id + '/status', { isActive: isActive });
+};
+API.prototype.getAssistantOrders = function (query) {
+    if (query === undefined) query = '';
+    return this.request('GET', '/assistant/orders' + query);
+};
+API.prototype.getAssistantContacts = function () {
+    return this.request('GET', '/assistant/chats/contacts');
+};
+API.prototype.getAssistantMessages = function (userId) {
+    return this.request('GET', '/assistant/chats/' + userId);
+};
+API.prototype.sendAssistantMessage = function (userId, content) {
+    return this.request('POST', '/assistant/chats/' + userId + '/send', { content: content });
+};
 API.prototype.getPendingVerifications = function () {
     return this.request('GET', '/admin/verifications');
 };
