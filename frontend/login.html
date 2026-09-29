@@ -148,16 +148,33 @@
     document.getElementById('tab-patient').textContent = 'Patient';
     document.getElementById('tab-nurse').textContent = 'Nurse';
     var AR_TABS = { patient:'مريض', nurse:'ممرض' }, EN_TABS = { patient:'Patient', nurse:'Nurse' };
-    document.getElementById('langToggle').addEventListener('click', function(){
-        currentLang = currentLang === 'en' ? 'ar' : 'en';
+    function applyLoginLang(lang) {
+        currentLang = lang === 'ar' ? 'ar' : 'en';
         var dict = currentLang === 'ar' ? AR : EN;
         document.documentElement.lang = currentLang;
         document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+        try { localStorage.setItem('qarrib-language', currentLang); } catch (e) {}
+        window.qarribLanguage = currentLang;
         document.querySelectorAll('[data-i18n]').forEach(function(el){ var k = el.getAttribute('data-i18n'); if (dict[k]) el.textContent = dict[k]; });
         var tabs = currentLang === 'ar' ? AR_TABS : EN_TABS;
         document.getElementById('tab-patient').textContent = tabs.patient;
         document.getElementById('tab-nurse').textContent = tabs.nurse;
-        this.textContent = currentLang === 'ar' ? 'English' : 'العربية';
+        var t = document.getElementById('langToggle');
+        if (t) t.textContent = currentLang === 'ar' ? 'English' : 'العربية';
+    }
+    try {
+        var saved = localStorage.getItem('qarrib-language');
+        if (saved === 'ar' || saved === 'en') applyLoginLang(saved);
+    } catch (e) {}
+    document.getElementById('langToggle').addEventListener('click', function(){
+        var next = currentLang === 'en' ? 'ar' : 'en';
+        applyLoginLang(next);
+        // Hand the new language to the global translator as the single
+        // source of truth (internal state + placeholders + localStorage).
+        // data-i18n elements are skipped globally so there is no double
+        // translation and tabs never break.
+        if (typeof window.setQarribLanguage === 'function') { window.setQarribLanguage(next); }
+        else { window.qarribLanguage = next; }
     });
 </script>
 </body>

@@ -14,6 +14,7 @@ router.get('/verifications/pending', adminController.getPendingVerifications);
 router.get('/verifications/:nurseId', adminController.getNurseVerificationDetails);
 router.post('/verifications/:nurseId', validate(verifyNurse), adminController.verifyNurse);
 router.get('/users', adminController.getAllUsers);
+router.post('/users', adminController.createUser);
 router.get('/users/:userId', adminController.getUserById);
 router.put('/users/:userId', adminController.updateUser);
 router.delete('/users/:userId', adminController.deleteUser);

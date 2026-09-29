@@ -277,12 +277,32 @@
             });
         }
 
+        // Language-aware helper: backend returns { message (ar), message_en },
+        // so alerts/buttons always match the active toggle (AR/EN).
+        function currentLang() {
+            try {
+                if (typeof window.getQarribLanguage === 'function') return window.getQarribLanguage();
+                return window.qarribLanguage || localStorage.getItem('qarrib-language') || 'ar';
+            } catch (e) { return 'ar'; }
+        }
+        function L(ar, en) { return currentLang() === 'en' ? en : ar; }
+        function localizedResultMessage(result, fallbackAr, fallbackEn) {
+            if (typeof window.pickLocalizedMessage === 'function') {
+                return window.pickLocalizedMessage(result, L(fallbackAr, fallbackEn));
+            }
+            if (result && (result.message || result.message_en)) {
+                return currentLang() === 'en' ? (result.message_en || result.message) : (result.message || result.message_en);
+            }
+            return L(fallbackAr, fallbackEn);
+        }
+
         // Form submission
         document.getElementById('registerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = document.getElementById('submitBtn');
             btn.disabled = true;
-            btn.textContent = 'جاري الإنشاء...';
+            btn.setAttribute('data-no-translate', 'true');
+            btn.textContent = L('جاري الإنشاء...', 'Creating...');
 
             // بنبني FormData عشان نرفع ملفات + بيانات مع بعض
             const formData = new FormData();
@@ -303,9 +323,9 @@
             if (role === 'nurse') {
                 const spec = document.getElementById('specialization').value;
                 if (!spec) {
-                    showAlert('اختر التخصص من فضلك', 'error');
+                    showAlert(L('اختر التخصص من فضلك', 'Please choose a specialty'), 'error');
                     btn.disabled = false;
-                    btn.textContent = 'إنشاء الحساب';
+                    btn.textContent = L('إنشاء الحساب', 'Create account');
                     return;
                 }
                 formData.append('specialization', spec);
@@ -320,9 +340,9 @@
             // فحص إجمالي الحجم قبل الرفع (سقف الاستضافة ≈ 4.5MB)
             const totalSize = [idCard, license].reduce(function (acc, f) { return acc + (f ? f.size : 0); }, 0);
             if (totalSize > 4 * 1024 * 1024) {
-                showAlert('حجم الملفات كبير — اختر صوراً أصغر (الحد 4MB لإجمالي الملفات)', 'error');
+                showAlert(L('حجم الملفات كبير — اختر صوراً أصغر (الحد 4MB لإجمالي الملفات)', 'Files are too large — please choose smaller images (4MB total limit)'), 'error');
                 btn.disabled = false;
-                btn.textContent = 'إنشاء الحساب';
+                btn.textContent = L('إنشاء الحساب', 'Create account');
                 return;
             }
 
@@ -345,16 +365,18 @@
                 const endpoint = role === 'nurse' ? '/auth/register/nurse' : '/auth/register/patient';
                 let response;
                 try {
+                    var langHeaders = (typeof window.qarribLangHeaders === 'function') ? window.qarribLangHeaders() : { 'Accept-Language': currentLang(), 'X-Lang': currentLang() };
                     response = await fetch(`${API_BASE_URL}${endpoint}`, {
                         method: 'POST',
+                        headers: langHeaders,
                         body: formData
                     });
                 } catch (netErr) {
-                    throw new Error('تعذر الاتصال بالسيرفر (' + API_BASE_URL + ') — تأكد أن السيرفر شغال وافتح الموقع من نفس رابطه ثم حاول مجدداً');
+                    throw new Error(L('تعذر الاتصال بالسيرفر (' + API_BASE_URL + ') — تأكد أن السيرفر شغال وافتح الموقع من نفس رابطه ثم حاول مجدداً', 'Could not reach the server (' + API_BASE_URL + ') — make sure it is running and retry'));
                 }
 
                 if (response.status === 413) {
-                    throw new Error('حجم الملفات أكبر من المسموح (4MB) — صغّر الصور وحاول مجدداً');
+                    throw new Error(L('حجم الملفات أكبر من المسموح (4MB) — صغّر الصور وحاول مجدداً', 'Files exceed the allowed size (4MB) — shrink the images and try again'));
                 }
 
                 let result = {};
@@ -362,25 +384,26 @@
                     var body = await response.text();
                     result = body ? JSON.parse(body) : {};
                 } catch (e) {
-                    throw new Error('رد غير صالح من السيرفر');
+                    throw new Error(L('رد غير صالح من السيرفر', 'Invalid response from the server'));
                 }
 
                 if (!response.ok) {
-                    const details = (result.errors || []).map(function (x) { return x.message || x.field; }).join('، ');
-                    throw new Error((result.message || 'فشل إنشاء الحساب') + (details ? ': ' + details : ''));
+                    const details = (result.errors || []).map(function (x) { return x.message || x.field; }).join(currentLang() === 'en' ? ', ' : '، ');
+                    var serverMsg = localizedResultMessage(result, 'فشل إنشاء الحساب', 'Failed to create the account');
+                    throw new Error(serverMsg + (details ? ': ' + details : ''));
                 }
 
                 if (result.success) {
                     api.setToken(result.data.token);
                     setUser(result.data.user);
-                    showAlert('تم إنشاء الحساب بنجاح!');
+                    showAlert(localizedResultMessage(result, 'تم إنشاء الحساب بنجاح!', 'Account created successfully!'));
                     setTimeout(() => redirectBasedOnRole(), 1500);
                 }
             } catch (error) {
-                showAlert(error.message || 'فشل إنشاء الحساب', 'error');
+                showAlert(error.message || L('فشل إنشاء الحساب', 'Failed to create the account'), 'error');
             } finally {
                 btn.disabled = false;
-                btn.textContent = 'إنشاء الحساب';
+                btn.textContent = L('إنشاء الحساب', 'Create account');
             }
         });
     </script>

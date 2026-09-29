@@ -5,11 +5,16 @@
   "backgroundColor": "#F6F3EC",
   "server": {
     "androidScheme": "https",
+    "iosScheme": "https",
     "cleartext": true,
     "allowNavigation": ["qarrib1.vercel.app", "qarrib.onrender.com", "*.onrender.com", "*.vercel.app"]
   },
   "android": {
     "allowMixedContent": true,
     "captureInput": true
+  },
+  "ios": {
+    "contentInset": "automatic",
+    "limitsNavigationsToAppBoundDomains": false
   }
 }

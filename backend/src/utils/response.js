@@ -1,8 +1,11 @@
+const { toEnglish } = require('./i18n');
+
 class ResponseHelper {
   static success(res, data, message = 'Success', statusCode = 200) {
     return res.status(statusCode).json({
       success: true,
       message,
+      message_en: toEnglish(message),
       data,
       timestamp: new Date().toISOString()
     });
@@ -12,6 +15,7 @@ class ResponseHelper {
     return res.status(statusCode).json({
       success: false,
       message,
+      message_en: toEnglish(message),
       errors: errors.length > 0 ? errors : undefined,
       timestamp: new Date().toISOString()
     });
@@ -21,6 +25,7 @@ class ResponseHelper {
     return res.status(200).json({
       success: true,
       message,
+      message_en: toEnglish(message),
       data,
       pagination: {
         page: pagination.page,

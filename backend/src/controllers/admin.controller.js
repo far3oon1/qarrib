@@ -214,6 +214,42 @@ const getAllUsers = asyncHandler(async (req, res) => {
   ResponseHelper.paginated(res, mapped, { page: parseInt(page), limit: parseInt(limit), total }, 'قائمة المستخدمين');
 });
 
+// POST /admin/users -> admin creates a patient/nurse account (add privilege)
+const createUser = asyncHandler(async (req, res) => {
+  const { fullName, email, phone, password, nationalId, role, gender, specialization, yearsOfExperience } = req.body;
+
+  if (!fullName || !email || !phone || !password || !nationalId || !role) {
+    throw new ApiError(400, 'جميع الحقول مطلوبة: الاسم، البريد، الهاتف، كلمة المرور، الرقم القومي، الدور');
+  }
+  if (role === 'admin') throw new ApiError(403, 'لا يمكن إنشاء حساب أدمن من هنا');
+  if (!['patient', 'nurse'].includes(role)) throw new ApiError(400, 'الدور يجب أن يكون مريض أو ممرض');
+
+  const existingUser = await User.findOne({ $or: [{ email }, { phone }, { nationalId }] });
+  if (existingUser) {
+    if (existingUser.email === email) throw new ApiError(409, 'البريد الإلكتروني مسجل مسبقاً');
+    if (existingUser.phone === phone) throw new ApiError(409, 'رقم الهاتف مسجل مسبقاً');
+    if (existingUser.nationalId === nationalId) throw new ApiError(409, 'الرقم القومي مسجل مسبقاً');
+  }
+
+  const user = await User.create({
+    fullName,
+    email,
+    phone,
+    password,
+    nationalId,
+    role,
+    gender: gender || null,
+    status: role === 'nurse' ? 'pending' : 'active',
+    isActive: true,
+    specialization: specialization || null,
+    yearsOfExperience: yearsOfExperience || 0,
+  });
+
+  ResponseHelper.success(res, {
+    user: { id: user._id, fullName: user.fullName, email: user.email, phone: user.phone, role: user.role, status: user.status }
+  }, 'تم إنشاء المستخدم بنجاح', 201);
+});
+
 const getUserById = asyncHandler(async (req, res) => {
   const { userId } = req.params;
   const user = await User.findById(userId).select('-password');
@@ -1029,7 +1065,7 @@ const updateNurseStatus = asyncHandler(async (req, res) => {
 
 module.exports = {
   getDashboardStats, getPendingVerifications, getVerificationsCompat, getNurseVerificationDetails, verifyNurse,
-  getAllUsers, getUserById, updateUser, deleteUser, resetUserPassword, toggleUserStatus,
+  getAllUsers, getUserById, createUser, updateUser, deleteUser, resetUserPassword, toggleUserStatus,
   getAllOrders, getOrderDetails, deleteOrder, reviewOrderPrice, setOrderPrice, updateOrderStatus, getPaymentsStats,
   getPendingTopups, reviewTopup, completeOrder,
   getPendingWithdrawals, reviewWithdrawal, approveNurseOffer,

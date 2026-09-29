@@ -34,7 +34,7 @@ module.exports = async (req, res) => {
     // NOTE: the Express app is exported directly (no serverless-http
     // wrapper) — the wrapper hangs indefinitely on Vercel's Node runtime.
     if (url.indexOf('/health') === -1) {
-      return res.status(503).json({ success: false, message: 'Database unavailable, please try again shortly.' });
+      return res.status(503).json({ success: false, message: 'Database unavailable, please try again shortly.', message_en: 'Database unavailable, please try again shortly.' });
     }
   }
   return app(req, res);

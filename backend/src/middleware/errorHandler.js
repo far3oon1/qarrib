@@ -1,4 +1,5 @@
 const ApiError = require('../utils/ApiError');
+const { toEnglish } = require('../utils/i18n');
 
 const errorHandler = (err, req, res, next) => {
   let statusCode = err.statusCode || 500;
@@ -38,6 +39,7 @@ const errorHandler = (err, req, res, next) => {
   res.status(statusCode).json({
     success: false,
     message,
+    message_en: toEnglish(message),
     errors: errors.length > 0 ? errors : undefined,
     timestamp: new Date().toISOString()
   });

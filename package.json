@@ -1,24 +1,33 @@
 {
   "name": "qarrib-desktop",
-  "version": "1.0.0-desktop",
+  "version": "1.1.0",
   "description": "Qarrib - Healthcare/Nursing On-Demand Platform (Desktop Application)",
   "main": "desktop/main.js",
   "author": "Qarrab Healthcare",
   "scripts": {
-    "build": "echo qarrib-static-ok",
+    "check:static": "echo qarrib-static-ok",
     "install:backend": "cd backend && npm install",
     "start:backend": "cd backend && npm start",
     "dev:backend": "cd backend && npm run dev",
     "start": "node desktop/main.js",
     "start:desktop": "electron . --desktop",
+    "desktop:online": "electron . --desktop",
+    "desktop:offline": "electron . --desktop --offline",
     "mobile:bridge": "esbuild mobile-src/native-bridge.js --bundle --format=iife --target=es2020 --outfile=frontend/js/native-bridge.js",
     "android:add": "cap add android",
     "android:sync": "npm run mobile:bridge && cap sync android",
     "android:apk": "npm run android:sync && cd android && gradlew.bat assembleDebug",
     "android:release": "npm run android:sync && cd android && gradlew.bat assembleRelease",
+    "android:bundle": "npm run android:sync && cd android && gradlew.bat bundleRelease",
+    "ios:add": "cap add ios",
+    "ios:sync": "npm run mobile:bridge && cap sync ios",
+    "ios:open": "npm run ios:sync && cap open ios",
+    "mobile:sync": "npm run mobile:bridge && cap sync",
     "build": "electron-builder",
     "build:win": "electron-builder --win",
+    "build:linux": "electron-builder --linux",
     "build:mac": "electron-builder --mac",
+    "build:all": "electron-builder -mwl",
     "install:desktop": "npm install electron electron-builder --save-dev",
     "setup:desktop": "cd backend && npm install && npm install electron electron-builder --save-dev",
     "postinstall": "node -e \"if(process.env.VERCEL){console.log('Vercel build: skipping desktop bootstrap')}else{console.log('Desktop bootstrap skipped (run npm run setup:desktop to install desktop tooling)')}\""
@@ -39,7 +48,7 @@
       "package.json"
     ],
     "win": {
-      "target": "nsis"
+      "target": ["nsis", "portable"]
     },
     "nsis": {
       "oneClick": false,
@@ -47,6 +56,14 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Medical"
+    },
+    "mac": {
+      "target": ["dmg", "zip"],
+      "category": "public.app-category.medical"
     },
     "extraResources": [
       {
@@ -62,6 +79,7 @@
   "devDependencies": {
     "@capacitor/android": "^7.6.9",
     "@capacitor/cli": "^7.6.9",
+    "@capacitor/ios": "^7.6.9",
     "electron": "^44.4.5",
     "electron-builder": "^26.15.3",
     "esbuild": "^0.25.12"

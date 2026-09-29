@@ -44,30 +44,31 @@
     <div class="landing">
         <nav class="topbar">
             <div class="logo">Qarrib</div>
-            <div style="display:flex;gap:12px;">
-                <a href="login.html" class="q-btn q-btn-secondary q-btn-sm" style="text-decoration:none;">Sign in</a>
-                <a href="register.html?role=patient" class="q-btn q-btn-sm" style="text-decoration:none;">Get care</a>
+            <div style="display:flex;gap:12px;align-items:center;">
+                <button id="langToggle" type="button" class="q-btn q-btn-secondary q-btn-sm">العربية</button>
+                <a href="login.html" class="q-btn q-btn-secondary q-btn-sm" style="text-decoration:none;" data-i18n="signin">Sign in</a>
+                <a href="register.html?role=patient" class="q-btn q-btn-sm" style="text-decoration:none;" data-i18n="getcare">Get care</a>
             </div>
         </nav>
 
         <section class="hero">
             <div>
-                <h1>Nursing care, at your door.</h1>
-                <p>Request a licensed nurse in Egypt, compare clear offers, and follow every visit live — all from Qarrib.</p>
+                <h1 data-i18n="h1">Nursing care, at your door.</h1>
+                <p data-i18n="sub">Request a licensed nurse in Egypt, compare clear offers, and follow every visit live — all from Qarrib.</p>
                 <div class="hero-cta">
-                    <a href="register.html?role=patient" class="q-btn" style="text-decoration:none;">Request a nurse</a>
-                    <a href="register.html?role=nurse" class="q-btn q-btn-secondary" style="text-decoration:none;">Join as a nurse</a>
+                    <a href="register.html?role=patient" class="q-btn" style="text-decoration:none;" data-i18n="req">Request a nurse</a>
+                    <a href="register.html?role=nurse" class="q-btn q-btn-secondary" style="text-decoration:none;" data-i18n="join">Join as a nurse</a>
                 </div>
                 <div style="display:flex;gap:16px;margin-top:24px;color:#4A605E;font-size:15px;">
-                    <span>Licensed &amp; verified</span><span>·</span><span>Live tracking</span><span>·</span><span>Secure wallet</span>
+                    <span data-i18n="t1">Licensed &amp; verified</span><span>·</span><span data-i18n="t2">Live tracking</span><span>·</span><span data-i18n="t3">Secure wallet</span>
                 </div>
             </div>
             <div class="hero-card">
-                <h2>The nearest nurse, whenever you need one.</h2>
+                <h2 data-i18n="card">The nearest nurse, whenever you need one.</h2>
                 <ul>
-                    <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D5EAE7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6 6 10a6 6 0 01-12 0c0-4 6-10 6-10z"/></svg>Licensed, verified nurses</li>
-                    <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D5EAE7" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>Clear offers from nurses near you</li>
-                    <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D5EAE7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-6 4 12 2-6h6"/></svg>Follow every visit live</li>
+                    <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D5EAE7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6 6 10a6 6 0 01-12 0c0-4 6-10 6-10z"/></svg><span data-i18n="c1">Licensed, verified nurses</span></li>
+                    <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D5EAE7" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><span data-i18n="c2">Clear offers from nurses near you</span></li>
+                    <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D5EAE7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-6 4 12 2-6h6"/></svg><span data-i18n="c3">Follow every visit live</span></li>
                 </ul>
             </div>
         </section>
@@ -75,24 +76,24 @@
         <section class="grid3">
             <div class="feat">
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0B5F5A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></svg>
-                <h3>Fast access</h3><p>The nearest available nurse reaches you in minutes.</p>
+                <h3 data-i18n="f1t">Fast access</h3><p data-i18n="f1p">The nearest available nurse reaches you in minutes.</p>
             </div>
             <div class="feat">
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0B5F5A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3.5 8-7 9-3.5-1-7-4-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg>
-                <h3>Verified safety</h3><p>Every nurse is licensed and identity-verified.</p>
+                <h3 data-i18n="f2t">Verified safety</h3><p data-i18n="f2p">Every nurse is licensed and identity-verified.</p>
             </div>
             <div class="feat">
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0B5F5A" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg>
-                <h3>Secure payment</h3><p>Wallet, card and InstaPay with escrow protection.</p>
+                <h3 data-i18n="f3t">Secure payment</h3><p data-i18n="f3p">Wallet, card and InstaPay with escrow protection.</p>
             </div>
         </section>
 
-        <h2 style="font-size:32px;margin-bottom:16px;">How it works</h2>
+        <h2 style="font-size:32px;margin-bottom:16px;" data-i18n="how">How it works</h2>
         <section class="steps">
-            <div class="step"><div class="step-n">1</div><strong>Request</strong><p class="q-muted" style="margin:6px 0 0;">Choose a service and your location.</p></div>
-            <div class="step"><div class="step-n">2</div><strong>Compare offers</strong><p class="q-muted" style="margin:6px 0 0;">Nurses near you send clear prices.</p></div>
-            <div class="step"><div class="step-n">3</div><strong>Track live</strong><p class="q-muted" style="margin:6px 0 0;">Watch your nurse arrive on the map.</p></div>
-            <div class="step"><div class="step-n">4</div><strong>Pay safely</strong><p class="q-muted" style="margin:6px 0 0;">Release payment after the visit report.</p></div>
+            <div class="step"><div class="step-n">1</div><strong data-i18n="s1t">Request</strong><p class="q-muted" style="margin:6px 0 0;" data-i18n="s1p">Choose a service and your location.</p></div>
+            <div class="step"><div class="step-n">2</div><strong data-i18n="s2t">Compare offers</strong><p class="q-muted" style="margin:6px 0 0;" data-i18n="s2p">Nurses near you send clear prices.</p></div>
+            <div class="step"><div class="step-n">3</div><strong data-i18n="s3t">Track live</strong><p class="q-muted" style="margin:6px 0 0;" data-i18n="s3p">Watch your nurse arrive on the map.</p></div>
+            <div class="step"><div class="step-n">4</div><strong data-i18n="s4t">Pay safely</strong><p class="q-muted" style="margin:6px 0 0;" data-i18n="s4p">Release payment after the visit report.</p></div>
         </section>
 
         <footer class="footer">
@@ -105,7 +106,52 @@
         window.QARRAB_API_URL = 'https://qarrib1.vercel.app';
         var ver = (window.desktopAPI && window.desktopAPI.getVersion) ? 'Desktop App' : 'Web App';
         var modeEl = document.getElementById('appMode');
-        if (modeEl) modeEl.textContent = 'Running as: ' + ver;
+        function paintMode(lang) {
+            if (!modeEl) return;
+            modeEl.textContent = (lang === 'ar' ? 'يعمل كـ: ' : 'Running as: ') + (lang === 'ar' ? (ver === 'Desktop App' ? 'تطبيق سطح المكتب' : 'تطبيق الويب') : ver);
+        }
+        var currentLang = 'en';
+        var AR = {
+            signin: 'تسجيل الدخول', getcare: 'احصل على الرعاية',
+            h1: 'رعاية تمريضية حتى باب منزلك.',
+            sub: 'اطلب ممرضاً مرخّصاً في مصر، وقارن العروض الواضحة، وتابع كل زيارة لحظة بلحظة — كل ذلك من قرّب.',
+            req: 'اطلب ممرضاً', join: 'انضم كممرض',
+            t1: 'مرخّص وموثّق', t2: 'تتبع مباشر', t3: 'محفظة آمنة',
+            card: 'أقرب ممرض لك، وقت ما تحتاجه.',
+            c1: 'ممرضون مرخّصون وموثّقون', c2: 'عروض واضحة من ممرضين قريبين منك', c3: 'تابع كل زيارة لحظة بلحظة',
+            f1t: 'وصول سريع', f1p: 'أقرب ممرض متاح يصلك في دقائق.',
+            f2t: 'أمان موثّق', f2p: 'كل ممرض مرخّص وموثّق الهوية.',
+            f3t: 'دفع آمن', f3p: 'محفظة وكارت وانستا باي بحماية الضمان.',
+            how: 'كيف يعمل؟',
+            s1t: 'اطلب', s1p: 'اختر الخدمة وحدد موقعك.',
+            s2t: 'قارن العروض', s2p: 'ممرضون قريبون منك يرسلون أسعاراً واضحة.',
+            s3t: 'تتبع مباشر', s3p: 'شاهد ممرضك وهو يصل على الخريطة.',
+            s4t: 'ادفع بأمان', s4p: 'ادفع بعد تقرير إتمام الزيارة.'
+        };
+        var EN = {};
+        document.querySelectorAll('[data-i18n]').forEach(function (el) { var k = el.getAttribute('data-i18n'); if (!EN[k]) EN[k] = el.textContent; });
+        function applyLandingLang(lang) {
+            currentLang = lang === 'ar' ? 'ar' : 'en';
+            var dict = currentLang === 'ar' ? AR : EN;
+            document.documentElement.lang = currentLang;
+            document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+            try { localStorage.setItem('qarrib-language', currentLang); } catch (e) {}
+            window.qarribLanguage = currentLang;
+            document.querySelectorAll('[data-i18n]').forEach(function (el) { var k = el.getAttribute('data-i18n'); if (dict[k] != null) el.textContent = dict[k]; });
+            var t = document.getElementById('langToggle');
+            if (t) t.textContent = currentLang === 'ar' ? 'English' : 'العربية';
+            paintMode(currentLang);
+        }
+        try {
+            var saved = localStorage.getItem('qarrib-language');
+            if (saved === 'ar' || saved === 'en') applyLandingLang(saved);
+            else paintMode('en');
+        } catch (e) { paintMode('en'); }
+        document.getElementById('langToggle').addEventListener('click', function () {
+            var next = currentLang === 'en' ? 'ar' : 'en';
+            applyLandingLang(next);
+            if (typeof window.setQarribLanguage === 'function') { window.setQarribLanguage(next); }
+        });
     </script>
     <script src="js/api.js?v=6"></script>
     <script src="js/auth.js?v=6"></script>
