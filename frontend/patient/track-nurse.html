@@ -237,13 +237,13 @@
         }
         async function payInstapay(){
             var ref = (document.getElementById('payRef') || {}).value || '';
-            try { var r = await api.payManual(orderId, { method: 'instapay', reference: ref.trim() }); if (r.success) { showAlert('Transfer recorded!'); loadOrder(); } }
+            try { var r = await api.payManual(orderId, { method: 'instapay', reference: ref.trim() }); if (r.success) { showAlert('تم إرسال التحويل! ستُفعّل الخدمة بعد قبول الإدارة ⏳'); loadOrder(); } }
             catch(e){ showAlert(e.message || 'Payment failed', 'error'); }
         }
         async function payVfCash(){
             var ref = (document.getElementById('payVfRef') || {}).value || '';
             if (!ref.trim()) { showAlert('أدخل رقم عملية فودافون كاش أولاً', 'error'); return; }
-            try { var r = await api.payManual(orderId, { method: 'vodafone_cash', reference: ref.trim() }); if (r.success) { showAlert('تم تسجيل تحويل فودافون كاش! المبلغ محجوز للطلب.'); loadOrder(); } }
+            try { var r = await api.payManual(orderId, { method: 'vodafone_cash', reference: ref.trim() }); if (r.success) { showAlert('تم إرسال تحويل فودافون كاش! ستُفعّل الخدمة بعد قبول الإدارة ⏳'); loadOrder(); } }
             catch(e){ showAlert(e.message || 'Payment failed', 'error'); }
         }
         // Patient can end the service as completed too

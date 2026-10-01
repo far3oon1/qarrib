@@ -351,6 +351,12 @@ API.prototype.getAdminTopups = function () {
 API.prototype.reviewTopup = function (id, action) {
     return this.request('POST', '/admin/topups/' + id, { action: action });
 };
+API.prototype.getAdminOrderPayments = function () {
+    return this.request('GET', '/admin/order-payments');
+};
+API.prototype.reviewOrderPayment = function (id, action) {
+    return this.request('POST', '/admin/order-payments/' + id, { action: action });
+};
 
 // Payments
 API.prototype.initiateCardPayment = function (data) {

@@ -52,6 +52,8 @@ router.patch('/services/:serviceId', adminController.updateService);
 router.get('/payments', adminController.getPaymentsStats);
 router.get('/topups', adminController.getPendingTopups);
 router.post('/topups/:topupId', adminController.reviewTopup);
+router.get('/order-payments', adminController.getPendingOrderPayments);
+router.post('/order-payments/:paymentId', adminController.reviewOrderPayment);
 router.get('/withdrawals', adminController.getPendingWithdrawals);
 router.post('/withdrawals/:withdrawalId', adminController.reviewWithdrawal);
 router.get('/earnings', adminController.getAdminEarnings);
