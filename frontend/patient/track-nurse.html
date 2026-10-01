@@ -39,12 +39,13 @@
     <div class="wrap">
         <a href="offers.html" class="back">← Back</a>
         <h1>Your nurse is on the way</h1>
+        <div id="arrivedBanner" style="display:none;background:#D1FAE5;border:2px solid #065F46;border-radius:14px;padding:12px 16px;font-size:15px;font-weight:700;color:#065F46;text-align:center;">📍 الممرض وصل إلى موقعك / The nurse has arrived</div>
         <div id="shareBox" style="margin-bottom:2px;"></div>
         <div id="permNote" style="display:none;background:#FFFBEB;border:1px solid #FDE68A;border-radius:12px;padding:10px 12px;font-size:13px;color:#92400E;text-align:center;"></div>
         <div class="mapbox"><div id="map"></div></div>
         <div class="loading-overlay" id="loadingOverlay"><div class="spinner" style="width:50px;height:50px;border-width:5px;"></div><p style="margin-top:16px;color:#4A605E;">Loading map…</p></div>
         <div id="geoDenied" class="geo-denied" style="display:none;">Location permission denied. Using default location.</div>
-        <div class="q-card" id="distanceInfo" style="display:none;padding:12px 16px;font-size:14px;color:#0B4A46;background:#DDEBE8;border:0;">Distance: <strong id="distanceValue">--</strong> km · ETA: <strong id="etaValue">--</strong> minutes</div>
+        <div class="q-card" id="distanceInfo" style="display:none;padding:12px 16px;font-size:14px;color:#0B4A46;background:#DDEBE8;border:0;">Distance: <strong id="distanceValue">--</strong> km · ETA: <strong id="etaValue">--</strong> min <span id="soonHint" style="display:none;font-weight:700;color:#065F46;">· قريب جداً منك 🟢</span></div>
         <div class="nurse-card">
             <div class="q-avatar" style="width:52px;height:52px;" id="nurseAvatar">N</div>
             <div style="flex-grow:1"><div style="font-size:17px;font-weight:600;" id="nurseName">Loading…</div><div style="font-size:14px;color:#4A605E;" id="nurseInfo">…</div></div>
@@ -71,7 +72,7 @@
     <script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="/socket.io/socket.io.js"></script>
-    <script src="../js/api.js?v=6"></script>
+    <script src="../js/api.js?v=9"></script>
     <script src="../js/auth.js?v=6"></script>
     <script src="../js/notifications.js"></script>
     <script src="../js/notify-popup.js?v=1"></script>
@@ -118,12 +119,17 @@
             document.getElementById('distanceInfo').style.display='block';
             document.getElementById('distanceValue').textContent=d.toFixed(1);
             document.getElementById('etaValue').textContent=Math.ceil(d/0.5);
+            // ETA @ ~30km/h city speed; flag when the nurse is basically here
+            var soon = document.getElementById('soonHint');
+            if (soon) soon.style.display = d < 0.5 ? 'inline' : 'none';
         }
         function calc(a,b,c,d){ var R=6371,rl=Math.PI/180; var h=Math.sin((c-a)*rl/2)**2+Math.cos(a*rl)*Math.cos(c*rl)*Math.sin((d-b)*rl/2)**2; return R*2*Math.atan2(Math.sqrt(h),Math.sqrt(1-h)); }
-        function renderSteps(status){
-            var order = ['accepted','on_the_way','arrived','completed'];
+        function renderSteps(order){
+            var status = (order && order.status) || order;
+            var arrived = !!(order && order.nurseArrived);
+            var orderArr = ['accepted','on_the_way','arrived','completed'];
             var labels = ['Request accepted','On the way','Arrived','Visit completed & report'];
-            var idx = status==='accepted'?0:status==='in_progress'||status==='assigned'?1:status==='arrived'?2:status==='completed'?3:1;
+            var idx = status==='completed'?3:(arrived?2:status==='accepted'?0:1);
             document.getElementById('statusSteps').innerHTML = labels.map(function(l,i){
                 var cls = i<idx?'dot':i===idx?'dot now':'dot todo';
                 var style = i===idx?'font-weight:600;':i>idx?'color:#4A605E;':'';
@@ -158,7 +164,12 @@
                         catch(e){ showAlert(e.message||'Failed','error'); }
                     };
                 } catch(e){}
-                renderSteps(order.status);
+                renderSteps(order);
+                // Arrival banner: nurse tapped "I arrived"
+                try {
+                    var ab = document.getElementById('arrivedBanner');
+                    if (ab) ab.style.display = order.nurseArrived ? 'block' : 'none';
+                } catch(e){}
                 renderPriceBanner(order);
                 renderOffers(order);
                 renderPay(order);
@@ -211,9 +222,14 @@
             var box = document.getElementById('paySection');
             if (!box) return;
             if (!order.hasPrice || order.escrowStatus === 'held' || order.escrowStatus === 'released') { box.innerHTML = ''; return; }
+            window._payAmount = order.amount;
             box.innerHTML = '<div class="q-card" style="padding:12px;"><div style="font-weight:700;margin-bottom:8px;">Payment (' + order.amount + ' EGP)</div>' +
                 '<button class="q-btn q-btn-sm" style="width:100%;margin-bottom:8px;" onclick="payWallet()">Pay from wallet</button>' +
-                '<div style="display:flex;gap:8px;"><input id="payRef" class="q-input" placeholder="InstaPay reference" style="flex:1;"><button class="q-btn q-btn-secondary q-btn-sm" onclick="payInstapay()">Confirm transfer</button></div></div>';
+                '<button class="q-btn q-btn-secondary q-btn-sm" style="width:100%;margin-bottom:8px;" onclick="payCard()">Pay by card 💳 (online)</button>' +
+                '<div style="display:flex;gap:8px;"><input id="payRef" class="q-input" placeholder="InstaPay reference" style="flex:1;"><button class="q-btn q-btn-secondary q-btn-sm" onclick="payInstapay()">Confirm transfer</button></div>' +
+                '<div style="margin-top:10px;background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;padding:10px;"><div style="font-weight:700;margin-bottom:4px;">📱 Vodafone Cash: <span dir="ltr">01003790634</span></div>' +
+                '<div style="font-size:12px;color:#4A605E;margin-bottom:6px;">حوّل المبلغ من فودافون كاش ثم أدخل رقم العملية واضغط تأكيد</div>' +
+                '<div style="display:flex;gap:8px;"><input id="payVfRef" class="q-input" placeholder="رقم عملية فودافون كاش" style="flex:1;"><button class="q-btn q-btn-secondary q-btn-sm" onclick="payVfCash()">تأكيد</button></div></div></div>';
         }
         async function payWallet(){
             try { var r = await api.payManual(orderId, { method: 'wallet' }); if (r.success) { showAlert('Paid! Amount held in escrow.'); loadOrder(); } }
@@ -223,6 +239,24 @@
             var ref = (document.getElementById('payRef') || {}).value || '';
             try { var r = await api.payManual(orderId, { method: 'instapay', reference: ref.trim() }); if (r.success) { showAlert('Transfer recorded!'); loadOrder(); } }
             catch(e){ showAlert(e.message || 'Payment failed', 'error'); }
+        }
+        async function payVfCash(){
+            var ref = (document.getElementById('payVfRef') || {}).value || '';
+            if (!ref.trim()) { showAlert('أدخل رقم عملية فودافون كاش أولاً', 'error'); return; }
+            try { var r = await api.payManual(orderId, { method: 'vodafone_cash', reference: ref.trim() }); if (r.success) { showAlert('تم تسجيل تحويل فودافون كاش! المبلغ محجوز للطلب.'); loadOrder(); } }
+            catch(e){ showAlert(e.message || 'Payment failed', 'error'); }
+        }
+        async function payCard(){
+            var amount = window._payAmount || 0;
+            if (!amount || amount <= 0) { showAlert('No amount to pay', 'error'); return; }
+            try {
+                var r = await api.initiateCardPayment({ amount: amount, type: 'order', orderId: orderId });
+                var url = r && r.data && (r.data.redirectUrl || r.data.iframeUrl);
+                if (url) { showAlert('Opening secure card payment…'); window.open(url, '_blank'); }
+                else showAlert((r && r.message) || 'Card payment started — check your payments');
+                loadOrder();
+            }
+            catch(e){ showAlert(e.message || 'Card payment failed', 'error'); }
         }
         // Patient can end the service as completed too
         function renderComplete(order){

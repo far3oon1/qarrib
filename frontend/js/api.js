@@ -320,6 +320,19 @@ API.prototype.approveOffer = function (orderId, offerId) {
 API.prototype.acceptSuggestedPrice = function (orderId) {
     return this.request('POST', '/orders/' + orderId + '/accept-price');
 };
+// Nurse taps "I arrived" -> patient gets bell + live banner
+API.prototype.arriveOrder = function (orderId) {
+    return this.request('POST', '/orders/' + orderId + '/arrive', {});
+};
+// Nurse visit report (what was done) -> shown to admin on Feedbacks
+API.prototype.submitVisitReport = function (orderId, summary) {
+    return this.request('POST', '/orders/' + orderId + '/report', { summary: summary });
+};
+// Audit log (admin panel only)
+API.prototype.getAuditLog = function (query) {
+    if (query === undefined) query = '';
+    return this.request('GET', '/admin/audit-log' + query);
+};
 API.prototype.respondToAssignment = function (orderId, accept) {
     return this.request('POST', '/orders/' + orderId + '/respond', { accept: accept });
 };

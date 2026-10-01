@@ -57,10 +57,17 @@
                 </div>
             </div>
             <div class="actions">
+                <button class="btn btn-primary btn-sm" id="arrivedBtn" style="display:none;" onclick="doArrive()">وصلت لموقع المريض 📍</button>
                 <button class="btn btn-primary btn-sm" id="startBtn" style="display:none;" onclick="doStart()">بدء الخدمة ▶</button>
                 <button class="btn btn-secondary btn-sm" id="doneBtn" style="display:none;" onclick="doComplete()">إنهاء الخدمة ✅</button>
                 <button class="btn btn-outline btn-sm" id="chatBtn">شات 💬</button>
                 <button class="btn btn-outline btn-sm" id="callBtn">اتصال 📞</button>
+            </div>
+            <div id="reportBox" style="display:none;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:12px;padding:12px;margin-top:8px;">
+                <div style="font-weight:700;margin-bottom:6px;">📋 تقرير الزيارة (يُرسل للإدارة)</div>
+                <div style="font-size:12px;color:#4A605E;margin-bottom:6px;">اكتب ما تم في الزيارة: الحالة، الإجراءات، الأدوية، ملاحظات.</div>
+                <textarea id="reportText" class="form-input" rows="3" placeholder="مثال: تم قياس الضغط والسكر، إعطاء حقنة..." style="width:100%;box-sizing:border-box;"></textarea>
+                <button class="btn btn-primary btn-sm" style="width:100%;margin-top:8px;" id="reportBtn" onclick="doReport()">إرسال التقرير للإدارة 📤</button>
             </div>
             <div style="margin-top:8px;">
                 <button class="btn btn-outline btn-sm" id="cancelBtn" style="width:100%;border-color:#fca5a5;color:#b91c1c;" onclick="doCancel()">إلغاء الزيارة ❌</button>
@@ -78,7 +85,7 @@
 <script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="/socket.io/socket.io.js"></script>
-<script src="../js/api.js?v=6"></script>
+<script src="../js/api.js?v=9"></script>
 <script src="../js/auth.js?v=6"></script>
 <script src="../js/notifications.js"></script>
 <script src="../js/notify-popup.js?v=1"></script>
@@ -139,6 +146,20 @@
             } catch(e){}
             document.getElementById('startBtn').style.display = o.status === 'assigned' ? 'block' : 'none';
             document.getElementById('doneBtn').style.display = (o.status === 'assigned' || o.status === 'in_progress') ? 'block' : 'none';
+            // Arrival button: visible until the nurse taps "I arrived"
+            try {
+                var abtn = document.getElementById('arrivedBtn');
+                var showArrive = (o.status === 'assigned' || o.status === 'in_progress') && !o.nurseArrived;
+                if (abtn) abtn.style.display = showArrive ? 'block' : 'none';
+                var sl = document.getElementById('statusLine');
+                if (sl && o.nurseArrived) sl.textContent = 'تم تسجيل وصولك ✅ — المريض تم إشعاره';
+            } catch(e){}
+            // Visit report box: during/after the visit until the report is sent
+            try {
+                var rbox = document.getElementById('reportBox');
+                var showReport = (o.status === 'in_progress' || o.status === 'completed') && !(o.visitReport && o.visitReport.summary);
+                if (rbox) rbox.style.display = showReport ? 'block' : 'none';
+            } catch(e){}
             // Nurse cancel works while the visit is still open (assigned / in progress)
             try {
                 var cbtn = document.getElementById('cancelBtn');
@@ -179,6 +200,19 @@
     }
     async function doStart(){        try { var r = await api.startService(orderId); if (r.success) { showAlert('بدأت الخدمة'); loadOrder(); } }
         catch(e){ showAlert(e.message || 'فشل البدء', 'error'); }
+    }
+    async function doArrive(){
+        if (!confirm('تأكيد وصولك لموقع المريض؟ سيتم إشعار المريض فوراً.')) return;
+        try { var r = await api.arriveOrder(orderId); if (r.success) { showAlert('تم تسجيل وصولك — المريض تم إشعاره 📍'); loadOrder(); } }
+        catch(e){ showAlert(e.message || 'فشل تسجيل الوصول', 'error'); }
+    }
+    async function doReport(){
+        var txt = (document.getElementById('reportText') || {}).value || '';
+        if (!txt.trim()) { showAlert('اكتب التقرير أولاً', 'error'); return; }
+        var btn = document.getElementById('reportBtn');
+        if (btn) btn.disabled = true;
+        try { var r = await api.submitVisitReport(orderId, txt.trim()); if (r.success) { showAlert('تم إرسال التقرير للإدارة 📋'); loadOrder(); } }
+        catch(e){ showAlert(e.message || 'فشل الإرسال', 'error'); if (btn) btn.disabled = false; }
     }
     async function doComplete(){
         if (!confirm('إنهاء الخدمة كمكتملة؟ سيتم إشعار المريض والإدارة.')) return;

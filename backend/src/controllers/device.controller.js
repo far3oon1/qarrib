@@ -8,6 +8,7 @@ const ApiError = require('../utils/ApiError');
 const ResponseHelper = require('../utils/response');
 const asyncHandler = require('../utils/asyncHandler');
 const { getDeviceMeta } = require('../utils/device');
+const { logAdmin, ACTIONS } = require('../utils/audit');
 
 // ---------- ADMIN ACCOUNTS ----------
 // GET /admin/admins — list every admin (admin panel only)
@@ -39,6 +40,7 @@ const createAdmin = asyncHandler(async (req, res) => {
   ResponseHelper.success(res, {
     admin: { id: String(admin._id), fullName: admin.fullName, email: admin.email, phone: admin.phone },
   }, 'تم إنشاء حساب الأدمن بنجاح', 201);
+  logAdmin(req, 'admin.create', { targetType: 'admin', targetId: String(admin._id), details: `${fullName} (${email})` });
 });
 
 // DELETE /admin/admins/:id — remove an admin (cannot remove self / last admin)
@@ -50,6 +52,7 @@ const deleteAdmin = asyncHandler(async (req, res) => {
   const count = await User.countDocuments({ role: 'admin' });
   if (count <= 1) throw new ApiError(400, 'لا يمكن حذف آخر أدمن — أنشئ بديلاً أولاً');
   await User.findByIdAndDelete(id);
+  logAdmin(req, 'admin.delete', { targetType: 'admin', targetId: String(id), details: `${target.fullName} (${target.email})` });
   ResponseHelper.success(res, { id }, 'تم حذف حساب الأدمن');
 });
 
@@ -61,6 +64,7 @@ const toggleAdminStatus = asyncHandler(async (req, res) => {
   if (!target) throw new ApiError(404, 'Admin not found');
   target.isActive = !target.isActive;
   await target.save();
+  logAdmin(req, 'admin.toggle', { targetType: 'admin', targetId: String(id), details: `${target.fullName} -> isActive=${target.isActive}` });
   ResponseHelper.success(res, { id, isActive: target.isActive }, target.isActive ? 'تم تفعيل الأدمن' : 'تم تعطيل الأدمن');
 });
 
@@ -158,6 +162,11 @@ const blockDevice = asyncHandler(async (req, res) => {
   }
 
   ResponseHelper.success(res, { blocked: results, reason: cleanReason, userSuspended: !!user }, 'تم الحظر — لن يستطيع هذا الجهاز تسجيل الدخول مجدداً');
+  logAdmin(req, 'device.block', {
+    targetType: user ? 'user' : 'device',
+    targetId: user ? String(user._id) : results.map((x) => x.deviceId).join(','),
+    details: `${results.map((x) => x.deviceId).join(',')} | reason: ${cleanReason}${user ? ` | account ${user.email} suspended` : ''}`,
+  });
 });
 
 // POST /admin/devices/unblock { deviceId | ip | fingerprint | userId }
@@ -179,6 +188,11 @@ const unblockDevice = asyncHandler(async (req, res) => {
     }
   }
   ResponseHelper.success(res, { matched: r.matchedCount ?? r.n, modified: r.modifiedCount ?? r.nModified }, 'تم فك الحظر — يستطيع الجهاز الدخول مجدداً');
+  logAdmin(req, 'device.unblock', {
+    targetType: userId ? 'user' : 'device',
+    targetId: userId ? String(userId) : keys.join(','),
+    details: `unblocked: ${userId ? String(userId) : keys.join(',')}`,
+  });
 });
 
 // DELETE /admin/devices/:id — remove a tracking row (does not unban the fingerprint)
@@ -187,4 +201,33 @@ const deleteDevice = asyncHandler(async (req, res) => {
   ResponseHelper.success(res, { id: req.params.id }, 'تم حذف سجل الجهاز');
 });
 
-module.exports = { listAdmins, createAdmin, deleteAdmin, toggleAdminStatus, listDevices, getUserDevices, blockDevice, unblockDevice, deleteDevice };
+// ---------- AUDIT LOG ----------
+// GET /admin/audit-log — fraud-prevention trail (admin panel only)
+const listAuditLog = asyncHandler(async (req, res) => {
+  const AuditLog = require('../models/AuditLog');
+  const { search = '', action = '', page = 1, limit = 30 } = req.query;
+  const q = {};
+  if (action) q.action = String(action).slice(0, 60);
+  if (search) {
+    const rx = new RegExp(search.trim().slice(0, 80).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    q.$or = [{ actorName: rx }, { action: rx }, { details: rx }, { targetId: rx }, { targetType: rx }];
+  }
+  const lim = Math.min(100, Math.max(1, parseInt(limit)));
+  const pg = Math.max(1, parseInt(page));
+  const [rows, total] = await Promise.all([
+    AuditLog.find(q).populate('actor', 'fullName email').sort({ createdAt: -1 }).skip((pg - 1) * lim).limit(lim).lean(),
+    AuditLog.countDocuments(q),
+  ]);
+  ResponseHelper.success(res, {
+    actions: ACTIONS,
+    logs: rows.map((l) => ({
+      id: String(l._id),
+      actor: l.actor ? { id: String(l.actor._id), name: l.actor.fullName, email: l.actor.email } : { name: l.actorName || '—' },
+      action: l.action, targetType: l.targetType, targetId: l.targetId,
+      details: l.details, ip: l.ip, createdAt: l.createdAt,
+    })),
+    pagination: { page: pg, limit: lim, total },
+  }, 'Audit log');
+});
+
+module.exports = { listAdmins, createAdmin, deleteAdmin, toggleAdminStatus, listDevices, getUserDevices, blockDevice, unblockDevice, deleteDevice, listAuditLog };

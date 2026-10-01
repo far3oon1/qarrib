@@ -75,5 +75,7 @@ router.post('/devices/block', deviceController.blockDevice);
 router.post('/devices/unblock', deviceController.unblockDevice);
 router.delete('/devices/:id', deviceController.deleteDevice);
 router.get('/users/:userId/devices', deviceController.getUserDevices);
+// ---- Audit log (fraud-prevention trail, admin panel only) ----
+router.get('/audit-log', deviceController.listAuditLog);
 
 module.exports = router;

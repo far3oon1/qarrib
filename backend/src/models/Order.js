@@ -256,6 +256,26 @@ const orderSchema = new mongoose.Schema({
     rating: { type: Number, min: 1, max: 5, default: null },
     comment: { type: String, default: null },
     createdAt: { type: Date, default: null }
+  },
+
+  // --- Arrival flag: nurse taps "I arrived" on the track page ---
+  // Patient sees it live (banner + step), admin sees it on feedbacks.
+  nurseArrived: {
+    type: Boolean,
+    default: false
+  },
+
+  arrivedAt: {
+    type: Date,
+    default: null
+  },
+
+  // --- Per-visit service report written by the nurse after the visit ---
+  // Shown to the admin on the Feedbacks page next to the patient rating.
+  visitReport: {
+    summary: { type: String, maxlength: 2000, default: null },
+    createdAt: { type: Date, default: null },
+    by: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }
   }
 
 }, { timestamps: true });
