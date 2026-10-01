@@ -136,13 +136,13 @@
             document.getElementById('orderInfo').textContent = (o.serviceType || '') + ' | ' + (o.amount || o.finalPrice || '') + ' ج.م | ' + (o.address || '');
             document.getElementById('statusBadge').textContent = o.status;
             document.getElementById('chatBtn').onclick = function(){ window.location.href = 'chat-room.html?order=' + orderId; };
-            // Call patient on the registered number (permission-gated by backend)
+            // Call patient: plan-priority in-app call (Free 3/order, subscribers unlimited)
             try {
                 var phone = o.patient && o.patient.phone;
                 var callBtn = document.getElementById('callBtn');
                 if (o.patient && o.patient.callDisabled) { callBtn.textContent = 'اتصال محظور 🔒'; callBtn.onclick = function(){ showAlert('الاتصال معطل لهذا الحساب من الإدارة', 'error'); }; }
-                else if (phone) { callBtn.textContent = 'اتصال 📞 ' + phone; callBtn.onclick = function(){ try { if (window.QarribPerms) QarribPerms.call(phone); else window.location.href = 'tel:' + phone; } catch(e){ window.location.href = 'tel:' + phone; } }; }
-                else { callBtn.textContent = 'اتصال 📞'; callBtn.onclick = function(){ showAlert('لا يوجد رقم مسجل', 'error'); }; }
+                else if (phone) { callBtn.textContent = 'اتصال 📞 ' + phone; callBtn.onclick = function(){ placeCall(); }; }
+                else { callBtn.textContent = 'اتصال 📞'; callBtn.onclick = function(){ placeCall(); }; }
             } catch(e){}
             document.getElementById('startBtn').style.display = o.status === 'assigned' ? 'block' : 'none';
             document.getElementById('doneBtn').style.display = (o.status === 'assigned' || o.status === 'in_progress') ? 'block' : 'none';
@@ -200,6 +200,18 @@
     }
     async function doStart(){        try { var r = await api.startService(orderId); if (r.success) { showAlert('بدأت الخدمة'); loadOrder(); } }
         catch(e){ showAlert(e.message || 'فشل البدء', 'error'); }
+    }
+    async function placeCall(){
+        try {
+            var r = await api.logCall(orderId);
+            if (r.success && r.data && r.data.tel) {
+                if (r.data.remaining != null) showAlert('مكالمات متبقية لهذه الزيارة (Free): ' + r.data.remaining);
+                var tel = r.data.tel;
+                try { if (window.QarribPerms) QarribPerms.call(tel); else window.location.href = 'tel:' + tel; }
+                catch(e){ window.location.href = 'tel:' + tel; }
+            }
+        }
+        catch(e){ showAlert(e.message || 'تعذر الاتصال', 'error'); }
     }
     async function doArrive(){
         if (!confirm('تأكيد وصولك لموقع المريض؟ سيتم إشعار المريض فوراً.')) return;

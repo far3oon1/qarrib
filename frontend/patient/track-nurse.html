@@ -145,11 +145,11 @@
                     document.getElementById('nurseName').textContent = order.nurse.name;
                     document.getElementById('nurseAvatar').textContent = order.nurse.name.charAt(0);
                     document.getElementById('nurseInfo').textContent = 'Arrives soon · ' + order.serviceType + (order.nurse.phone ? ' · ' + order.nurse.phone : '') + (order.nurse.isTrusted ? ' · ✅ Trusted' : '');
-                    // Call nurse on the registered number (backend-gated + consent-enforced)
-                    if (order.nurse.callDisabled || !order.nurse.phone) {
+                    // Call nurse: plan-priority in-app call (Free 3/order, subscribers unlimited)
+                    if (order.nurse.callDisabled) {
                         document.getElementById('callBtn').onclick = function(){ showAlert('Calling is disabled for this nurse by admin', 'error'); };
                     } else {
-                        document.getElementById('callBtn').onclick = function(){ try { if (window.QarribPerms) QarribPerms.call(order.nurse.phone); else location.href='tel:'+order.nurse.phone; } catch(e){ location.href='tel:'+order.nurse.phone; } };
+                        document.getElementById('callBtn').onclick = function(){ placeCall(); };
                     }
                     document.getElementById('chatBtn').onclick = function(){ location.href='chat-room.html?order='+orderId+'&nurse='+order.nurse.id; };
                 }
@@ -234,6 +234,18 @@
         async function payWallet(){
             try { var r = await api.payManual(orderId, { method: 'wallet' }); if (r.success) { showAlert('Paid! Amount held in escrow.'); loadOrder(); } }
             catch(e){ showAlert(e.message || 'Payment failed', 'error'); }
+        }
+        async function placeCall(){
+            try {
+                var r = await api.logCall(orderId);
+                if (r.success && r.data && r.data.tel) {
+                    if (r.data.remaining != null) showAlert('Free plan: ' + r.data.remaining + ' calls left for this visit');
+                    var tel = r.data.tel;
+                    try { if (window.QarribPerms) QarribPerms.call(tel); else location.href = 'tel:' + tel; }
+                    catch(e){ location.href = 'tel:' + tel; }
+                }
+            }
+            catch(e){ showAlert(e.message || 'Call blocked', 'error'); }
         }
         async function payInstapay(){
             var ref = (document.getElementById('payRef') || {}).value || '';
