@@ -397,7 +397,9 @@ const requestCall = asyncHandler(async (req, res) => {
 
   ResponseHelper.success(res, {
     tel, plan: myPlan, unlimited,
-    remaining: null
+    remaining: null,
+    calleeId: String(calleeId),
+    calleeName: isPatient ? (nurseDoc.name || 'الممرض') : (patientDoc.name || 'المريض')
   }, 'Calling…');
 });
 

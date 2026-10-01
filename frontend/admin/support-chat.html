@@ -59,6 +59,7 @@
 <script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
 <script src="/socket.io/socket.io.js"></script>
 <script src="../js/api.js?v=6"></script>
+<script src="../js/call.js?v=1"></script>
 <script src="../js/auth.js?v=6"></script>
 <script>
     if (!requireRole('admin')) redirectToLogin();
@@ -77,6 +78,7 @@
                     '<div class="avatar">' + esc((c.name||'N').charAt(0)) + '</div>' +
                     '<div class="info"><div class="name">' + esc(c.name) + (c.isOnline ? ' <span style="color:#059669;font-size:12px;">متصل</span>' : '') + '</div>' +
                     '<div class="prev">' + esc(c.lastMessage ? c.lastMessage.content : (c.specialization || '')) + '</div></div>' +
+                    '<button onclick="event.stopPropagation();QarribCall.startCall(\'' + c.id + '\',\'' + esc(c.name).replace(/'/g,'') + '\')" style="background:#0B5F5A;color:#fff;border:0;border-radius:50%;width:36px;height:36px;cursor:pointer;font-size:16px;" title="اتصال صوتي">📞</button>' +
                     (c.unreadCount ? '<span class="unread">' + c.unreadCount + '</span>' : '') + '</div>';
             }).join('');
         } catch(e){ document.getElementById('contacts').innerHTML = '<div style="padding:20px;">فشل التحميل</div>'; }
