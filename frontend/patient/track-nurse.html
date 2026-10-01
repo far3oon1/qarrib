@@ -264,7 +264,7 @@
         function renderFeedback(order){
             var box = document.getElementById('feedbackSection');
             if (!box) return;
-            if (order.status === 'completed' && !order.patientReview) {
+            if (order.status === 'completed' && !(order.patientReview && order.patientReview.rating)) {
                 box.style.display = 'block';
                 box.innerHTML = '<div class="q-card" style="padding:16px;"><div style="font-weight:700;margin-bottom:8px;">Rate your nurse</div>' +
                     '<div id="stars" style="display:flex;gap:6px;font-size:28px;margin-bottom:8px;">' +
