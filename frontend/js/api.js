@@ -629,8 +629,11 @@ API.prototype.getPlans = function () {
 API.prototype.getMySubscription = function () {
     return this.request('GET', '/subscriptions/me');
 };
-API.prototype.subscribePlan = function (plan, method, reference) {
-    return this.request('POST', '/subscriptions/subscribe', { plan: plan, method: method, reference: reference });
+API.prototype.subscribePlan = function (plan, method, reference, billing) {
+    return this.request('POST', '/subscriptions/subscribe', { plan: plan, method: method, reference: reference, billing: billing || 'monthly' });
+};
+API.prototype.removeSubscription = function (userId) {
+    return this.request('POST', '/subscriptions/admin/user/' + userId + '/remove', {});
 };
 API.prototype.cancelSubscription = function () {
     return this.request('POST', '/subscriptions/cancel', {});

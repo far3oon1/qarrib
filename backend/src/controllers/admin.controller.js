@@ -793,6 +793,9 @@ const completeOrder = asyncHandler(async (req, res) => {
   order.statusHistory.push({ status: 'completed', changedBy: req.user.id, notes: paidToNurse > 0 ? 'Admin approved completion — paid to nurse' : 'Admin approved completion (already paid directly)' });
   await order.save();
 
+  // REAL plan perk: Pro 5% / VIP 10% visit cashback to the patient wallet
+  try { await require('./subscription.controller').grantVisitCashback(order); } catch (_) {}
+
   await Notification.create({ recipient: order.patient, title: 'تم إنجاز طلبك', message: `تمت الموافقة على إنجاز طلبك #${order.orderNumber}`, type: 'order', data: { orderId: order._id } });
   if (paidToNurse <= 0) {
     await Notification.create({ recipient: nurse._id, title: 'تم إنجاز طلبك', message: `اعتمدت الإدارة إنجاز الطلب #${order.orderNumber}`, type: 'order', data: { orderId: order._id } });
@@ -810,16 +813,18 @@ const completeOrder = asyncHandler(async (req, res) => {
 // Nurse withdrawals: list pending (with nurse payout account) + approve/reject
 const getPendingWithdrawals = asyncHandler(async (req, res) => {
   const txs = await Wallet.find({ type: 'withdrawal', status: 'pending' })
-    .populate('user', 'fullName email phone payoutMethod payoutAccount walletBalance')
+    .populate('user', 'fullName email phone payoutMethod payoutAccount walletBalance subscription')
     .sort({ createdAt: -1 })
     .limit(50);
+  let isVip = () => false;
+  try { ({ isTrustedNurse: isVip } = require('./subscription.controller')); } catch (_) {}
   ResponseHelper.success(res, txs.map((t) => ({
     id: String(t._id),
     amount: t.amount,
     paymentMethod: t.paymentMethod,
     description: t.description,
     createdAt: t.createdAt,
-    user: t.user ? { id: String(t.user._id), name: t.user.fullName, email: t.user.email, phone: t.user.phone, payoutMethod: t.user.payoutMethod, payoutAccount: t.user.payoutAccount, walletBalance: t.user.walletBalance } : null
+    user: t.user ? { id: String(t.user._id), name: t.user.fullName, email: t.user.email, phone: t.user.phone, payoutMethod: t.user.payoutMethod, payoutAccount: t.user.payoutAccount, walletBalance: t.user.walletBalance, isVipNurse: !!(t.user.subscription && isVip(t.user)) } : null
   })), 'طلبات السحب المعلقة');
 });
 

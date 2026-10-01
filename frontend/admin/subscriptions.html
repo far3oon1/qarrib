@@ -33,15 +33,18 @@
     <main class="dash-main">
         <div><div style="font-size:15px;color:#4A605E;">Free / Pro / VIP — monthly billing</div><h1 style="font-size:34px;">💎 Subscriptions</h1></div>
         <section class="panel">
-            <h2 style="font-size:20px;">1 · Plan prices (EGP / month)</h2>
-            <div style="font-size:13px;color:#4A605E;">Free is always 0. Pro defaults to 250, VIP to 500 — change anytime, applies to new subscriptions immediately.</div>
+            <h2 style="font-size:20px;">1 · Plan prices (EGP)</h2>
+            <div style="font-size:13px;color:#4A605E;">Free is always 0. Monthly defaults: Pro 250, VIP/VIP-Nurse 500. Yearly = 10× monthly (2 months free) unless you set a custom yearly price.</div>
             <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                <label style="font-size:13px;">Pro price <input id="proPrice" type="number" min="0" class="q-input" style="width:140px;"></label>
-                <label style="font-size:13px;">VIP price <input id="vipPrice" type="number" min="0" class="q-input" style="width:140px;"></label>
-                <label style="font-size:13px;">VIP Nurse price <input id="nurseVipPrice" type="number" min="0" class="q-input" style="width:140px;"></label>
+                <label style="font-size:13px;">Pro /mo <input id="proPrice" type="number" min="0" class="q-input" style="width:120px;"></label>
+                <label style="font-size:13px;">VIP /mo <input id="vipPrice" type="number" min="0" class="q-input" style="width:120px;"></label>
+                <label style="font-size:13px;">VIP Nurse /mo <input id="nurseVipPrice" type="number" min="0" class="q-input" style="width:120px;"></label>
+                <label style="font-size:13px;">Pro /yr <input id="proYearlyPrice" type="number" min="0" class="q-input" style="width:120px;"></label>
+                <label style="font-size:13px;">VIP /yr <input id="vipYearlyPrice" type="number" min="0" class="q-input" style="width:120px;"></label>
+                <label style="font-size:13px;">VIP Nurse /yr <input id="nurseVipYearlyPrice" type="number" min="0" class="q-input" style="width:120px;"></label>
                 <button class="q-btn q-btn-sm" onclick="savePrices()">Save prices</button>
             </div>
-            <div style="font-size:13px;color:#4A605E;">Features: <strong>Pro</strong> = Priority matching, Unlimited calling, Priority support, 5% service discount (half of premium). <strong>VIP</strong> = everything in Pro + <strong>24/7 admin hotline calling</strong>, Dedicated account manager, Free rescheduling, Priority withdrawals, 👑 VIP badge, 10% service discount.</div>
+            <div style="font-size:13px;color:#4A605E;">Perks: <strong>Pro</strong> = priority matching, unlimited calls, 5% visit cashback, admin support chat. <strong>VIP</strong> = 10% cashback, 24/7 hotline + dedicated manager chat, family requests. <strong>VIP Nurse</strong> = ✅ trusted badge, top rank, withdrawals from 50 EGP.</div>
         </section>
         <section class="panel">
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
@@ -56,7 +59,7 @@
     </main>
 </div>
 <script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
-<script src="../js/api.js?v=6"></script>
+<script src="../js/api.js?v=9"></script>
 <script src="../js/auth.js?v=6"></script>
 <script src="../js/notifications.js"></script>
 <script src="../js/notify-popup.js?v=1"></script>
@@ -67,17 +70,25 @@ async function loadPrices(){
         var r = await api.getPlans();
         if (r.success) {
             var map = {}; r.data.plans.forEach(function(p){ map[p.id] = p; });
-            if (map.pro) document.getElementById('proPrice').value = map.pro.price;
-            if (map.vip) document.getElementById('vipPrice').value = map.vip.price;
-            if (map.nurse_vip) document.getElementById('nurseVipPrice').value = map.nurse_vip.price;
+            if (map.pro) { document.getElementById('proPrice').value = map.pro.price; document.getElementById('proYearlyPrice').value = map.pro.yearlyPrice || ''; }
+            if (map.vip) { document.getElementById('vipPrice').value = map.vip.price; document.getElementById('vipYearlyPrice').value = map.vip.yearlyPrice || ''; }
+            if (map.nurse_vip) { document.getElementById('nurseVipPrice').value = map.nurse_vip.price; document.getElementById('nurseVipYearlyPrice').value = map.nurse_vip.yearlyPrice || ''; }
         }
     } catch(e){}
 }
 async function savePrices(){
-    var pro = Number(document.getElementById('proPrice').value);
-    var vip = Number(document.getElementById('vipPrice').value);
-    var nurse_vip = Number(document.getElementById('nurseVipPrice').value);
-    try { var r = await api.savePlanPrices({ pro: pro, vip: vip, nurse_vip: nurse_vip }); if (r.success) { showAlert('Prices updated'); loadPrices(); } }
+    var payload = {
+        pro: Number(document.getElementById('proPrice').value),
+        vip: Number(document.getElementById('vipPrice').value),
+        nurse_vip: Number(document.getElementById('nurseVipPrice').value)
+    };
+    var py = document.getElementById('proYearlyPrice').value;
+    var vy = document.getElementById('vipYearlyPrice').value;
+    var ny = document.getElementById('nurseVipYearlyPrice').value;
+    if (py !== '') payload.pro_yearly = Number(py);
+    if (vy !== '') payload.vip_yearly = Number(vy);
+    if (ny !== '') payload.nurse_vip_yearly = Number(ny);
+    try { var r = await api.savePlanPrices(payload); if (r.success) { showAlert('Prices updated'); loadPrices(); } }
     catch(e){ showAlert(e.message||'Failed','error'); }
 }
 function planLabel(p){ return p === 'nurse_vip' ? 'VIP Nurse' : String(p||'').toUpperCase(); }
@@ -91,10 +102,11 @@ async function loadSubs(){
             var pmLabel = s.paymentMethod === 'wallet' ? 'Wallet' : s.paymentMethod === 'instapay' ? 'InstaPay' : (s.paymentMethod || '');
             var roleLabel = s.user && s.user.role ? s.user.role.charAt(0).toUpperCase() + s.user.role.slice(1) : '';
             return '<div class="sub-row"><div style="flex:1;min-width:220px;"><div style="font-weight:800;">' + escapeHtml((s.user&&s.user.name)||'') +
-            ' <span class="pill p-' + s.status + '">' + s.status + '</span> <span class="pill" style="background:#F6F3EC;">' + planLabel(s.plan) + '</span></div>' +
+            ' <span class="pill p-' + s.status + '">' + s.status + '</span> <span class="pill" style="background:#F6F3EC;">' + planLabel(s.plan) + '</span>' + (s.billing === 'yearly' ? ' <span class="pill" style="background:#DCFCE7;color:#166534;">yearly 🎉</span>' : '') + '</div>' +
             '<div style="font-size:12px;color:#4A605E;">' + s.price + ' EGP · ' + pmLabel + (s.reference ? ' · ref: ' + escapeHtml(s.reference) : '') + ' · ' + new Date(s.createdAt).toLocaleString() + '</div>' +
             '<div style="font-size:12px;color:#4A605E;">' + escapeHtml((s.user&&s.user.phone)||'') + ' · ' + roleLabel + '</div></div>' +
             (s.status === 'pending' ? '<button class="q-btn q-btn-sm" onclick="review(\'' + s.id + '\',\'approve\')">Approve & activate</button><button class="q-btn q-btn-secondary q-btn-sm" onclick="review(\'' + s.id + '\',\'reject\')">Reject</button>' : '') +
+            ((s.status === 'active' || s.status === 'pending') && s.user && s.user.id ? '<button class="q-btn q-btn-sm" style="background:#991b1b;" onclick="removeFromPlan(\'' + s.user.id + '\',\'' + escapeHtml((s.user&&s.user.name)||'') + '\')">Remove from plan</button>' : '') +
             '</div>';
         }).join('');
     } catch(e){ showAlert(e.message||'Failed','error'); }
@@ -102,6 +114,11 @@ async function loadSubs(){
 async function review(id, action){
     if (!confirm(action === 'approve' ? 'Activate this plan for 30 days?' : 'Reject this request?')) return;
     try { var r = await api.reviewSubscription(id, action); if (r.success) { showAlert('Done'); loadSubs(); } }
+    catch(e){ showAlert(e.message||'Failed','error'); }
+}
+async function removeFromPlan(userId, name){
+    if (!confirm('إزالة "' + name + '" من خطته وإعادته للمجانية؟ / Remove from plan back to Free?')) return;
+    try { var r = await api.removeSubscription(userId); if (r.success) { showAlert(r.message || 'Removed from plan'); loadSubs(); } }
     catch(e){ showAlert(e.message||'Failed','error'); }
 }
 function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }

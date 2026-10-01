@@ -767,6 +767,9 @@ const completeCash = asyncHandler(async (req, res) => {
   order.statusHistory.push({ status: 'completed', changedBy: req.user.id, notes: `Nurse received cash ${cashAmount} EGP and ended service` });
   await order.save();
 
+  // REAL plan perk: Pro 5% / VIP 10% visit cashback to the patient wallet
+  try { await require('./subscription.controller').grantVisitCashback(order); } catch (_) {}
+
   const otherId = order.patient && (order.patient._id || order.patient);
   if (otherId) {
     await Notification.create({

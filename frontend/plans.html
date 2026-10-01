@@ -31,7 +31,11 @@
     <a href="javascript:history.back()" style="font-weight:700;color:#0B5F5A;text-decoration:none;">← Back</a>
     <div><div style="font-size:14px;color:#4A605E;">Choose your plan — billed monthly (30 days)</div>
     <h1 style="font-size:34px;margin:4px 0;" id="plansTitle">Free · Pro · VIP</h1>
-    <div id="myPlanLine" style="font-size:14px;color:#4A605E;">Loading your plan…</div></div>
+    <div id="myPlanLine" style="font-size:14px;color:#4A605E;">Loading your plan…</div>
+    <div style="display:flex;gap:8px;margin-top:10px;align-items:center;flex-wrap:wrap;">
+        <button id="billMonthly" class="q-btn q-btn-sm" onclick="setBilling('monthly')">شهري Monthly</button>
+        <button id="billYearly" class="q-btn q-btn-sm q-btn-secondary" onclick="setBilling('yearly')">🎉 سنوي Yearly — شهران مجاناً</button>
+    </div></div>
     <div class="plans" id="plansBox"><div class="loading"><div class="spinner"></div></div></div>
     <div class="q-card" id="vipBox" style="display:none;padding:18px;border:2px solid #b45309;background:#FFFBEB;">
         <div style="font-weight:800;font-size:17px;">👑 VIP 24/7 admin hotline</div>
@@ -74,11 +78,25 @@
     var FEAT_LABELS = {
         request_nurse:'Request a nurse', live_tracking:'Live nurse/patient tracking', chat_basic:'Chat',
         wallet_pay:'Wallet, InstaPay & Vodafone Cash payments', wallet_view:'Wallet view', rate_feedback:'Rate with stars & feedback',
+        calls_3_per_order:'3 calls per order', support_standard:'Standard support (9am–5pm)',
         unlimited_calls:'Unlimited calling (nurse/patient numbers)', priority_matching:'Priority matching (nearest first)',
         gallery_priority:'Priority photo uploads', support_priority:'Priority support (8am–12am)',
+        cashback_5:'5% cashback on every completed visit', cashback_10:'10% cashback on every completed visit',
+        support_extended:'Extended support (8am–12am)', support_247:'24/7 support',
+        family_accounts:'Request visits for your whole family',
         discount_5:'5% service discount', admin_hotline_24h:'24/7 admin hotline calling', dedicated_manager:'Dedicated account manager',
         free_reschedule:'Free rescheduling', withdrawal_priority:'Priority withdrawals', vip_badge:'👑 VIP badge', discount_10:'10% service discount',
-        accept_orders:'Accept orders', trusted_nurse:'✅ TRUSTED nurse badge — patients trust you first'
+        accept_orders:'Accept orders', trusted_nurse:'✅ TRUSTED nurse badge — patients trust you first',
+        rank_first:'Rank first in nurse lists', withdrawal_min_50:'Withdraw from just 50 EGP',
+        admin_chat:'Direct admin support chat', manager_chat:'Dedicated manager chat (VIP 24/7)'
+    };
+    var BILLING = 'monthly';
+    window.setBilling = function(b){
+        BILLING = (b === 'yearly') ? 'yearly' : 'monthly';
+        var bm = document.getElementById('billMonthly'), by = document.getElementById('billYearly');
+        if (bm) bm.className = 'q-btn q-btn-sm ' + (BILLING === 'monthly' ? '' : 'q-btn-secondary');
+        if (by) by.className = 'q-btn q-btn-sm ' + (BILLING === 'yearly' ? '' : 'q-btn-secondary');
+        renderPlans();
     };
     var myPlan = 'free', myRole = 'patient', PLANS = [];
     function planCls(id){ return id === 'nurse_vip' ? 'nurse_vip' : id; }
@@ -94,35 +112,44 @@
             var myLabel = myPlan === 'nurse_vip' ? 'VIP Nurse' : myPlan.toUpperCase();
             document.getElementById('myPlanLine').innerHTML = 'Your current plan: <strong>' + myLabel + '</strong>';
             document.getElementById('plansTitle').textContent = myRole === 'nurse' ? 'Free Nurse · VIP Nurse' : 'Free · Pro · VIP';
-            var box = document.getElementById('plansBox');
-            if (PLANS.length === 2) box.classList.add('two');
-            box.innerHTML = PLANS.map(function(p){
-                var isCur = p.id === myPlan;
-                var feats = (p.features||[]).map(function(f){
-                    return '<div class="feat">✅ <span>' + (FEAT_LABELS[f]||f) + '</span></div>';
-                }).join('');
-                var extra = p.id==='pro'
-                    ? '<div class="feat">🕗 <span>Support ' + p.limits.supportHours + ' <small>(half of premium)</small></span></div>'
-                    : (p.id==='vip' || p.id==='nurse_vip')
-                    ? '<div class="feat">🕛 <span>Support 24/7</span></div>' + (p.id==='vip' ? '<div class="feat">📞 <span>Admin 24-hour calling <small>(exclusive)</small></span></div>' : '<div class="feat">🥇 <span>Rank first in nurse lists</span></div>')
-                    : '<div class="feat">🕘 <span>Support ' + p.limits.supportHours + '</span></div>';
-                return '<div class="plan ' + planCls(p.id) + (isCur?' cur':'') + '">' +
-                    '<span class="badge b-' + p.id + '">' + p.nameAr + ' · ' + p.name.toUpperCase() + (isCur?' · CURRENT':'') + '</span>' +
-                    '<h2>' + p.name + '</h2><div class="price">' + p.price + ' EGP<small style="font-size:13px;color:#4A605E;">/month</small></div>' +
-                    '<div style="font-size:13px;color:#4A605E;">' + p.tagline + '</div>' + feats + extra +
-                    (p.id==='free'
-                        ? (isCur ? '<button class="q-btn q-btn-secondary" disabled>Current plan</button>' : '<button class="q-btn q-btn-secondary" onclick="downgrade()">Downgrade to Free</button>')
-                        : (isCur ? '<button class="q-btn q-btn-secondary" disabled>Current plan</button>'
-                            : '<button class="q-btn" onclick="buy(\'' + p.id + '\',\'wallet\')">Subscribe · wallet (' + p.price + ' EGP)</button>' +
-                              '<button class="q-btn q-btn-secondary" onclick="buy(\'' + p.id + '\',\'instapay\')">InstaPay transfer</button>' +
-                              '<button class="q-btn q-btn-secondary" style="margin-top:6px;" onclick="buy(\'' + p.id + '\',\'vodafone_cash\')">📱 Vodafone Cash transfer</button>')) +
-                    '</div>';
-            }).join('');
+            renderPlans();
             document.getElementById('vipBox').style.display = (myPlan==='vip') ? 'block' : 'none';
             document.getElementById('trustBox').style.display = (myPlan==='nurse_vip') ? 'block' : 'none';
         } catch(e){ document.getElementById('plansBox').innerHTML = '<div class="q-muted">Failed to load plans</div>'; }
     }
-    function planPrice(id){ for (var i=0;i<PLANS.length;i++) if (PLANS[i].id===id) return PLANS[i].price; return ''; }
+    function priceOf(p){ return BILLING === 'yearly' && p.yearlyPrice != null ? p.yearlyPrice : p.price; }
+    function planPrice(id){ for (var i=0;i<PLANS.length;i++) if (PLANS[i].id===id) return priceOf(PLANS[i]); return ''; }
+    function planCycle(){ return BILLING === 'yearly' ? 'سنة (365 يوم) / yearly' : 'شهر (30 يوم) / monthly'; }
+    function renderPlans(){
+        var box = document.getElementById('plansBox');
+        if (!box) return;
+        if (PLANS.length === 2) box.classList.add('two');
+        box.innerHTML = PLANS.map(function(p){
+            var isCur = p.id === myPlan;
+            var price = priceOf(p);
+            var per = BILLING === 'yearly' ? '/year' : '/month';
+            var saveLine = (BILLING === 'yearly' && p.yearlySave) ? '<div style="font-size:13px;font-weight:800;color:#065F46;">🎉 Yearly: save ' + p.yearlySave + ' EGP (2 months free)</div>' : '';
+            var feats = (p.features||[]).map(function(f){
+                return '<div class="feat">✅ <span>' + (FEAT_LABELS[f]||f) + '</span></div>';
+            }).join('');
+            var extra = p.id==='pro'
+                ? '<div class="feat">🕗 <span>Support ' + p.limits.supportHours + ' <small>(half of premium)</small></span></div>'
+                : (p.id==='vip' || p.id==='nurse_vip')
+                ? '<div class="feat">🕛 <span>Support 24/7</span></div>' + (p.id==='vip' ? '<div class="feat">📞 <span>Admin 24-hour calling <small>(exclusive)</small></span></div>' : '<div class="feat">🥇 <span>Rank first in nurse lists</span></div>')
+                : '<div class="feat">🕘 <span>Support ' + p.limits.supportHours + '</span></div>';
+            return '<div class="plan ' + planCls(p.id) + (isCur?' cur':'') + '">' +
+                '<span class="badge b-' + p.id + '">' + p.nameAr + ' · ' + p.name.toUpperCase() + (isCur?' · CURRENT':'') + '</span>' +
+                '<h2>' + p.name + '</h2><div class="price">' + price + ' EGP<small style="font-size:13px;color:#4A605E;">' + per + '</small></div>' + saveLine +
+                '<div style="font-size:13px;color:#4A605E;">' + p.tagline + '</div>' + feats + extra +
+                (p.id==='free'
+                    ? (isCur ? '<button class="q-btn q-btn-secondary" disabled>Current plan</button>' : '<button class="q-btn q-btn-secondary" onclick="downgrade()">Downgrade to Free</button>')
+                    : (isCur ? '<button class="q-btn q-btn-secondary" disabled>Current plan</button>'
+                        : '<button class="q-btn" onclick="buy(\'' + p.id + '\',\'wallet\')">Subscribe · wallet (' + price + ' EGP)</button>' +
+                          '<button class="q-btn q-btn-secondary" onclick="buy(\'' + p.id + '\',\'instapay\')">InstaPay transfer</button>' +
+                          '<button class="q-btn q-btn-secondary" style="margin-top:6px;" onclick="buy(\'' + p.id + '\',\'vodafone_cash\')">📱 Vodafone Cash transfer</button>')) +
+                '</div>';
+        }).join('');
+    }
     window.copyInsta = function(){
         var n = document.getElementById('instaNumber').textContent.trim();
         try {
@@ -143,13 +170,13 @@
         var num = isVf ? document.getElementById('vfNumber').textContent.trim() : document.getElementById('instaNumber').textContent.trim();
         var label = isVf ? 'فودافون كاش / Vodafone Cash' : 'انستا باي / InstaPay';
         if (method==='instapay' || isVf) {
-            if (!ref.trim() && !confirm('تحويل المبلغ ' + planPrice(plan) + ' جنيه إلى ' + num + ' أولاً، ثم أدخل المرجع — متابعة؟ / Transfer ' + planPrice(plan) + ' EGP to ' + num + ' first, then enter reference — continue?')) return;
-            if (!confirm('طلب ' + plan.toUpperCase() + ' عبر ' + label + ' إلى ' + num + '؟ سيُرسل طلبك للإدارة للتفعيل. / Request ' + plan.toUpperCase() + ' via ' + label + ' to ' + num + '? Your request goes to admin for activation.')) return;
+            if (!ref.trim() && !confirm('تحويل المبلغ ' + planPrice(plan) + ' جنيه (' + planCycle() + ') إلى ' + num + ' أولاً، ثم أدخل المرجع — متابعة؟ / Transfer ' + planPrice(plan) + ' EGP (' + planCycle() + ') to ' + num + ' first, then enter reference — continue?')) return;
+            if (!confirm('طلب ' + plan.toUpperCase() + ' (' + planCycle() + ') عبر ' + label + ' إلى ' + num + '؟ سيُرسل طلبك للإدارة للتفعيل. / Request ' + plan.toUpperCase() + ' (' + planCycle() + ') via ' + label + ' to ' + num + '? Your request goes to admin for activation.')) return;
         } else {
-            if (!confirm('اشترك في ' + plan.toUpperCase() + ' من المحفظة؟ / Subscribe to ' + plan.toUpperCase() + ' from wallet?')) return;
+            if (!confirm('اشترك في ' + plan.toUpperCase() + ' (' + planCycle() + ') من المحفظة؟ / Subscribe to ' + plan.toUpperCase() + ' (' + planCycle() + ') from wallet?')) return;
         }
         try {
-            var r = await api.subscribePlan(plan, method, ref.trim());
+            var r = await api.subscribePlan(plan, method, ref.trim(), BILLING);
             if (r.success) { showAlert(r.message || 'Done'); if(window.qpNotify) qpNotify.popup({title:'Subscription',message:r.message||'Done',type:'payment'}); load(); }
         } catch(e){ showAlert(e.message||'Failed','error'); }
     };
