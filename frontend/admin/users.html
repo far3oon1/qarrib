@@ -95,6 +95,8 @@
             <button class="filter-btn" onclick="filterUsers('patient')">مرضى</button>
             <button class="filter-btn" onclick="filterUsers('nurse')">ممرضين</button>
             <button class="filter-btn" style="border-color:#0B5F5A;color:#0B5F5A;font-weight:700;" onclick="toggleAddForm()">＋ إضافة حساب</button>
+            <button class="filter-btn" style="border-color:#7f1d1d;color:#7f1d1d;font-weight:700;" onclick="location.href='devices.html'">📵 حظر الأجهزة</button>
+            <button class="filter-btn" style="border-color:#0B5F5A;color:#0B5F5A;font-weight:700;" onclick="location.href='admins.html'">👑 الأدمنز</button>
             <button class="filter-btn" style="border-color:#0B5F5A;color:#0B5F5A;font-weight:700;" onclick="location.href='assistants.html'">🎧 المساعدون والصلاحيات</button>
         </div>
 
@@ -162,8 +164,23 @@
         </div>
     </div>
 
+    <!-- Devices modal: every device this account registered/logged in from -->
+    <div id="devicesModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:16px;">
+        <div style="background:#fff;border-radius:16px;max-width:560px;width:100%;max-height:90vh;overflow:auto;padding:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                <h3 style="margin:0;" id="devicesTitle">📵 الأجهزة</h3>
+                <button onclick="closeModal('devicesModal')" style="border:0;background:#f1f5f9;border-radius:8px;padding:6px 12px;cursor:pointer;">✕</button>
+            </div>
+            <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+                <button class="btn-sm" style="background:#991b1b;color:#fff;" id="blockAllBtn">⛔ حظر كل أجهزة الحساب + إيقافه</button>
+                <button class="btn-sm" style="background:#065f46;color:#fff;" id="unblockAllBtn">✅ فك حظر أجهزته + تفعيله</button>
+            </div>
+            <div id="devicesBody"><div class="loading"><div class="spinner"></div></div></div>
+        </div>
+    </div>
+
     <script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
-    <script src="../js/api.js?v=7"></script>
+    <script src="../js/api.js?v=8"></script>
     <script src="../js/auth.js?v=7"></script>
     <script>
         if (!requireRole('admin')) redirectToLogin();
@@ -230,6 +247,10 @@
                                 <button class="btn-sm" style="background:#0B5F5A;color:#fff;"
                                     onclick="viewCredentials('${user.id}')">
                                     🔐 ${L('بيانات', 'Vault')}
+                                </button>
+                                <button class="btn-sm" style="background:#7f1d1d;color:#fff;"
+                                    onclick="viewDevices('${user.id}', '${(user.name || '').replace(/'/g, '')}')">
+                                    📵 ${L('الأجهزة', 'Devices')}
                                 </button>
                                 <button class="btn-sm" style="background:#2563eb;color:#fff;"
                                     onclick="openEdit('${user.id}')">
@@ -375,6 +396,56 @@
                 loadUsers();
             } catch (e) { showAlert(e.message || 'Failed', 'error'); }
             finally { btn.disabled = false; }
+        }
+
+        // ---- Devices per user (register/login fingerprint = MAC replacement) ----
+        var currentDevicesUserId = null;
+        async function viewDevices(userId, name) {
+            currentDevicesUserId = userId;
+            openModal('devicesModal');
+            document.getElementById('devicesTitle').textContent = '📵 أجهزة ' + (name || '');
+            document.getElementById('devicesBody').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+            document.getElementById('blockAllBtn').onclick = function(){ blockUserDevices(userId); };
+            document.getElementById('unblockAllBtn').onclick = function(){ unblockUserDevices(userId); };
+            try {
+                var r = await api.getUserDevices(userId);
+                var rows = (r.data && r.data.devices) || r.data || [];
+                if (!rows.length) {
+                    document.getElementById('devicesBody').innerHTML = '<div style="font-size:13px;color:#64748b;">لا توجد أجهزة مسجلة لهذا الحساب بعد (ستظهر عند أول دخول بعد التحديث).</div>';
+                    return;
+                }
+                document.getElementById('devicesBody').innerHTML = rows.map(function(d){
+                    return '<div style="border:1px solid #e2e8f0;border-radius:10px;padding:10px;margin-bottom:8px;font-size:13px;">' +
+                    '<div><strong>'+(d.blocked ? '⛔ محظور' : '✅ سليم')+'</strong> <span style="font-family:monospace;" dir="ltr">'+esc(d.deviceId)+'</span></div>' +
+                    '<div style="font-size:12px;color:#64748b;font-family:monospace;" dir="ltr">ip: '+esc(d.ip||'—')+'</div>' +
+                    '<div style="font-size:12px;color:#64748b;">'+esc(d.platform||'')+' · آخر ظهور: '+esc(d.lastSeen?new Date(d.lastSeen).toLocaleString():'—')+'</div>' +
+                    '<div style="display:flex;gap:6px;margin-top:6px;">' +
+                    (d.blocked
+                      ? '<button class="btn-sm" style="background:#065f46;color:#fff;" onclick="unblockOne(\''+esc(d.deviceId)+'\')">✅ فك الحظر</button>'
+                      : '<button class="btn-sm" style="background:#991b1b;color:#fff;" onclick="blockOne(\''+esc(d.deviceId)+'\')">⛔ حظر</button>') +
+                    '</div></div>';
+                }).join('');
+            } catch(e){ document.getElementById('devicesBody').innerHTML = '<div style="color:#991b1b;">'+esc(e.message||'Failed')+'</div>'; }
+        }
+        async function blockOne(deviceId){
+            var reason = prompt('سبب الحظر:', 'مخالفة قواعد التطبيق');
+            if(reason===null) return;
+            try{ var r = await api.blockDevice({ deviceId: deviceId, reason: reason }); showAlert(r.message||'تم الحظر'); viewDevices(currentDevicesUserId, ''); }
+            catch(e){ showAlert(e.message||'Failed','error'); }
+        }
+        async function unblockOne(deviceId){
+            try{ var r = await api.unblockDevice({ deviceId: deviceId }); showAlert(r.message||'تم فك الحظر'); viewDevices(currentDevicesUserId, ''); }
+            catch(e){ showAlert(e.message||'Failed','error'); }
+        }
+        async function blockUserDevices(userId){
+            var reason = prompt('سبب حظر كل أجهزة هذا الحساب (سيتم إيقاف الحساب أيضاً):', 'مخالفة قواعد التطبيق');
+            if(reason===null) return;
+            try{ var r = await api.blockDevice({ userId: userId, reason: reason }); showAlert(r.message||'تم الحظر'); closeModal('devicesModal'); loadUsers(); }
+            catch(e){ showAlert(e.message||'Failed','error'); }
+        }
+        async function unblockUserDevices(userId){
+            try{ var r = await api.unblockDevice({ userId: userId }); showAlert(r.message||'تم فك الحظر'); closeModal('devicesModal'); loadUsers(); }
+            catch(e){ showAlert(e.message||'Failed','error'); }
         }
 
         loadUsers();

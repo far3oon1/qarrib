@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>حظر الأجهزة - لوحة الأدمن</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        .page-header { background: linear-gradient(135deg, #7f1d1d, #1e293b); color: #fff; padding: 20px; display: flex; align-items: center; gap: 12px; }
+        .back-btn { background: rgba(255,255,255,.2); border: 0; color: #fff; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 20px; }
+        .wrap { padding: 16px 20px 80px; max-width: 900px; margin: 0 auto; }
+        .card { background: #fff; border-radius: 14px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+        .muted { font-size: 12px; color: #64748b; }
+        .mono { font-family: monospace; font-size: 12px; word-break: break-all; }
+        .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        @media (max-width:600px){ .grid2{ grid-template-columns: 1fr; } }
+        .btn-sm { padding: 6px 12px; border-radius: 8px; border: 0; cursor: pointer; font-size: 12px; }
+        .pill { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 800; }
+        .blocked { background: #fee2e2; color: #991b1b; }
+        .ok { background: #d1fae5; color: #065f46; }
+        .toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
+        .toolbar input, .toolbar select { flex: 1; min-width: 140px; }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <div class="page-header">
+        <button class="back-btn" onclick="location.href='dashboard.html'">→</button>
+        <div><div style="font-size:20px;font-weight:800;">📵 حظر الأجهزة</div><div class="muted" style="color:#e5e7eb;">للأدمن فقط — احظر أي جهاز يخالف القواعد</div></div>
+    </div>
+    <div class="wrap">
+        <div class="card" style="background:#eff6ff;border:1px solid #bfdbfe;font-size:13px;">
+            <strong>🍎📱 من أين أعرف الـ MAC؟</strong><br>
+            المتصفحات <u>لا تعطي</u> عنوان MAC الحقيقي لأي موقع (خصوصية). لذلك قرّب يولّد <strong>بصمة جهاز تلقائية</strong> عند التسجيل/الدخول:
+            <div class="mono" style="margin-top:6px;">deviceId (مخزن في متصفح المستخدم) + IP + fingerprint + نوع الجهاز</div>
+            <div style="margin-top:6px;">كلها تظهر في الجدول بالأسفل — اضغط <strong>حظر</strong> بجانب أي جهاز مخالف، ولن يستطيع صاحبه تسجيل الدخول مجدداً حتى من حساب جديد. فك الحظر بنفس الطريقة.</div>
+        </div>
+
+        <div class="card">
+            <h4 style="margin:0 0 10px;">⛔ حظر يدوي (جهاز / IP / بصمة)</h4>
+            <div class="grid2">
+                <input id="b-device" class="form-input mono" placeholder="deviceId (مثال: dev-...)" dir="ltr">
+                <input id="b-ip" class="form-input mono" placeholder="IP (مثال: 197.60.1.2)" dir="ltr">
+                <input id="b-reason" class="form-input" placeholder="سبب الحظر (يظهر للمستخدم)" style="grid-column:1/-1;">
+            </div>
+            <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+                <button class="btn-sm" style="background:#991b1b;color:#fff;padding:10px 18px;" onclick="manualBlock()">⛔ حظر</button>
+                <button class="btn-sm" style="background:#065f46;color:#fff;padding:10px 18px;" onclick="manualUnblock()">✅ فك الحظر</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h4 style="margin:0 0 10px;">🔍 الأجهزة المسجلة (تظهر تلقائياً عند تسجيل أي مستخدم)</h4>
+            <div class="toolbar">
+                <input id="q" class="form-input" placeholder="بحث: جهاز / بريد / هاتف / IP" oninput="load(1)">
+                <select id="f-blocked" class="form-input" onchange="load(1)">
+                    <option value="">الكل</option>
+                    <option value="true">المحظورة فقط</option>
+                    <option value="false">السليمة فقط</option>
+                </select>
+                <button class="btn-sm" style="background:#0B5F5A;color:#fff;" onclick="load(1)">تحديث</button>
+            </div>
+        </div>
+        <div id="list"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+</div>
+<script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
+<script src="../js/api.js?v=8"></script>
+<script src="../js/auth.js?v=7"></script>
+<script>
+if (!requireRole('admin')) redirectToLogin();
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+async function load(){
+  var q = document.getElementById('q').value.trim();
+  var b = document.getElementById('f-blocked').value;
+  var query = '?limit=30' + (q ? '&search='+encodeURIComponent(q) : '') + (b ? '&blocked='+b : '');
+  try{
+    var r = await api.getDevices(query);
+    var rows = (r.data && r.data.devices) || [];
+    document.getElementById('list').innerHTML = rows.length ? rows.map(function(d){
+      var u = d.user || {};
+      return '<div class="card"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center;">'+
+      '<div><strong>'+esc(u.name||u.email||'—')+'</strong> <span class="pill '+(d.blocked?'blocked':'ok')+'">'+(d.blocked?'⛔ محظور':'✅ سليم')+'</span>'+
+      '<div class="muted">'+esc(u.email||'')+' · '+esc(u.phone||'')+' · '+esc(u.role||'')+'</div>'+
+      '<div class="mono" dir="ltr">device: '+esc(d.deviceId)+'</div>'+
+      '<div class="mono" dir="ltr">ip: '+esc(d.ip||'—')+' · fp: '+esc((d.fingerprint||'').slice(0,12))+'...</div>'+
+      '<div class="muted">'+esc(d.platform||'')+' · دخول: '+(d.loginCount||1)+' · آخر ظهور: '+esc(d.lastSeen?new Date(d.lastSeen).toLocaleString():'—')+'</div>'+
+      (d.blocked?'<div class="muted">السبب: '+esc(d.blockReason||'')+(d.blockedBy?' · بواسطة '+esc(d.blockedBy):'')+'</div>':'')+
+      (d.userAgent?'<details class="muted"><summary>المتصفح</summary><div class="mono" dir="ltr">'+esc(d.userAgent)+'</div></details>':'')+
+      '</div>'+
+      '<div style="display:flex;gap:6px;flex-direction:column;">'+
+      (d.blocked
+        ? '<button class="btn-sm" style="background:#065f46;color:#fff;" onclick="unblock(\''+esc(d.deviceId)+'\')">✅ فك الحظر</button>'
+        : '<button class="btn-sm" style="background:#991b1b;color:#fff;" onclick="block(\''+esc(d.deviceId)+'\')">⛔ حظر الجهاز</button>')+
+      (d.ip && d.deviceId.indexOf('ip:')!==0 ? '<button class="btn-sm" style="background:#7f1d1d;color:#fff;" onclick="blockIp(\''+esc(d.ip)+'\')">⛔ حظر الـ IP</button>' : '')+
+      '</div></div></div>';
+    }).join('') : '<div class="card muted">لا توجد أجهزة بعد — ستظهر هنا تلقائياً عند تسجيل/دخول المستخدمين.</div>';
+  }catch(e){ document.getElementById('list').innerHTML = '<div class="card" style="color:#991b1b;">'+esc(e.message||'Failed')+'</div>'; }
+}
+async function block(deviceId){
+  var reason = prompt('سبب الحظر (سيظهر للمستخدم عند محاولة الدخول):', 'مخالفة قواعد التطبيق');
+  if(reason===null) return;
+  try{ var r = await api.blockDevice({ deviceId: deviceId, reason: reason }); showAlert(r.message||'تم الحظر'); load(); }
+  catch(e){ showAlert(e.message||'Failed','error'); }
+}
+async function blockIp(ip){
+  var reason = prompt('سبب حظر الـ IP '+ip+':', 'مخالفة قواعد التطبيق');
+  if(reason===null) return;
+  try{ var r = await api.blockDevice({ ip: ip, reason: reason }); showAlert(r.message||'تم حظر الـ IP'); load(); }
+  catch(e){ showAlert(e.message||'Failed','error'); }
+}
+async function unblock(deviceId){
+  try{ var r = await api.unblockDevice({ deviceId: deviceId }); showAlert(r.message||'تم فك الحظر'); load(); }
+  catch(e){ showAlert(e.message||'Failed','error'); }
+}
+async function manualBlock(){
+  var payload = { deviceId: document.getElementById('b-device').value.trim()||undefined, ip: document.getElementById('b-ip').value.trim()||undefined, reason: document.getElementById('b-reason').value.trim() };
+  if(!payload.deviceId && !payload.ip){ showAlert('أدخل deviceId أو IP أولاً','error'); return; }
+  try{ var r = await api.blockDevice(payload); showAlert(r.message||'تم الحظر'); load(); }
+  catch(e){ showAlert(e.message||'Failed','error'); }
+}
+async function manualUnblock(){
+  var payload = { deviceId: document.getElementById('b-device').value.trim()||undefined, ip: document.getElementById('b-ip').value.trim()||undefined };
+  if(!payload.deviceId && !payload.ip){ showAlert('أدخل deviceId أو IP أولاً','error'); return; }
+  try{ var r = await api.unblockDevice(payload); showAlert(r.message||'تم فك الحظر'); load(); }
+  catch(e){ showAlert(e.message||'Failed','error'); }
+}
+load();
+</script>
+</body>
+</html>

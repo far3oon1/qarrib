@@ -40,7 +40,9 @@ app.use(cors({
     }
     return cb(null, false);
   },
-  credentials: true
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept-Language', 'X-Lang', 'X-Device-Id', 'X-Device-Platform'],
+  exposedHeaders: ['X-Device-Id']
 }));
 
 // Rate limiting (generous: demo app with chat + live GPS polling)
