@@ -290,7 +290,7 @@
             var btn = document.getElementById('sendFbBtn');
             if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
             var txt = (document.getElementById('fbText') || {}).value || '';
-            try { var r = await api.rateOrder(orderId, window._stars || 5, txt); if (r.success) { showAlert('Thank you! Feedback sent.'); loadOrder(); } }
+            try { var r = await api.rateOrder(orderId, window._stars || 5, txt); if (r.success) { showAlert('Thank you! Your stars + feedback were sent to the nurse and directly to the admin panel ⭐'); loadOrder(); } }
             catch(e){ showAlert(e.message || 'Failed', 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Send feedback'; } }
         }
         function setupSocket(){
@@ -299,7 +299,10 @@
                 socket = io({auth:{token:localStorage.getItem('token')}});
                 socket.on('connect',function(){ socket.emit('subscribe_location',{orderId:orderId}); });
                 socket.on('location_update',function(d){ if(d.role==='nurse') updateNurseLocation(d.lat,d.lng); });
+                // Live refresh: nurse finished / arrived / priced -> reload (stars box appears by itself)
+                socket.on('order_update',function(){ loadOrder(); });
             }catch(e){ setInterval(loadOrder,10000); }
+            setInterval(loadOrder,15000);
         }
         (function init(){
             initMap(); loadOrder(); setupSocket();
