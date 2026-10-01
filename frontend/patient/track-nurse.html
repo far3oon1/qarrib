@@ -72,7 +72,7 @@
     <script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="/socket.io/socket.io.js"></script>
-    <script src="../js/api.js?v=9"></script>
+    <script src="../js/api.js?v=10"></script>
     <script src="../js/auth.js?v=6"></script>
     <script src="../js/notifications.js"></script>
     <script src="../js/notify-popup.js?v=1"></script>
@@ -145,11 +145,12 @@
                     document.getElementById('nurseName').textContent = order.nurse.name;
                     document.getElementById('nurseAvatar').textContent = order.nurse.name.charAt(0);
                     document.getElementById('nurseInfo').textContent = 'Arrives soon · ' + order.serviceType + (order.nurse.phone ? ' · ' + order.nurse.phone : '') + (order.nurse.isTrusted ? ' · ✅ Trusted' : '');
-                    // Call nurse: plan-priority in-app call (Free 3/order, subscribers unlimited)
+                    // Call nurse: subscribers only (Free sees locked button)
                     if (order.nurse.callDisabled) {
                         document.getElementById('callBtn').onclick = function(){ showAlert('Calling is disabled for this nurse by admin', 'error'); };
                     } else {
                         document.getElementById('callBtn').onclick = function(){ placeCall(); };
+                        paintCallQuota();
                     }
                     document.getElementById('chatBtn').onclick = function(){ location.href='chat-room.html?order='+orderId+'&nurse='+order.nurse.id; };
                 }
@@ -239,13 +240,21 @@
             try {
                 var r = await api.logCall(orderId);
                 if (r.success && r.data && r.data.tel) {
-                    if (r.data.remaining != null) showAlert('Free plan: ' + r.data.remaining + ' calls left for this visit');
                     var tel = r.data.tel;
                     try { if (window.QarribPerms) QarribPerms.call(tel); else location.href = 'tel:' + tel; }
                     catch(e){ location.href = 'tel:' + tel; }
                 }
             }
             catch(e){ showAlert(e.message || 'Call blocked', 'error'); }
+        }
+        async function paintCallQuota(){
+            try {
+                var q = await api.getCallQuota(orderId);
+                var btn = document.getElementById('callBtn');
+                if (!btn || !q.success) return;
+                btn.setAttribute('aria-label', q.data.unlimited ? 'Call nurse (unlimited)' : 'Call nurse (subscribers only)');
+                btn.title = q.data.unlimited ? 'Unlimited calling ✅' : '🔒 Calling is for Pro/VIP subscribers';
+            } catch(e){}
         }
         async function payInstapay(){
             var ref = (document.getElementById('payRef') || {}).value || '';

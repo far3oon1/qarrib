@@ -324,8 +324,28 @@ const submitVisitReport = asyncHandler(async (req, res) => {
   ResponseHelper.success(res, { orderId: order._id, visitReport: order.visitReport }, 'تم إرسال تقرير الزيارة للإدارة');
 });
 
-// POST /api/orders/:id/call — plan-priority in-app calling.
-// Free plan: 3 calls per order. Pro / VIP / VIP-Nurse: unlimited.
+// GET /api/orders/:id/call-quota — read-only: can this user call? (no logging).
+// Free plan: no calls. Pro / VIP / VIP-Nurse: unlimited.
+const callQuota = asyncHandler(async (req, res) => {
+  const order = await Order.findById(req.params.id);
+  if (!order) throw new ApiError(404, 'Order not found');
+  const uid = String(req.user.id);
+  const isPatient = String(order.patient) === uid;
+  const isNurse = order.assignedNurse && String(order.assignedNurse) === uid;
+  if (!isPatient && !isNurse) throw new ApiError(403, 'Not authorized for this order');
+  const { planOf } = require('./subscription.controller');
+  const CallLog = require('../models/CallLog');
+  const myPlan = planOf(req.user);
+  const unlimited = ['pro', 'vip', 'nurse_vip'].includes(myPlan);
+  const used = await CallLog.countDocuments({ order: order._id, caller: req.user.id });
+  ResponseHelper.success(res, {
+    plan: myPlan, unlimited, used,
+    remaining: unlimited ? null : 0
+  }, 'Call quota');
+});
+
+// POST /api/orders/:id/call — subscribers-only in-app calling.
+// Free plan: NO calls. Pro / VIP / VIP-Nurse: unlimited priority calling.
 // Respects the callee's call permission (revoked => 403, same as track pages).
 const requestCall = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id).populate('patient assignedNurse');
@@ -359,10 +379,10 @@ const requestCall = asyncHandler(async (req, res) => {
   const CallLog = require('../models/CallLog');
   const myPlan = planOf(req.user);
   const unlimited = ['pro', 'vip', 'nurse_vip'].includes(myPlan);
-  const used = await CallLog.countDocuments({ order: order._id, caller: req.user.id });
-  if (!unlimited && used >= 3) {
-    throw new ApiError(403, 'Free plan: 3 calls per order used up — upgrade to Pro for unlimited calling / الخطة المجانية: ٣ مكالمات فقط لكل زيارة — اشترك في Pro للمكالمات غير المحدودة');
+  if (!unlimited) {
+    throw new ApiError(403, 'الاتصال للمشتركين فقط — اشترك في Pro أو VIP للاتصال / Calling is for subscribers only — upgrade to Pro or VIP to call');
   }
+  const used = await CallLog.countDocuments({ order: order._id, caller: req.user.id });
   await CallLog.create({ order: order._id, caller: req.user.id, callerRole: isPatient ? 'patient' : 'nurse' });
 
   try {
@@ -377,8 +397,8 @@ const requestCall = asyncHandler(async (req, res) => {
 
   ResponseHelper.success(res, {
     tel, plan: myPlan, unlimited,
-    remaining: unlimited ? null : Math.max(0, 3 - used - 1)
-  }, unlimited ? 'Calling…' : 'Calling…');
+    remaining: null
+  }, 'Calling…');
 });
 
 // POST /api/orders/:id/cancel {reason} — refunds held escrow
@@ -846,4 +866,4 @@ const completeCash = asyncHandler(async (req, res) => {
   ResponseHelper.success(res, { orderId: order._id, status: 'completed', cashAmount }, 'تم إنهاء الخدمة بعد استلام المبلغ نقداً');
 });
 
-module.exports = { createSimple, acceptOrder, startService, arriveOrder, submitVisitReport, requestCall, confirmOrder, cancelOrder, getOrderCompat, rateOrder, approveOffer, payManual, submitOffer, acceptSuggestedPrice, respondToAssignment, completeCash };
+module.exports = { createSimple, acceptOrder, startService, arriveOrder, submitVisitReport, requestCall, callQuota, confirmOrder, cancelOrder, getOrderCompat, rateOrder, approveOffer, payManual, submitOffer, acceptSuggestedPrice, respondToAssignment, completeCash };

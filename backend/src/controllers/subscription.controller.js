@@ -20,7 +20,7 @@ const DEFAULT_PLANS = {
     tagline: 'Try Qarrib — request a nurse, track live, chat and pay per visit.',
     features: [
       'request_nurse', 'live_tracking', 'chat_basic', 'wallet_pay', 'rate_feedback',
-      'calls_3_per_order', 'support_standard'
+      'no_calls', 'support_standard'
     ],
     limits: { callsPerOrder: 3, supportHours: '9am–5pm', priorityMatching: false, adminHotline24h: false, cashbackPercent: 0 }
   },

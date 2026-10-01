@@ -38,6 +38,7 @@ router.post('/:id/accept', orderFlow.acceptOrder);
 router.post('/:id/start', orderFlow.startService);
 router.post('/:id/arrive', orderFlow.arriveOrder);
 router.post('/:id/call', orderFlow.requestCall);
+router.get('/:id/call-quota', orderFlow.callQuota);
 router.post('/:id/report', orderFlow.submitVisitReport);
 router.post('/:id/confirm', orderFlow.confirmOrder);
 router.post('/:id/complete-cash', orderFlow.completeCash);
