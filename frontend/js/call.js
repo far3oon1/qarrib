@@ -242,6 +242,8 @@
         return pc.setLocalDescription(offer).then(function () {
           return sendCallSignal('call_offer', { to: calleeId, offer: offer });
         }).then(function () {
+          if (!currentCall || currentCall.state !== 'calling') return;
+          setEndButtonState(true, 'Cancel call');
           callTimeout = setTimeout(function () {
             if (currentCall && currentCall.state === 'calling') {
               showAlert('لم يتم الرد / No answer', 'error');
@@ -389,6 +391,16 @@
     document.body.appendChild(overlay);
   }
 
+  function setEndButtonState(enabled, label) {
+    var button = document.getElementById('qarrib-end-btn');
+    if (!button) return;
+    button.disabled = !enabled;
+    button.title = label;
+    button.setAttribute('aria-label', label);
+    button.style.opacity = enabled ? '1' : '0.55';
+    button.style.cursor = enabled ? 'pointer' : 'wait';
+  }
+
   function showCallingUI(name) {
     ensureCallUI();
     var overlay = document.getElementById('qarrib-call-overlay');
@@ -396,7 +408,10 @@
     document.getElementById('qarrib-call-name').textContent = name || '';
     document.getElementById('qarrib-call-status').textContent = 'جارٍ الاتصال… / Calling…';
     document.getElementById('qarrib-call-timer').textContent = '';
-    document.getElementById('qarrib-call-controls').style.display = 'none';
+    document.getElementById('qarrib-call-controls').style.display = 'flex';
+    document.getElementById('qarrib-mute-btn').style.display = 'none';
+    document.getElementById('qarrib-speaker-btn').style.display = 'none';
+    setEndButtonState(false, 'Preparing call');
     document.getElementById('qarrib-call-actions').style.display = 'none';
     document.getElementById('qarrib-answer-btn').style.display = 'none';
     document.getElementById('qarrib-reject-btn').style.display = 'none';
@@ -424,6 +439,9 @@
     document.getElementById('qarrib-call-name').textContent = name || '';
     document.getElementById('qarrib-call-status').textContent = 'متصل ✅';
     document.getElementById('qarrib-call-controls').style.display = 'flex';
+    document.getElementById('qarrib-mute-btn').style.display = 'inline-flex';
+    document.getElementById('qarrib-speaker-btn').style.display = 'inline-flex';
+    setEndButtonState(true, 'End call');
     document.getElementById('qarrib-call-actions').style.display = 'none';
     document.getElementById('qarrib-answer-btn').style.display = 'none';
     document.getElementById('qarrib-reject-btn').style.display = 'none';
