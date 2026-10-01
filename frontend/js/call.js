@@ -3,7 +3,9 @@
   var localStream = null;
   var remoteStream = null;
   var socket = null;
+  var listeningSocket = null;
   var currentCall = null;
+  var pendingIceCandidates = [];
   var ringtoneInterval = null;
   var callTimeout = null;
   var isMuted = false;
@@ -18,7 +20,17 @@
   };
 
   function getSocket() {
-    if (socket && socket.connected) return socket;
+    if (socket) {
+      setupSocketListeners(socket);
+      return socket;
+    }
+    if (typeof window.QarribSocket !== 'undefined') {
+      socket = window.QarribSocket.getSocket();
+      if (socket) {
+        setupSocketListeners(socket);
+        return socket;
+      }
+    }
     if (typeof io === 'undefined') return null;
     try {
       var backendUrl = window.QARRIB_BACKEND_URL || 'https://qarrib.onrender.com';
@@ -28,31 +40,62 @@
     } catch (e) { return null; }
   }
 
+  function waitForSocket(s) {
+    if (s.connected) return Promise.resolve(s);
+    return new Promise(function (resolve, reject) {
+      var timeout = setTimeout(function () {
+        cleanup();
+        reject(new Error('Socket connection timed out'));
+      }, 15000);
+      function cleanup() {
+        clearTimeout(timeout);
+        s.off('connect', onConnect);
+      }
+      function onConnect() {
+        cleanup();
+        resolve(s);
+      }
+      s.on('connect', onConnect);
+    });
+  }
+
   function setupSocketListeners(s) {
+    if (listeningSocket === s) return;
+    listeningSocket = s;
     s.on('call_offer', function (data) {
       if (currentCall && currentCall.state !== 'idle') {
         s.emit('call_busy', { to: data.from });
         return;
       }
+      pendingIceCandidates = [];
       currentCall = { state: 'incoming', from: data.from, offer: data.offer };
       showIncomingCall(data.from);
     });
 
     s.on('call_answer', function (data) {
       if (!currentCall || currentCall.state !== 'calling') return;
-      currentCall.state = 'connected';
-      clearTimeout(callTimeout);
-      hideCallUI();
-      showConnectedUI();
       if (pc) {
-        pc.setRemoteDescription(new RTCSessionDescription(data.answer)).catch(function () {});
+        pc.setRemoteDescription(new RTCSessionDescription(data.answer)).then(function () {
+          addPendingIceCandidates();
+          if (!currentCall || currentCall.state !== 'calling') return;
+          currentCall.state = 'connected';
+          clearTimeout(callTimeout);
+          hideCallUI();
+          showConnectedUI(currentCall.name);
+        }).catch(function () {
+          showAlert('تعذر إنشاء اتصال صوتي / Could not establish audio connection', 'error');
+          endCall(false);
+        });
       }
     });
 
     s.on('call_ice', function (data) {
-      if (pc && data.candidate) {
-        pc.addIceCandidate(new RTCIceCandidate(data.candidate)).catch(function () {});
+      if (!data.candidate) return;
+      if (!pc || !pc.remoteDescription || !pc.remoteDescription.type) {
+        pendingIceCandidates.push(data.candidate);
+        return;
       }
+      pc.addIceCandidate(new RTCIceCandidate(data.candidate)).catch(function () {});
     });
 
     s.on('call_end', function () {
@@ -71,6 +114,14 @@
         showAlert('الطرف الآخر مشغول / The other party is busy', 'error');
         endCall(false);
       }
+    });
+  }
+
+  function addPendingIceCandidates() {
+    if (!pc || !pc.remoteDescription || !pc.remoteDescription.type) return;
+    var candidates = pendingIceCandidates.splice(0);
+    candidates.forEach(function (candidate) {
+      pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(function () {});
     });
   }
 
@@ -106,15 +157,23 @@
   function startCall(calleeId, calleeName) {
     var s = getSocket();
     if (!s) { showAlert('الاتصال غير متاح — تأكد من اتصالك بالإنترنت', 'error'); return; }
+    if (currentCall) { showAlert('لديك مكالمة نشطة بالفعل', 'error'); return; }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showAlert('المتصفح لا يدعم المكالمات الصوتية', 'error');
+      return;
+    }
 
-    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+    waitForSocket(s).then(function () {
+      return navigator.mediaDevices.getUserMedia({ audio: true });
+    }).then(function (stream) {
       localStream = stream;
+      pendingIceCandidates = [];
       currentCall = { state: 'calling', from: calleeId, name: calleeName };
       createPeerConnection();
       showCallingUI(calleeName);
 
       pc.createOffer().then(function (offer) {
-        pc.setLocalDescription(offer).then(function () {
+        return pc.setLocalDescription(offer).then(function () {
           s.emit('call_offer', { to: calleeId, offer: offer });
           callTimeout = setTimeout(function () {
             if (currentCall && currentCall.state === 'calling') {
@@ -128,7 +187,8 @@
         endCall(false);
       });
     }).catch(function () {
-      showAlert('الميكروفون مطلوب للمكالمات / Microphone access required', 'error');
+      showAlert('تعذر الاتصال أو الوصول إلى الميكروفون / Connection or microphone access failed', 'error');
+      endCall(false);
     });
   }
 
@@ -136,29 +196,38 @@
     if (!currentCall || currentCall.state !== 'incoming') return;
     var s = getSocket();
     if (!s) return;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showAlert('المتصفح لا يدعم المكالمات الصوتية', 'error');
+      rejectCall();
+      return;
+    }
 
-    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+    waitForSocket(s).then(function () {
+      return navigator.mediaDevices.getUserMedia({ audio: true });
+    }).then(function (stream) {
       localStream = stream;
-      currentCall.state = 'connected';
+      currentCall.state = 'connecting';
       createPeerConnection();
-      hideCallUI();
-      showConnectedUI(currentCall.name);
 
-      pc.setRemoteDescription(new RTCSessionDescription(currentCall.offer)).then(function () {
-        pc.createAnswer().then(function (answer) {
-          pc.setLocalDescription(answer).then(function () {
+      return pc.setRemoteDescription(new RTCSessionDescription(currentCall.offer)).then(function () {
+        addPendingIceCandidates();
+        return pc.createAnswer();
+      }).then(function (answer) {
+        return pc.setLocalDescription(answer).then(function () {
             s.emit('call_answer', { to: currentCall.from, answer: answer });
-          });
+            hideCallUI();
+            currentCall.state = 'connected';
+            showConnectedUI(currentCall.name);
         });
       });
     }).catch(function () {
-      showAlert('الميكروفون مطلوب للمكالمات / Microphone access required', 'error');
+      showAlert('تعذر الاتصال أو الوصول إلى الميكروفون / Connection or microphone access failed', 'error');
       rejectCall();
     });
   }
 
   function rejectCall() {
-    var s = getSocket();
+    var s = socket;
     if (s && currentCall && currentCall.from) {
       s.emit('call_reject', { to: currentCall.from });
     }
@@ -180,6 +249,7 @@
       localStream = null;
     }
     remoteStream = null;
+    pendingIceCandidates = [];
     currentCall = null;
     isMuted = false;
     isSpeaker = false;
@@ -320,6 +390,7 @@
   }
 
   window.QarribCall = {
+    initialize: function () { return getSocket(); },
     startCall: startCall,
     answerCall: answerCall,
     rejectCall: rejectCall,

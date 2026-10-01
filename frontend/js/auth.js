@@ -133,8 +133,52 @@ function showLoading(element) {
     element.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
 }
 
+function loadScriptOnce(id, src, isLoaded) {
+    if (isLoaded()) return Promise.resolve();
+    var existing = document.getElementById(id);
+    if (existing) {
+        return new Promise(function(resolve, reject) {
+            existing.addEventListener('load', resolve, { once: true });
+            existing.addEventListener('error', reject, { once: true });
+        });
+    }
+    return new Promise(function(resolve, reject) {
+        var script = document.createElement('script');
+        script.id = id;
+        script.src = src;
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+    });
+}
+
+function initializeAdminCallReceiver() {
+    if (!isLoggedIn() || getRole() !== 'admin') return;
+    window.QARRAB_BACKEND_URL = window.QARRAB_BACKEND_URL || 'https://qarrib.onrender.com';
+    var socketClientUrl = 'https://cdn.socket.io/4.7.5/socket.io.min.js';
+    var socketUrl = new URL('../js/socket.js', window.location.href).href;
+    var callUrl = new URL('../js/call.js?v=3', window.location.href).href;
+
+    loadScriptOnce('qarrib-socket-client', socketClientUrl, function() { return typeof io !== 'undefined'; })
+        .then(function() {
+            return loadScriptOnce('qarrib-socket-helper', socketUrl, function() { return !!window.QarribSocket; });
+        })
+        .then(function() {
+            return loadScriptOnce('qarrib-call-client', callUrl, function() {
+                return !!window.QarribCall && typeof window.QarribCall.initialize === 'function';
+            });
+        })
+        .then(function() {
+            window.QarribCall.initialize();
+        })
+        .catch(function(error) {
+            console.error('Unable to initialize admin call receiver:', error);
+        });
+}
+
 // Check auth on page load
 document.addEventListener('DOMContentLoaded', async function() {
+    initializeAdminCallReceiver();
     if (isLoggedIn()) {
         try {
             var result = await api.getMe();
