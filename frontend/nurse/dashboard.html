@@ -132,7 +132,7 @@
 </div>
 
 <script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
-<script src="../js/api.js?v=6"></script>
+<script src="../js/api.js?v=9"></script>
 <script src="../js/auth.js?v=6"></script>
 <script src="../js/notifications.js"></script>
 <script src="../js/notify-popup.js?v=1"></script>
@@ -181,6 +181,12 @@
             document.getElementById('activeOrdersMobile').innerHTML = html;
             if (active[0]) { document.getElementById('trackBtn').href='track-order.html?order='+active[0].id; document.getElementById('trackLink').href='track-order.html?order='+active[0].id; }
             if (!d.data.user.isVerified) { document.getElementById('verificationBanner').style.display='block'; document.getElementById('verificationBannerM').style.display='block'; }
+            else {
+                var vB = document.getElementById('verificationBanner'), vM = document.getElementById('verificationBannerM');
+                var okHtml = '✅ Verified account — you can accept requests and receive visits.';
+                if (vB) { vB.style.display='block'; vB.style.background='#D1FAE5'; vB.style.borderColor='#6EE7B7'; vB.textContent = okHtml; }
+                if (vM) { vM.style.display='block'; vM.style.background='#D1FAE5'; vM.style.borderColor='#6EE7B7'; vM.textContent = okHtml; }
+            }
             paintToggle(!!d.data.user.isOnline);
             try {
                 var me = await api.getMe();

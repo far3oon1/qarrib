@@ -28,6 +28,7 @@ const getDashboard = asyncHandler(async (req, res) => {
       walletBalance: req.user.walletBalance || 0,
       rating: req.user.rating,
       status: req.user.status,
+      isVerified: ['approved', 'active'].includes(req.user.status),
       isOnline: req.user.isOnline
     },
     stats: { totalOrders: orders.length, activeOrders: active.length, completedOrders: completed.length, totalEarnings: earnings },
