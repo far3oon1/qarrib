@@ -224,7 +224,9 @@
             if (!order.hasPrice || order.escrowStatus === 'held' || order.escrowStatus === 'released') { box.innerHTML = ''; return; }
             box.innerHTML = '<div class="q-card" style="padding:12px;"><div style="font-weight:700;margin-bottom:8px;">Payment (' + order.amount + ' EGP)</div>' +
                 '<button class="q-btn q-btn-sm" style="width:100%;margin-bottom:8px;" onclick="payWallet()">Pay from wallet</button>' +
-                '<div style="display:flex;gap:8px;"><input id="payRef" class="q-input" placeholder="InstaPay reference" style="flex:1;"><button class="q-btn q-btn-secondary q-btn-sm" onclick="payInstapay()">Confirm transfer</button></div>' +
+                '<div style="margin-top:10px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:10px;"><div style="font-weight:700;margin-bottom:4px;">💳 InstaPay: <span dir="ltr" id="instaNum">' + (window._ownerInsta || '01150209401') + '</span></div>' +
+                '<div style="font-size:12px;color:#4A605E;margin-bottom:6px;">حوّل المبلغ عبر انستا باي ثم أدخل المرجع واضغط تأكيد</div>' +
+                '<div style="display:flex;gap:8px;"><input id="payRef" class="q-input" placeholder="InstaPay reference" style="flex:1;"><button class="q-btn q-btn-secondary q-btn-sm" onclick="payInstapay()">Confirm transfer</button></div></div>' +
                 '<div style="margin-top:10px;background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;padding:10px;"><div style="font-weight:700;margin-bottom:4px;">📱 Vodafone Cash: <span dir="ltr">01003790634</span></div>' +
                 '<div style="font-size:12px;color:#4A605E;margin-bottom:6px;">حوّل المبلغ من فودافون كاش ثم أدخل رقم العملية واضغط تأكيد</div>' +
                 '<div style="display:flex;gap:8px;"><input id="payVfRef" class="q-input" placeholder="رقم عملية فودافون كاش" style="flex:1;"><button class="q-btn q-btn-secondary q-btn-sm" onclick="payVfCash()">تأكيد</button></div></div></div>';
@@ -304,8 +306,18 @@
             }catch(e){ setInterval(loadOrder,10000); }
             setInterval(loadOrder,15000);
         }
+        async function loadOwnerPay(){
+            try {
+                var acc = await api.getOwnerAccount();
+                if (acc.success && acc.data) {
+                    if (acc.data.instapay) window._ownerInsta = acc.data.instapay;
+                    var el = document.getElementById('instaNum');
+                    if (el && window._ownerInsta) el.textContent = window._ownerInsta;
+                }
+            } catch(e){}
+        }
         (function init(){
-            initMap(); loadOrder(); setupSocket();
+            initMap(); loadOwnerPay(); loadOrder(); setupSocket();
             try { if (window.QarribPerms) { QarribPerms.requireGate('patient'); QarribPerms.sharingToggle('shareBox', orderId); } } catch(e){}
             if (navigator.geolocation){
                 navigator.geolocation.getCurrentPosition(function(p){
