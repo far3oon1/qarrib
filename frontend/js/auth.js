@@ -154,23 +154,33 @@ function loadScriptOnce(id, src, isLoaded) {
 
 function initializeAdminCallReceiver() {
     if (!isLoggedIn() || getRole() !== 'admin') return;
-    window.QARRAB_BACKEND_URL = window.QARRAB_BACKEND_URL || 'https://qarrib.onrender.com';
+    var host = String(window.location.hostname || '').toLowerCase();
+    var apiHost = '';
+    try { apiHost = new URL(api.baseURL, window.location.href).hostname.toLowerCase(); } catch (e) {}
+    var useApiSignaling = host.endsWith('.vercel.app') || host.endsWith('.github.io') || apiHost.endsWith('.vercel.app');
     var socketClientUrl = 'https://cdn.socket.io/4.7.5/socket.io.min.js';
     var socketUrl = new URL('../js/socket.js', window.location.href).href;
-    var callUrl = new URL('../js/call.js?v=3', window.location.href).href;
+    var callUrl = new URL('../js/call.js?v=4', window.location.href).href;
+    var loadCallClient = function() {
+        return loadScriptOnce('qarrib-call-client', callUrl, function() {
+            return !!window.QarribCall && window.QarribCall.version >= 4 && typeof window.QarribCall.initialize === 'function';
+        });
+    };
+    var initializeCallClient = function() { window.QarribCall.initialize(); };
+
+    if (useApiSignaling) {
+        loadCallClient().then(initializeCallClient).catch(function(error) {
+            console.error('Unable to initialize admin call receiver:', error);
+        });
+        return;
+    }
 
     loadScriptOnce('qarrib-socket-client', socketClientUrl, function() { return typeof io !== 'undefined'; })
         .then(function() {
             return loadScriptOnce('qarrib-socket-helper', socketUrl, function() { return !!window.QarribSocket; });
         })
-        .then(function() {
-            return loadScriptOnce('qarrib-call-client', callUrl, function() {
-                return !!window.QarribCall && typeof window.QarribCall.initialize === 'function';
-            });
-        })
-        .then(function() {
-            window.QarribCall.initialize();
-        })
+        .then(loadCallClient)
+        .then(initializeCallClient)
         .catch(function(error) {
             console.error('Unable to initialize admin call receiver:', error);
         });
