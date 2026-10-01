@@ -222,10 +222,8 @@
             var box = document.getElementById('paySection');
             if (!box) return;
             if (!order.hasPrice || order.escrowStatus === 'held' || order.escrowStatus === 'released') { box.innerHTML = ''; return; }
-            window._payAmount = order.amount;
             box.innerHTML = '<div class="q-card" style="padding:12px;"><div style="font-weight:700;margin-bottom:8px;">Payment (' + order.amount + ' EGP)</div>' +
                 '<button class="q-btn q-btn-sm" style="width:100%;margin-bottom:8px;" onclick="payWallet()">Pay from wallet</button>' +
-                '<button class="q-btn q-btn-secondary q-btn-sm" style="width:100%;margin-bottom:8px;" onclick="payCard()">Pay by card 💳 (online)</button>' +
                 '<div style="display:flex;gap:8px;"><input id="payRef" class="q-input" placeholder="InstaPay reference" style="flex:1;"><button class="q-btn q-btn-secondary q-btn-sm" onclick="payInstapay()">Confirm transfer</button></div>' +
                 '<div style="margin-top:10px;background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;padding:10px;"><div style="font-weight:700;margin-bottom:4px;">📱 Vodafone Cash: <span dir="ltr">01003790634</span></div>' +
                 '<div style="font-size:12px;color:#4A605E;margin-bottom:6px;">حوّل المبلغ من فودافون كاش ثم أدخل رقم العملية واضغط تأكيد</div>' +
@@ -245,18 +243,6 @@
             if (!ref.trim()) { showAlert('أدخل رقم عملية فودافون كاش أولاً', 'error'); return; }
             try { var r = await api.payManual(orderId, { method: 'vodafone_cash', reference: ref.trim() }); if (r.success) { showAlert('تم تسجيل تحويل فودافون كاش! المبلغ محجوز للطلب.'); loadOrder(); } }
             catch(e){ showAlert(e.message || 'Payment failed', 'error'); }
-        }
-        async function payCard(){
-            var amount = window._payAmount || 0;
-            if (!amount || amount <= 0) { showAlert('No amount to pay', 'error'); return; }
-            try {
-                var r = await api.initiateCardPayment({ amount: amount, type: 'order', orderId: orderId });
-                var url = r && r.data && (r.data.redirectUrl || r.data.iframeUrl);
-                if (url) { showAlert('Opening secure card payment…'); window.open(url, '_blank'); }
-                else showAlert((r && r.message) || 'Card payment started — check your payments');
-                loadOrder();
-            }
-            catch(e){ showAlert(e.message || 'Card payment failed', 'error'); }
         }
         // Patient can end the service as completed too
         function renderComplete(order){
