@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>اتصال صوتي - Qarrib</title>
+    <link rel="apple-touch-icon" href="icon-180.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#0B5F5A">
+    <link rel="stylesheet" href="css/main.css">
+    <style>
+        body { background: #F6F3EC; }
+        .call-wrap { max-width: 480px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 24px; text-align: center; }
+        .call-avatar { width: 120px; height: 120px; border-radius: 50%; background: #0B5F5A; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 56px; margin-bottom: 24px; box-shadow: 0 8px 32px rgba(11,95,90,0.3); }
+        .call-name { font-size: 28px; font-weight: 700; color: #14302E; margin-bottom: 8px; }
+        .call-desc { font-size: 16px; color: #4A605E; margin-bottom: 40px; line-height: 1.6; }
+        .call-btn { width: 80px; height: 80px; border-radius: 50%; border: 0; background: #0B5F5A; color: #fff; font-size: 36px; cursor: pointer; box-shadow: 0 8px 24px rgba(11,95,90,0.4); transition: transform 0.2s; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
+        .call-btn:active { transform: scale(0.95); }
+        .call-btn.locked { background: #9CA3AF; box-shadow: none; cursor: not-allowed; }
+        .call-status { font-size: 14px; color: #4A605E; margin-top: 16px; }
+        .plan-badge { display: inline-block; padding: 6px 16px; border-radius: 999px; font-size: 13px; font-weight: 700; margin-bottom: 24px; }
+        .plan-badge.free { background: #FEF3C7; color: #92400E; }
+        .plan-badge.pro { background: #D1FAE5; color: #065F46; }
+        .plan-badge.vip { background: #DBEAFE; color: #1E40AF; }
+        .feature-list { text-align: right; margin-top: 32px; width: 100%; }
+        .feature-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #E5E7EB; font-size: 15px; color: #14302E; }
+        .feature-item:last-child { border-bottom: 0; }
+        .feature-icon { font-size: 20px; }
+    </style>
+</head>
+<body>
+    <div class="call-wrap">
+        <div id="planBadge" class="plan-badge free">Free</div>
+        <div class="call-avatar">📞</div>
+        <div class="call-name">الاتصال بالإدارة</div>
+        <div class="call-desc">اتصال صوتي مباشر داخل التطبيق — بدون رقم هاتف، بدون رسوم إضافية.<br>متاح للمشتركين في Pro و VIP.</div>
+        <button class="call-btn locked" id="callBtn" onclick="handleCall()">📞</button>
+        <div class="call-status" id="callStatus">🔒 الاتصال الصوتي متاح للمشتركين فقط</div>
+        <div class="feature-list">
+            <div class="feature-item"><span class="feature-icon">🎤</span> صوت عالي الجودة داخل التطبيق</div>
+            <div class="feature-item"><span class="feature-icon">🔒</span> اتصال مشفر وآمن</div>
+            <div class="feature-item"><span class="feature-icon">⚡</span> توصيل فوري — بدون انتظار</div>
+            <div class="feature-item"><span class="feature-icon">📱</span> يعمل على الموبايل والويب</div>
+        </div>
+    </div>
+    <script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
+    <script src="js/api.js?v=10"></script>
+    <script src="js/call.js?v=1"></script>
+    <script src="js/auth.js?v=6"></script>
+    <script>
+        var userRole = null;
+        var isSubscriber = false;
+
+        function esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+
+        async function init(){
+            try {
+                var me = await api.getMe();
+                if (!me.success) { window.location.href = 'login.html'; return; }
+                var u = me.data.user || me.data;
+                userRole = u.role;
+
+                var sub = await api.getMySubscription();
+                var plan = 'free';
+                if (sub.success) plan = sub.data.plan || 'free';
+                isSubscriber = ['pro', 'vip', 'nurse_vip'].includes(plan);
+
+                var badge = document.getElementById('planBadge');
+                var btn = document.getElementById('callBtn');
+                var status = document.getElementById('callStatus');
+
+                if (isSubscriber) {
+                    badge.className = 'plan-badge ' + (plan === 'vip' || plan === 'nurse_vip' ? 'vip' : 'pro');
+                    badge.textContent = plan === 'vip' ? '👑 VIP' : plan === 'nurse_vip' ? '⭐ VIP Nurse' : 'Pro';
+                    btn.classList.remove('locked');
+                    status.textContent = '✅ اضغط للاتصال بالإدارة الآن';
+                } else {
+                    badge.className = 'plan-badge free';
+                    badge.textContent = 'Free';
+                    btn.classList.add('locked');
+                    status.textContent = '🔒 الاتصال الصوتي متاح للمشتركين فقط — اشترك في Pro أو VIP';
+                }
+            } catch(e) {
+                window.location.href = 'login.html';
+            }
+        }
+
+        function handleCall(){
+            if (!isSubscriber) {
+                if (confirm('الاتصال الصوتي متاح للمشتركين فقط. هل تريد ترقية خطتك؟')) {
+                    window.location.href = 'plans.html';
+                }
+                return;
+            }
+            var adminId = 'admin';
+            var adminName = 'الإدارة';
+            if (window.QarribCall) {
+                QarribCall.startCall(adminId, adminName);
+            } else {
+                showAlert('الاتصال غير متاح حالياً', 'error');
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
