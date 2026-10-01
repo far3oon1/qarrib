@@ -4,6 +4,7 @@ const ResponseHelper = require('../utils/response');
 const asyncHandler = require('../utils/asyncHandler');
 const { saveIdFile } = require('../utils/saveUpload');
 const fs = require('fs');
+const { getDeviceMeta, touchDevice, assertDeviceAllowed } = require('../utils/device');
 
 const generateToken = (id, role) => {
   return require('jsonwebtoken').sign(
@@ -14,6 +15,8 @@ const generateToken = (id, role) => {
 };
 
 const registerPatient = asyncHandler(async (req, res) => {
+  const meta = getDeviceMeta(req);
+  await assertDeviceAllowed(meta);
   const { fullName, email, phone, password, nationalId, governorate, city, address, gender } = req.body;
 
   const existingUser = await User.findOne({
@@ -50,6 +53,8 @@ const registerPatient = asyncHandler(async (req, res) => {
 
   const token = generateToken(patient._id, patient.role);
 
+  await touchDevice.call(meta, { source: 'register', user: patient });
+
   ResponseHelper.success(res, {
     user: {
       id: patient._id,
@@ -64,6 +69,8 @@ const registerPatient = asyncHandler(async (req, res) => {
 });
 
 const registerNurse = asyncHandler(async (req, res) => {
+  const meta = getDeviceMeta(req);
+  await assertDeviceAllowed(meta);
   const {
     fullName, email, phone, password, nationalId,
     specialization, yearsOfExperience, bio,
@@ -127,6 +134,8 @@ const registerNurse = asyncHandler(async (req, res) => {
 
   const token = generateToken(nurse._id, nurse.role);
 
+  await touchDevice.call(meta, { source: 'register', user: nurse });
+
   ResponseHelper.success(res, {
     user: {
       id: nurse._id,
@@ -142,6 +151,8 @@ const registerNurse = asyncHandler(async (req, res) => {
 });
 
 const login = asyncHandler(async (req, res) => {
+  const meta = getDeviceMeta(req);
+  await assertDeviceAllowed(meta);
   const { email, password } = req.body;
 
   const user = await User.findOne({ email }).select('+password');
@@ -154,6 +165,14 @@ const login = asyncHandler(async (req, res) => {
   if (!isMatch) {
     throw new ApiError(401, 'البريد الإلكتروني أو كلمة المرور غير صحيحة');
   }
+
+  // Device block is also enforced per-account: if THIS user has any blocked
+  // device with the same fingerprint, deny even from a fresh deviceId.
+  try {
+    const Device = require('../models/Device');
+    const perUserBlock = await Device.findOne({ user: user._id, blocked: true, fingerprint: meta.fingerprint }).lean();
+    if (perUserBlock) throw new ApiError(403, `This device is blocked by the admin${perUserBlock.blockReason ? ': ' + perUserBlock.blockReason : ''}. Contact support.`);
+  } catch (e) { if (e.statusCode === 403) throw e; }
 
   if (!user.isActive) {
     throw new ApiError(403, 'الحساب معطل، يرجى التواصل مع الدعم');
@@ -173,6 +192,8 @@ const login = asyncHandler(async (req, res) => {
 
   user.lastLogin = new Date();
   await user.save();
+
+  await touchDevice.call(meta, { source: 'login', user });
 
   const token = generateToken(user._id, user.role);
 
@@ -195,6 +216,8 @@ const login = asyncHandler(async (req, res) => {
 });
 
 const loginWithPhone = asyncHandler(async (req, res) => {
+  const meta = getDeviceMeta(req);
+  await assertDeviceAllowed(meta);
   const { phone, password } = req.body;
 
   const user = await User.findOne({ phone }).select('+password');
@@ -219,6 +242,8 @@ const loginWithPhone = asyncHandler(async (req, res) => {
   user.lastLogin = new Date();
   await user.save();
 
+  await touchDevice.call(meta, { source: 'login', user });
+
   const token = generateToken(user._id, user.role);
 
   ResponseHelper.success(res, {
@@ -239,7 +264,7 @@ const loginWithPhone = asyncHandler(async (req, res) => {
   }, 'تم تسجيل الدخول بنجاح');
 });
 
- const getMe = asyncHandler(async (req, res) => {
+  const getMe = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id);
   // Attach effective feature permissions so the GUI can hide/disable gated buttons
   try {
@@ -317,6 +342,8 @@ const updateProfile = asyncHandler(async (req, res) => {
 
 // --- Dedicated Admin Login ---
 const adminLogin = asyncHandler(async (req, res) => {
+  const meta = getDeviceMeta(req);
+  await assertDeviceAllowed(meta);
   const { email, password, secretKey } = req.body;
 
   if (!process.env.ADMIN_DEFAULT_EMAIL) {
@@ -347,6 +374,8 @@ const adminLogin = asyncHandler(async (req, res) => {
 
   admin.lastLogin = new Date();
   await admin.save();
+
+  await touchDevice.call(meta, { source: 'login', user: admin });
 
   const token = generateToken(admin._id, admin.role);
 
@@ -431,6 +460,8 @@ const adminResetPassword = asyncHandler(async (req, res) => {
 // Online endpoint for helper accounts created by the admin.
 // No secret key (helpers are not admins); role + active checks enforced.
 const assistantLogin = asyncHandler(async (req, res) => {
+  const meta = getDeviceMeta(req);
+  await assertDeviceAllowed(meta);
   const { email, password } = req.body;
 
   const assistant = await User.findOne({ email }).select('+password');
@@ -452,6 +483,8 @@ const assistantLogin = asyncHandler(async (req, res) => {
 
   assistant.lastLogin = new Date();
   await assistant.save();
+
+  await touchDevice.call(meta, { source: 'login', user: assistant });
 
   const token = generateToken(assistant._id, assistant.role);
 

@@ -209,7 +209,7 @@
     </div>
 
 <script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
-<script src="js/api.js?v=6"></script>
+<script src="js/api.js?v=8"></script>
 <script src="js/auth.js?v=6"></script>
 <script src="js/permissions.js?v=1"></script>
     <script>
@@ -317,6 +317,13 @@
             formData.append('city', 'Cairo');
             formData.append('address', document.getElementById('address').value.trim());
             formData.append('role', role);
+            // Device fingerprint (MAC replacement): auto-tracked for admin block/unblock
+            try {
+                var did = (typeof window.getQarribDeviceId === 'function') ? window.getQarribDeviceId() : (localStorage.getItem('qarrib_device_id') || ('dev-' + Date.now().toString(36)));
+                try { localStorage.setItem('qarrib_device_id', did); } catch (e) {}
+                formData.append('deviceId', did);
+                formData.append('devicePlatform', (navigator && navigator.platform ? navigator.platform : 'web'));
+            } catch (e) {}
             const genderVal = document.getElementById('gender').value;
             if (genderVal) formData.append('gender', genderVal);
 
@@ -366,6 +373,11 @@
                 let response;
                 try {
                     var langHeaders = (typeof window.qarribLangHeaders === 'function') ? window.qarribLangHeaders() : { 'Accept-Language': currentLang(), 'X-Lang': currentLang() };
+                    try {
+                        var didH = (typeof window.getQarribDeviceId === 'function') ? window.getQarribDeviceId() : localStorage.getItem('qarrib_device_id');
+                        if (didH) langHeaders['X-Device-Id'] = didH;
+                        langHeaders['X-Device-Platform'] = (navigator && navigator.platform ? navigator.platform : 'web');
+                    } catch (e) {}
                     response = await fetch(`${API_BASE_URL}${endpoint}`, {
                         method: 'POST',
                         headers: langHeaders,

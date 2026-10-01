@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/admin.controller');
+const deviceController = require('../controllers/device.controller');
 const { protect, authorize } = require('../middleware/auth');
 const validate = require('../middleware/validate');
 const { verifyNurse, resetPassword, updateOrderStatus } = require('../validators/admin.validator');
@@ -63,5 +64,16 @@ router.put('/permissions/users/:id', require('../controllers/permissions.control
 router.get('/orders/:orderId', adminController.getOrderDetails);
 router.delete('/orders/:orderId', adminController.deleteOrder);
 router.patch('/orders/:orderId/status', validate(updateOrderStatus), adminController.updateOrderStatus);
+// ---- Admin accounts (admin panel only: add / remove / enable-disable) ----
+router.get('/admins', deviceController.listAdmins);
+router.post('/admins', deviceController.createAdmin);
+router.delete('/admins/:id', deviceController.deleteAdmin);
+router.patch('/admins/:id/status', deviceController.toggleAdminStatus);
+// ---- Devices (admin panel only: track at register/login, block/unblock) ----
+router.get('/devices', deviceController.listDevices);
+router.post('/devices/block', deviceController.blockDevice);
+router.post('/devices/unblock', deviceController.unblockDevice);
+router.delete('/devices/:id', deviceController.deleteDevice);
+router.get('/users/:userId/devices', deviceController.getUserDevices);
 
 module.exports = router;

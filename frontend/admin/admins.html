@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>حسابات الأدمن - لوحة التحكم</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        .page-header { background: linear-gradient(135deg, #0B5F5A, #14302E); color: #fff; padding: 20px; display: flex; align-items: center; gap: 12px; }
+        .back-btn { background: rgba(255,255,255,.2); border: 0; color: #fff; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 20px; }
+        .wrap { padding: 16px 20px 60px; max-width: 760px; margin: 0 auto; }
+        .card { background: #fff; border-radius: 14px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+        .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .muted { font-size: 12px; color: #64748b; }
+        .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        @media (max-width:600px){ .grid2{ grid-template-columns: 1fr; } }
+        .btn-sm { padding: 6px 12px; border-radius: 8px; border: 0; cursor: pointer; font-size: 12px; }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <div class="page-header">
+        <button class="back-btn" onclick="location.href='dashboard.html'">→</button>
+        <div><div style="font-size:20px;font-weight:800;">👑 حسابات الأدمن</div><div class="muted" style="color:#D5EAE7;">إضافة / حذف أدمن — للوحة الأدمن فقط</div></div>
+    </div>
+    <div class="wrap">
+        <div class="card" style="background:#fefce8;border:1px solid #fde68a;">
+            <div style="font-size:13px;">🔒 هذه الصفحة للأدمن فقط. لا يستطيع المساعدون فتحها. لا تحذف حسابك نفسه، ولا تحذف آخر أدمن.</div>
+        </div>
+        <div class="card">
+            <h4 style="margin:0 0 10px;">＋ إضافة حساب أدمن جديد</h4>
+            <div class="grid2">
+                <input id="a-name" class="form-input" placeholder="الاسم الكامل">
+                <input id="a-email" class="form-input" type="email" placeholder="البريد الإلكتروني" dir="ltr">
+                <input id="a-phone" class="form-input" placeholder="الهاتف (اختياري) 01xxxxxxxxx" dir="ltr">
+                <input id="a-pass" class="form-input" type="password" placeholder="كلمة المرور (6+)" dir="ltr">
+            </div>
+            <button class="btn btn-primary" style="margin-top:10px;" id="addBtn" onclick="createAdmin()">إنشاء حساب أدمن</button>
+        </div>
+        <div id="list"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+</div>
+<script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
+<script src="../js/api.js?v=8"></script>
+<script src="../js/auth.js?v=7"></script>
+<script>
+if (!requireRole('admin')) redirectToLogin();
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+async function load(){
+  try{
+    var r = await api.getAdmins();
+    var rows = (r.data && r.data.admins) || r.data || [];
+    document.getElementById('list').innerHTML = rows.length ? rows.map(function(a){
+      return '<div class="card"><div class="row"><div><strong>'+esc(a.fullName)+'</strong> '+(a.isSelf?'<span class="muted">(أنت)</span>':'')+
+      '<div class="muted" dir="ltr">'+esc(a.email)+' · '+esc(a.phone||'')+'</div>'+
+      '<div class="muted">'+(a.isActive?'✅ مفعّل':'⛔ معطّل')+' · آخر دخول: '+esc(a.lastLogin?new Date(a.lastLogin).toLocaleString():'—')+'</div></div>'+
+      '<div style="display:flex;gap:6px;">'+(a.isSelf?'':('<button class="btn-sm" style="background:'+(a.isActive?'#fee2e2;color:#991b1b':'#d1fae5;color:#065f46')+'" onclick="toggleAdmin(\''+a.id+'\')">'+(a.isActive?'تعطيل':'تفعيل')+'</button><button class="btn-sm" style="background:#991b1b;color:#fff;" onclick="delAdmin(\''+a.id+'\',\''+esc(a.fullName)+'\')">حذف</button>'))+'</div></div></div>';
+    }).join('') : '<div class="card muted">لا يوجد أدمنز</div>';
+  }catch(e){ document.getElementById('list').innerHTML = '<div class="card" style="color:#991b1b;">'+esc(e.message||'Failed')+'</div>'; }
+}
+async function createAdmin(){
+  var btn = document.getElementById('addBtn'); btn.disabled = true;
+  try{
+    var r = await api.createAdmin({ fullName: document.getElementById('a-name').value.trim(), email: document.getElementById('a-email').value.trim(), phone: document.getElementById('a-phone').value.trim(), password: document.getElementById('a-pass').value });
+    showAlert(r.message || 'تم إنشاء حساب الأدمن بنجاح');
+    ['a-name','a-email','a-phone','a-pass'].forEach(function(id){ document.getElementById(id).value=''; });
+    load();
+  }catch(e){ showAlert(e.message||'Failed','error'); }
+  finally{ btn.disabled = false; }
+}
+async function delAdmin(id, name){
+  if(!confirm('حذف حساب الأدمن "'+name+'" نهائياً؟')) return;
+  try{ var r = await api.deleteAdmin(id); showAlert(r.message||'تم الحذف'); load(); }
+  catch(e){ showAlert(e.message||'Failed','error'); }
+}
+async function toggleAdmin(id){
+  try{ var r = await api.toggleAdminStatus(id); showAlert(r.message||'تم'); load(); }
+  catch(e){ showAlert(e.message||'Failed','error'); }
+}
+load();
+</script>
+</body>
+</html>

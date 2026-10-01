@@ -62,6 +62,29 @@ function safeSetToken(t) {
 function safeRemoveToken() {
     try { localStorage.removeItem('token'); } catch (e) {}
 }
+// Device tracking (the "MAC replacement").
+// Browsers never expose a real MAC address, so we generate one stable UUID
+// per browser (localStorage `qarrib_device_id`) and send it on EVERY request
+// as X-Device-Id + X-Device-Platform. The backend records it at
+// register/login and the admin can block/unblock it from the Devices page.
+function getQarribDeviceId() {
+    try {
+        var id = localStorage.getItem('qarrib_device_id');
+        if (!id) {
+            id = 'dev-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+            localStorage.setItem('qarrib_device_id', id);
+        }
+        return id;
+    } catch (e) {
+        return 'dev-anon-' + Math.random().toString(36).slice(2, 10);
+    }
+}
+function getQarribPlatform() {
+    try {
+        if (window.Capacitor && window.Capacitor.getPlatform) return 'capacitor-' + window.Capacitor.getPlatform();
+    } catch (e) {}
+    return (navigator && navigator.platform ? navigator.platform : 'web').slice(0, 60);
+}
 
 function getQarribLanguage() {
     try {
@@ -93,6 +116,10 @@ API.prototype.getHeaders = function () {
     var langHeaders = qarribLangHeaders();
     headers['Accept-Language'] = langHeaders['Accept-Language'];
     headers['X-Lang'] = langHeaders['X-Lang'];
+    try {
+        headers['X-Device-Id'] = getQarribDeviceId();
+        headers['X-Device-Platform'] = getQarribPlatform();
+    } catch (e) {}
     if (this.token) {
         headers['Authorization'] = 'Bearer ' + this.token;
     }
@@ -106,8 +133,24 @@ API.prototype.request = function (method, endpoint, data, isFormData) {
     var langHeaders = qarribLangHeaders();
     headers['Accept-Language'] = langHeaders['Accept-Language'];
     headers['X-Lang'] = langHeaders['X-Lang'];
+    try {
+        headers['X-Device-Id'] = getQarribDeviceId();
+        headers['X-Device-Platform'] = getQarribPlatform();
+    } catch (e) {}
     if (isFormData && self.token) {
         headers['Authorization'] = 'Bearer ' + self.token;
+    }
+    // For FormData (register with photos) also append device fields into the body
+    if (data && isFormData && typeof FormData !== 'undefined' && data instanceof FormData) {
+        try {
+            if (!data.has('deviceId')) data.append('deviceId', getQarribDeviceId());
+            if (!data.has('devicePlatform')) data.append('devicePlatform', getQarribPlatform());
+        } catch (e) {}
+    } else if (data && !isFormData && typeof data === 'object') {
+        // For JSON auth calls make sure deviceId travels in the body too
+        if (!data.deviceId) {
+            try { data.deviceId = getQarribDeviceId(); } catch (e) {}
+        }
     }
     var options = { method: method, headers: headers };
     if (data && !isFormData) {
@@ -426,6 +469,36 @@ API.prototype.updateAssistant = function (id, data) {
 API.prototype.deleteAssistant = function (id) {
     return this.request('DELETE', '/admin/assistants/' + id);
 };
+// Admin accounts (admin panel only: add / remove / enable-disable)
+API.prototype.getAdmins = function () {
+    return this.request('GET', '/admin/admins');
+};
+API.prototype.createAdmin = function (data) {
+    return this.request('POST', '/admin/admins', data);
+};
+API.prototype.deleteAdmin = function (id) {
+    return this.request('DELETE', '/admin/admins/' + id);
+};
+API.prototype.toggleAdminStatus = function (id) {
+    return this.request('PATCH', '/admin/admins/' + id + '/status', {});
+};
+// Devices (admin panel only: track at register/login, block/unblock by deviceId/IP)
+API.prototype.getDevices = function (query) {
+    if (query === undefined) query = '';
+    return this.request('GET', '/admin/devices' + query);
+};
+API.prototype.getUserDevices = function (userId) {
+    return this.request('GET', '/admin/users/' + userId + '/devices');
+};
+API.prototype.blockDevice = function (data) {
+    return this.request('POST', '/admin/devices/block', data);
+};
+API.prototype.unblockDevice = function (data) {
+    return this.request('POST', '/admin/devices/unblock', data);
+};
+API.prototype.deleteDevice = function (id) {
+    return this.request('DELETE', '/admin/devices/' + id);
+};
 // Assistant workspace (masked — never returns registration secrets)
 API.prototype.getAssistantMe = function () {
     return this.request('GET', '/assistant/me');
@@ -557,6 +630,8 @@ API.prototype.savePlanPrices = function (data) {
 var api = new API();
 if (typeof window !== 'undefined') {
     window.api = api;
+    window.getQarribDeviceId = getQarribDeviceId;
+    window.getQarribPlatform = getQarribPlatform;
     window.getQarribLanguage = getQarribLanguage;
     window.qarribLangHeaders = qarribLangHeaders;
     // Pick the right language string from a backend payload:
