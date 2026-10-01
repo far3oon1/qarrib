@@ -237,6 +237,8 @@
             socket = io({ auth: { token: localStorage.getItem('token') } });
             socket.on('connect', function(){ socket.emit('subscribe_location', { orderId: orderId }); });
             socket.on('location_update', function(d){ if (d.role === 'patient') { patientLoc = { lat: d.lat, lng: d.lng }; patientMarker.setLatLng([d.lat, d.lng]); draw(); } });
+            // Live refresh: patient paid / finished / rated -> reload right away
+            socket.on('order_update', function(){ loadOrder(); });
         } catch(e){ setInterval(loadOrder, 10000); }
     }
     (function init(){
