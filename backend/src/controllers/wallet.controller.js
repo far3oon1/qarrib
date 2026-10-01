@@ -56,6 +56,14 @@ const requestWithdrawal = asyncHandler(async (req, res) => {
   if ((user.walletBalance || 0) < Number(amount)) {
     throw new ApiError(400, 'Insufficient balance');
   }
+  // REAL plan perk: VIP nurses withdraw from 50 EGP, standard minimum is 100
+  try {
+    const { planOf } = require('./subscription.controller');
+    const minW = planOf(user) === 'nurse_vip' ? 50 : 100;
+    if (Number(amount) < minW) {
+      throw new ApiError(400, planOf(user) === 'nurse_vip' ? 'الحد الأدنى للسحب 50 ج.م' : 'الحد الأدنى للسحب 100 ج.م — ممرضو VIP يسحبون من 50 ج.م');
+    }
+  } catch (e) { if (e.statusCode === 400) throw e; }
   // Save / update the nurse payout account so admin knows where to send money
   const payout = (payoutAccount || accountDetails || user.payoutAccount || '').trim();
   if (payout) {

@@ -10,6 +10,7 @@ router.post('/cancel', protect, authorize('patient', 'nurse'), sub.cancel);
 
 router.get('/admin/all', protect, authorize('admin'), sub.adminList);
 router.post('/admin/:id', protect, authorize('admin'), sub.adminReview);
+router.post('/admin/user/:userId/remove', protect, authorize('admin'), sub.adminRemove);
 router.put('/admin/prices', protect, authorize('admin'), sub.adminPrices);
 
 module.exports = router;

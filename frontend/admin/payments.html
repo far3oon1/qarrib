@@ -220,7 +220,7 @@
                 if (result.success && result.data.length > 0) {
                     container.innerHTML = result.data.map(t => `
                         <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; padding: 16px; margin-bottom: 8px;">
-                            <div style="font-weight: 700;">${t.user ? t.user.name : ''} — ${t.amount} ج.م</div>
+                            <div style="font-weight: 700;">${t.user && t.user.isVipNurse ? '👑 ' : ''}${t.user ? t.user.name : ''} — ${t.amount} ج.م${t.user && t.user.isVipNurse ? ' <span style="font-size:11px;background:#DCFCE7;color:#166534;border-radius:10px;padding:2px 8px;">VIP</span>' : ''}</div>
                             <div style="font-size: 13px; color: #64748b;">هاتف: ${t.user ? t.user.phone : ''} | طريقة: ${t.paymentMethod} | ${formatDate(t.createdAt)}</div>
                             <div style="font-size: 14px; margin-top:6px;">💳 حوّل إلى: <b style="direction:ltr;">${t.user && t.user.payoutAccount ? t.user.payoutAccount : '— لم يضف رقمه بعد —'}</b> (${t.user && t.user.payoutMethod ? t.user.payoutMethod : ''})</div>
                             <div style="font-size:12px;color:#94a3b8;">${t.description || ''}</div>
