@@ -26,33 +26,49 @@
             <button class="back-btn" onclick="history.back()">→</button>
             <div class="page-title" style="font-weight:800;">شات الإدارة مع الممرضين والمرضى <span id="notifBadge" style="display:none;background:#ef4444;border-radius:10px;padding:2px 8px;font-size:12px;"></span></div>
             <a href="assistants.html" style="margin-inline-start:auto;color:white;text-decoration:none;font-weight:700;font-size:14px;">🎧 المساعدون</a>
+            <a href="devices.html" style="color:white;text-decoration:none;font-weight:700;font-size:14px;">📵 حظر</a>
+            <a href="audit-log.html" style="color:white;text-decoration:none;font-weight:700;font-size:14px;">📋 السجل</a>
             <a href="../notifications.html" style="color:white;">🔔</a>
         </div>
+        <div style="padding:12px 16px 0;"><input id="chatSearch" class="form-input" placeholder="🔍 بحث في المحادثات: اسم مريض/ممرض، رقم طلب، نص رسالة" oninput="renderList()"></div>
         <div class="chat-list" id="chatList"><div class="loading"><div class="spinner"></div></div></div>
     </div>
     <script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
-    <script src="../js/api.js?v=6"></script>
+    <script src="../js/api.js?v=9"></script>
     <script src="../js/auth.js?v=6"></script>
     <script src="../js/notifications.js"></script>
     <script src="../js/notify-popup.js?v=1"></script>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script>
         if (!requireRole('admin')) redirectToLogin();
+        var allChats = [];
+        function esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+        function chatText(o){
+            return [o.orderNumber, o.orderId, o.service,
+                o.patient && (o.patient.fullName || o.patient.name),
+                o.nurse && (o.nurse.fullName || o.nurse.name),
+                o.lastMessage && o.lastMessage.content].join(' ');
+        }
+        function renderList(){
+            var q = (document.getElementById('chatSearch').value || '').trim().toLowerCase();
+            var items = !q ? allChats : allChats.filter(function(o){ return chatText(o).toLowerCase().indexOf(q) !== -1; });
+            var c = document.getElementById('chatList');
+            if (!items.length) { c.innerHTML = '<div class="empty-state"><div class="empty-state-icon">💬</div><p>' + (q ? 'لا توجد نتائج مطابقة للبحث' : 'لا توجد محادثات بعد') + '</p></div>'; return; }
+            c.innerHTML = items.map(function(o){
+                return '<a href="chat-room.html?order='+o.orderId+'" class="chat-item">'
+                    + '<div class="chat-avatar">💬</div>'
+                    + '<div style="flex:1"><div style="font-weight:700;">طلب #'+(o.orderNumber||o.orderId.slice(0,6))+' — '+(o.service||'')+'</div>'
+                    + '<div style="font-size:13px;color:#64748b;">'+(o.lastMessage?esc(o.lastMessage.content).slice(0,60):'بدون رسائل')+'</div>'
+                    + '<div style="font-size:12px;color:#94a3b8;">مريض: '+esc((o.patient&&o.patient.fullName)||'؟')+' | ممرض: '+esc((o.nurse&&o.nurse.fullName)||'غير معين')+'</div></div>'
+                    + (o.unreadCount?'<span class="unread">'+o.unreadCount+'</span>':'')
+                    + '</a>';
+            }).join('');
+        }
         async function load() {
             try {
                 var r = await api.getMyChats();
-                var items = r.data || [];
-                var c = document.getElementById('chatList');
-                if (!items.length) { c.innerHTML = '<div class="empty-state"><div class="empty-state-icon">💬</div><p>لا توجد محادثات بعد</p></div>'; return; }
-                c.innerHTML = items.map(function(o){
-                    return '<a href="chat-room.html?order='+o.orderId+'" class="chat-item">'
-                        + '<div class="chat-avatar">💬</div>'
-                        + '<div style="flex:1"><div style="font-weight:700;">طلب #'+(o.orderNumber||o.orderId.slice(0,6))+' — '+(o.service||'')+'</div>'
-                        + '<div style="font-size:13px;color:#64748b;">'+(o.lastMessage?o.lastMessage.content.slice(0,60):'بدون رسائل')+'</div>'
-                        + '<div style="font-size:12px;color:#94a3b8;">مريض: '+((o.patient&&o.patient.fullName)||'؟')+' | ممرض: '+((o.nurse&&o.nurse.fullName)||'غير معين')+'</div></div>'
-                        + (o.unreadCount?'<span class="unread">'+o.unreadCount+'</span>':'')
-                        + '</a>';
-                }).join('');
+                allChats = r.data || [];
+                renderList();
             } catch(e){ showAlert('فشل تحميل الشات','error'); }
         }
         load();

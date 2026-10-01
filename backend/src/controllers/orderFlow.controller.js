@@ -276,6 +276,54 @@ if (order.status !== 'completed') {
   ResponseHelper.success(res, { orderId: order._id, status: order.status, patientConfirmed: order.patientConfirmed, nurseConfirmed: order.nurseConfirmed }, 'Confirmation recorded. Waiting for other party.');
 });
 
+// POST /api/orders/:id/arrive — assigned nurse taps "I arrived".
+// Patient gets a bell alert + live banner on the track page (nurseArrived).
+const arriveOrder = asyncHandler(async (req, res) => {
+  const order = await Order.findOne({ _id: req.params.id, assignedNurse: req.user.id });
+  if (!order) throw new ApiError(404, 'Order not found');
+  if (!['assigned', 'in_progress'].includes(order.status)) throw new ApiError(400, 'Order is not active');
+  if (order.nurseArrived) {
+    return ResponseHelper.success(res, { orderId: order._id, nurseArrived: true, arrivedAt: order.arrivedAt }, 'Arrival already recorded');
+  }
+  order.nurseArrived = true;
+  order.arrivedAt = new Date();
+  order.statusHistory.push({ status: order.status, changedBy: req.user.id, notes: 'Nurse arrived at patient location' });
+  await order.save();
+
+  await Notification.create({ recipient: order.patient, title: 'الممرض وصل 📍', message: `الممرض وصل إلى موقعك للطلب #${order.orderNumber}`, type: 'order', data: { orderId: order._id, arrived: true } });
+  try {
+    const { emitToOrder, emitToUser } = require('../sockets');
+    emitToOrder(String(order._id), 'order_update', { orderId: order._id, status: order.status, nurseArrived: true, arrivedAt: order.arrivedAt });
+    emitToUser(String(order.patient), 'notification', { title: 'الممرض وصل 📍', orderId: order._id });
+  } catch (_) { /* sockets optional */ }
+
+  ResponseHelper.success(res, { orderId: order._id, nurseArrived: true, arrivedAt: order.arrivedAt }, 'تم تسجيل الوصول — تم إشعار المريض');
+});
+
+// POST /api/orders/:id/report {summary} — nurse writes what was done.
+// Shown to the admin on the Feedbacks page next to the patient rating.
+const submitVisitReport = asyncHandler(async (req, res) => {
+  const summary = (req.body.summary || '').toString().trim().slice(0, 2000);
+  if (!summary) throw new ApiError(400, 'Report summary is required');
+  const order = await Order.findOne({ _id: req.params.id, assignedNurse: req.user.id });
+  if (!order) throw new ApiError(404, 'Order not found');
+  if (!['in_progress', 'completed'].includes(order.status)) throw new ApiError(400, 'Report can be written during or after the visit');
+
+  order.visitReport = { summary, createdAt: new Date(), by: req.user.id };
+  await order.save();
+
+  const reportAdmins = await User.find({ role: 'admin' }).select('_id');
+  for (const a of reportAdmins) {
+    await Notification.create({ recipient: a._id, title: 'تقرير زيارة جديد 📋', message: `الممرض أرسل تقرير الزيارة للطلب #${order.orderNumber}: ${summary.slice(0, 120)}`, type: 'order', data: { orderId: order._id } });
+  }
+  try {
+    const { emitToOrder } = require('../sockets');
+    emitToOrder(String(order._id), 'order_update', { orderId: order._id, status: order.status, visitReport: true });
+  } catch (_) { /* sockets optional */ }
+
+  ResponseHelper.success(res, { orderId: order._id, visitReport: order.visitReport }, 'تم إرسال تقرير الزيارة للإدارة');
+});
+
 // POST /api/orders/:id/cancel {reason} — refunds held escrow
 const cancelOrder = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id);
@@ -471,7 +519,7 @@ const approveOffer = asyncHandler(async (req, res) => {
 
   await Notification.create({ recipient: offer.nurse, title: 'تم اختيارك لطلب — أكّد القبول', message: `وافق المريض على سعرك ${offer.price} ج.م للطلب #${order.orderNumber} — افتح طلباتك واضغط "موافق" أو "رفض"`, type: 'order', data: { orderId: order._id } });
   // When admin accepts the nurse price, patient must be told to PAY now
-  await Notification.create({ recipient: order.patient, title: 'تم قبول السعر — ادفع الآن', message: `الإدارة قبلت سعر ${offer.price} ج.م لطلبك #${order.orderNumber} — ادفع من المحفظة أو InstaPay ليبدأ الممرض`, type: 'order', data: { orderId: order._id, finalPrice: offer.price } });
+  await Notification.create({ recipient: order.patient, title: 'تم قبول السعر — ادفع الآن', message: `الإدارة قبلت سعر ${offer.price} ج.م لطلبك #${order.orderNumber} — ادفع من المحفظة أو InstaPay أو فودافون كاش ليبدأ الممرض`, type: 'order', data: { orderId: order._id, finalPrice: offer.price } });
   if (req.user.role !== 'admin') {
     const offerAdmins = await User.find({ role: 'admin' }).select('_id');
     for (const a of offerAdmins) {
@@ -487,12 +535,12 @@ const approveOffer = asyncHandler(async (req, res) => {
   ResponseHelper.success(res, { orderId: order._id, status: 'assigned', finalPrice: offer.price }, 'تمت الموافقة على السعر');
 });
 
-// POST /api/orders/:id/pay {method: 'wallet'|'instapay', reference?}
-// wallet: deduct from balance. instapay: patient transferred to OWNER account,
-// escrow is held once recorded (owner verifies the transfer off-app).
+// POST /api/orders/:id/pay {method: 'wallet'|'instapay'|'vodafone_cash', reference?}
+// wallet: deduct from balance. instapay/vodafone_cash: patient transferred to
+// the OWNER account, escrow is held once recorded (owner verifies off-app).
 const payManual = asyncHandler(async (req, res) => {
   const { method, reference } = req.body;
-  if (!['wallet', 'instapay'].includes(method)) throw new ApiError(400, 'method must be wallet or instapay');
+  if (!['wallet', 'instapay', 'vodafone_cash'].includes(method)) throw new ApiError(400, 'method must be wallet, instapay or vodafone_cash');
   const order = await Order.findById(req.params.id);
   if (!order) throw new ApiError(404, 'Order not found');
   if (String(order.patient) !== String(req.user.id)) throw new ApiError(403, 'Not authorized');
@@ -518,11 +566,12 @@ const payManual = asyncHandler(async (req, res) => {
       balanceAfter: patient.walletBalance
     });
   } else {
+    const vfCash = method === 'vodafone_cash';
     await Wallet.create({
       user: patient._id, order: order._id, type: 'payment',
-      amount: order.finalPrice, status: 'completed', paymentMethod: 'instapay',
+      amount: order.finalPrice, status: 'completed', paymentMethod: vfCash ? 'vodafone_cash' : 'instapay',
       reference: (reference || '').trim() || null,
-      description: `InstaPay transfer to owner for order ${order.orderNumber}`,
+      description: vfCash ? `Vodafone Cash transfer to owner for order ${order.orderNumber}` : `InstaPay transfer to owner for order ${order.orderNumber}`,
       balanceAfter: patient.walletBalance || 0
     });
   }
@@ -530,7 +579,7 @@ const payManual = asyncHandler(async (req, res) => {
   order.paymentStatus = 'paid';
   order.paymentMethod = method;
   order.escrowStatus = 'held';
-  order.statusHistory.push({ status: order.status, changedBy: req.user.id, notes: method === 'wallet' ? 'Escrow held (wallet)' : 'Escrow held (InstaPay to owner)' });
+  order.statusHistory.push({ status: order.status, changedBy: req.user.id, notes: method === 'wallet' ? 'Escrow held (wallet)' : method === 'vodafone_cash' ? 'Escrow held (Vodafone Cash to owner)' : 'Escrow held (InstaPay to owner)' });
   await order.save();
 
   // Direct pay: a nurse is already assigned, so the money goes straight
@@ -724,4 +773,4 @@ const completeCash = asyncHandler(async (req, res) => {
   ResponseHelper.success(res, { orderId: order._id, status: 'completed', cashAmount }, 'تم إنهاء الخدمة بعد استلام المبلغ نقداً');
 });
 
-module.exports = { createSimple, acceptOrder, startService, confirmOrder, cancelOrder, getOrderCompat, rateOrder, approveOffer, payManual, submitOffer, acceptSuggestedPrice, respondToAssignment, completeCash };
+module.exports = { createSimple, acceptOrder, startService, arriveOrder, submitVisitReport, confirmOrder, cancelOrder, getOrderCompat, rateOrder, approveOffer, payManual, submitOffer, acceptSuggestedPrice, respondToAssignment, completeCash };

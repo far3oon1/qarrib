@@ -123,11 +123,12 @@ const failureRedirect = asyncHandler(async (req, res) => {
   ResponseHelper.success(res, req.query, 'Payment failed or cancelled');
 });
 
-// Owner receiving account: patients pay here directly (InstaPay).
-// Number is configurable via OWNER_INSTAPAY_NUMBER in .env
+// Owner receiving accounts: patients pay here directly (InstaPay / Vodafone Cash).
+// Numbers are configurable via OWNER_INSTAPAY_NUMBER / OWNER_VF_CASH_NUMBER in .env
 const getOwnerAccount = asyncHandler(async (req, res) => {
   ResponseHelper.success(res, {
     instapay: process.env.OWNER_INSTAPAY_NUMBER || '01150209401',
+    vodafoneCash: process.env.OWNER_VF_CASH_NUMBER || '01003790634',
     name: 'Qarrib'
   }, 'Owner payment account');
 });

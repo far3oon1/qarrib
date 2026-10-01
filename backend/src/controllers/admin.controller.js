@@ -117,6 +117,7 @@ const verifyNurse = asyncHandler(async (req, res) => {
   });
 
   ResponseHelper.success(res, { nurseId, status: newStatus, action }, action === 'approve' ? 'تم قبول الممرض' : 'تم رفض الممرض');
+  try { require('../utils/audit').logAdmin(req, 'nurse.verify', { targetType: 'nurse', targetId: String(nurseId), details: `${nurse.fullName} (${nurse.email}) -> ${newStatus}${notes ? ' | ' + String(notes).slice(0, 200) : ''}` }); } catch (_) {}
 });
 
 // --- Legacy-frontend compat (admin/*.html shapes) ---
@@ -267,6 +268,7 @@ const deleteUser = asyncHandler(async (req, res) => {
   if (user.licenseImage?.publicId) await deleteFromCloudinary(user.licenseImage.publicId).catch(() => {});
 
   await User.findByIdAndDelete(userId);
+  try { require('../utils/audit').logAdmin(req, 'user.delete', { targetType: 'user', targetId: String(userId), details: `${user.fullName} (${user.email}, ${user.role})` }); } catch (_) {}
   ResponseHelper.success(res, { userId }, 'تم حذف المستخدم بنجاح');
 });
 
@@ -294,6 +296,7 @@ const toggleUserStatus = asyncHandler(async (req, res) => {
 
   user.isActive = !user.isActive;
   await user.save();
+  try { require('../utils/audit').logAdmin(req, 'user.toggle', { targetType: 'user', targetId: String(userId), details: `${user.fullName} (${user.email}) -> isActive=${user.isActive}` }); } catch (_) {}
 
   await Notification.create({
     recipient: user._id,
@@ -534,7 +537,10 @@ const getFeedbacks = asyncHandler(async (req, res) => {
     rating: o.patientReview?.rating ?? null,
     comment: o.patientReview?.comment || null,
     createdAt: o.patientReview?.createdAt || o.updatedAt,
-    finalPrice: o.finalPrice ?? null
+    finalPrice: o.finalPrice ?? null,
+    nurseArrived: !!o.nurseArrived,
+    arrivedAt: o.arrivedAt || null,
+    visitReport: o.visitReport?.summary ? { summary: o.visitReport.summary, createdAt: o.visitReport.createdAt || null } : null
   })), { page: parseInt(page), limit: parseInt(limit), total }, 'تقييمات المرضى');
 });
 
