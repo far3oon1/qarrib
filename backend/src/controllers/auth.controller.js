@@ -4,7 +4,7 @@ const ResponseHelper = require('../utils/response');
 const asyncHandler = require('../utils/asyncHandler');
 const { saveIdFile } = require('../utils/saveUpload');
 const fs = require('fs');
-const { getDeviceMeta, touchDevice, assertDeviceAllowed } = require('../utils/device');
+const { getDeviceMeta, touchDevice, assertDeviceAllowed, assertUserNotBlocked } = require('../utils/device');
 
 const generateToken = (id, role) => {
   return require('jsonwebtoken').sign(
@@ -166,13 +166,10 @@ const login = asyncHandler(async (req, res) => {
     throw new ApiError(401, 'البريد الإلكتروني أو كلمة المرور غير صحيحة');
   }
 
-  // Device block is also enforced per-account: if THIS user has any blocked
-  // device with the same fingerprint, deny even from a fresh deviceId.
-  try {
-    const Device = require('../models/Device');
-    const perUserBlock = await Device.findOne({ user: user._id, blocked: true, fingerprint: meta.fingerprint }).lean();
-    if (perUserBlock) throw new ApiError(403, `This device is blocked by the admin${perUserBlock.blockReason ? ': ' + perUserBlock.blockReason : ''}. Contact support.`);
-  } catch (e) { if (e.statusCode === 403) throw e; }
+  // This account blocked by admin (any of its devices) -> show the
+  // blocked-for-rules sentence, even from a fresh device. Runs before the
+  // isActive/status checks so it takes precedence over generic messages.
+  await assertUserNotBlocked(user);
 
   if (!user.isActive) {
     throw new ApiError(403, 'الحساب معطل، يرجى التواصل مع الدعم');
@@ -230,6 +227,8 @@ const loginWithPhone = asyncHandler(async (req, res) => {
   if (!isMatch) {
     throw new ApiError(401, 'رقم الهاتف أو كلمة المرور غير صحيحة');
   }
+
+  await assertUserNotBlocked(user);
 
   if (!user.isActive) {
     throw new ApiError(403, 'الحساب معطل، يرجى التواصل مع الدعم');

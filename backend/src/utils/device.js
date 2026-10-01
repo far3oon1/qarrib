@@ -63,6 +63,15 @@ async function touchDevice({ source, user }) {
   } catch (_) { /* ignore */ }
 }
 
+// The exact sentence a blocked user sees (AR primary, EN via i18n dict).
+// Frontend shows message/message_en by active language + a ⛔ banner.
+function blockedMessage(reason) {
+  const clean = (reason || '').toString().trim().slice(0, 200);
+  return clean
+    ? `تم حظرك لمخالفة قواعد التطبيق: ${clean}`
+    : 'تم حظرك لمخالفة قواعد التطبيق';
+}
+
 // Throws 403 when this device/IP is blocked.
 async function assertDeviceAllowed(meta) {
   const Device = require('../models/Device');
@@ -70,16 +79,28 @@ async function assertDeviceAllowed(meta) {
   // 1) exact device blocked?
   if (meta.deviceId) {
     const hit = await Device.findOne({ deviceId: meta.deviceId, blocked: true }).lean();
-    if (hit) throw new ApiError(403, `This device is blocked by the admin${hit.blockReason ? ': ' + hit.blockReason : ''}. Contact support.`);
+    if (hit) throw new ApiError(403, blockedMessage(hit.blockReason));
   }
   // 2) manual IP block? (admin blocks an IP -> we store a blocked row with deviceId `ip:<addr>`)
   if (meta.ip) {
     const ipHit = await Device.findOne({ deviceId: `ip:${meta.ip}`, blocked: true }).lean();
-    if (ipHit) throw new ApiError(403, `This network/IP is blocked by the admin${ipHit.blockReason ? ': ' + ipHit.blockReason : ''}. Contact support.`);
+    if (ipHit) throw new ApiError(403, blockedMessage(ipHit.blockReason));
   }
   // 3) fingerprint-level block (same browser reinstall that lost its UUID)?
   const fpHit = await Device.findOne({ deviceId: `fp:${meta.fingerprint}`, blocked: true }).lean();
-  if (fpHit) throw new ApiError(403, `This device is blocked by the admin${fpHit.blockReason ? ': ' + fpHit.blockReason : ''}. Contact support.`);
+  if (fpHit) throw new ApiError(403, blockedMessage(fpHit.blockReason));
 }
 
-module.exports = { getClientIp, getDeviceId, getDeviceMeta, touchDevice, assertDeviceAllowed };
+// Throws 403 when THIS ACCOUNT has any blocked device (e.g. admin chose
+// "block all devices + suspend" on the Users page). Call after loading the
+// user, before the isActive/status checks, so the user sees the blocked
+// sentence instead of a generic "account disabled".
+async function assertUserNotBlocked(user) {
+  const Device = require('../models/Device');
+  const ApiError = require('./ApiError');
+  if (!user || !user._id) return;
+  const hit = await Device.findOne({ user: user._id, blocked: true }).sort({ blockedAt: -1 }).lean();
+  if (hit) throw new ApiError(403, blockedMessage(hit.blockReason));
+}
+
+module.exports = { getClientIp, getDeviceId, getDeviceMeta, touchDevice, assertDeviceAllowed, assertUserNotBlocked, blockedMessage };

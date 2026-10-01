@@ -59,6 +59,7 @@
         <div class="form-side">
             <button class="lang-btn" id="langToggle" type="button">العربية</button>
             <div class="form-box">
+                <div id="blockedBanner" style="display:none;background:#FDECEA;border:2px solid #B42318;border-radius:12px;padding:14px 16px;font-size:15px;font-weight:700;color:#7f1d1d;text-align:center;">⛔ <span id="blockedBannerText">تم حظرك لمخالفة قواعد التطبيق / You have been blocked for breaking the rules of the app</span></div>
                 <div class="q-switch" role="tablist">
                     <button type="button" id="tab-patient" class="active" onclick="switchRole(event, 'patient')">Patient</button>
                     <button type="button" id="tab-nurse" onclick="switchRole(event, 'nurse')">Nurse</button>
@@ -129,6 +130,24 @@
         var el = document.getElementById('alert-' + role);
         el.className = 'alert'; el.textContent = '';
     }
+    function isBlockedText(t) { return /blocked|تم حظر|مخالفة قواعد/i.test(String(t || '')); }
+    function showBlockedBanner(customMsg) {
+        var b = document.getElementById('blockedBanner');
+        if (customMsg) {
+            document.getElementById('blockedBannerText').textContent = customMsg + ' / You have been blocked for breaking the rules of the app';
+        }
+        if (b) b.style.display = 'block';
+        try { window.scrollTo(0, 0); } catch (e) {}
+    }
+    (function checkBlockedFlag() {
+        try {
+            var q = new URLSearchParams(window.location.search);
+            if (q.get('blocked') === '1') {
+                showBlockedBanner();
+                window.history.replaceState({}, '', window.location.pathname);
+            }
+        } catch (e) {}
+    })();
     async function login(role) {
         var email = document.getElementById('email-' + role).value.trim();
         var password = document.getElementById('password-' + role).value;
@@ -153,7 +172,10 @@
                 showAlert(role, currentLang === 'ar' ? 'تم تسجيل الدخول بنجاح! جاري التحويل...' : 'Signed in! Redirecting...', 'success');
                 setTimeout(function(){ redirectBasedOnRole(); }, 800);
             } else { showAlert(role, result.message || 'Login failed'); }
-        } catch (e) { showAlert(role, e.message || 'Connection error'); }
+        } catch (e) {
+            if (isBlockedText(e.message)) { clearAuth(); showBlockedBanner(e.message); }
+            else showAlert(role, e.message || 'Connection error');
+        }
         finally { btn.disabled = false; spinner.classList.remove('show'); }
     }
     ['patient','nurse'].forEach(function(role){
@@ -176,7 +198,10 @@
                 showAlert('helper', currentLang === 'ar' ? 'أهلاً بك! جاري فتح لوحة المساعد...' : 'Welcome! Opening helper panel...', 'success');
                 setTimeout(function(){ window.location.href = '/admin/assistant-panel.html'; }, 800);
             } else { showAlert('helper', result.message || 'Login failed'); }
-        } catch (e) { showAlert('helper', e.message || 'Connection error'); }
+        } catch (e) {
+            if (isBlockedText(e.message)) { clearAuth(); showBlockedBanner(e.message); }
+            else showAlert('helper', e.message || 'Connection error');
+        }
         finally { btn.disabled = false; spinner.classList.remove('show'); }
     }
 

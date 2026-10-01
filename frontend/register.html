@@ -96,6 +96,8 @@
                 <p id="subtitle">إنشاء حساب جديد</p>
             </div>
 
+            <div id="blockedBanner" style="display:none;background:#FDECEA;border:2px solid #B42318;border-radius:12px;padding:14px 16px;font-size:15px;font-weight:700;color:#7f1d1d;text-align:center;margin-bottom:16px;">⛔ <span id="blockedBannerText">تم حظرك لمخالفة قواعد التطبيق / You have been blocked for breaking the rules of the app</span></div>
+
             <div class="step-indicator" id="stepIndicator">
                 <div class="step-dot active"></div>
                 <div class="step-dot"></div>
@@ -412,7 +414,16 @@
                     setTimeout(() => redirectBasedOnRole(), 1500);
                 }
             } catch (error) {
-                showAlert(error.message || L('فشل إنشاء الحساب', 'Failed to create the account'), 'error');
+                var errMsg = error.message || L('فشل إنشاء الحساب', 'Failed to create the account');
+                showAlert(errMsg, 'error');
+                // Blocked device -> unmissable banner with the rules sentence (both languages)
+                if (/blocked|تم حظر|مخالفة قواعد/i.test(errMsg)) {
+                    try {
+                        document.getElementById('blockedBannerText').textContent = errMsg + ' / You have been blocked for breaking the rules of the app';
+                        document.getElementById('blockedBanner').style.display = 'block';
+                        window.scrollTo(0, 0);
+                    } catch (e) {}
+                }
             } finally {
                 btn.disabled = false;
                 btn.textContent = L('إنشاء الحساب', 'Create account');
