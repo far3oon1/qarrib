@@ -328,6 +328,10 @@ API.prototype.arriveOrder = function (orderId) {
 API.prototype.submitVisitReport = function (orderId, summary) {
     return this.request('POST', '/orders/' + orderId + '/report', { summary: summary });
 };
+// In-app call with plan priority (Free: 3/order, subscribers: unlimited)
+API.prototype.logCall = function (orderId) {
+    return this.request('POST', '/orders/' + orderId + '/call', {});
+};
 // Audit log (admin panel only)
 API.prototype.getAuditLog = function (query) {
     if (query === undefined) query = '';

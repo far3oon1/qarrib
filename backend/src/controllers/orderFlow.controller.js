@@ -324,6 +324,63 @@ const submitVisitReport = asyncHandler(async (req, res) => {
   ResponseHelper.success(res, { orderId: order._id, visitReport: order.visitReport }, 'تم إرسال تقرير الزيارة للإدارة');
 });
 
+// POST /api/orders/:id/call — plan-priority in-app calling.
+// Free plan: 3 calls per order. Pro / VIP / VIP-Nurse: unlimited.
+// Respects the callee's call permission (revoked => 403, same as track pages).
+const requestCall = asyncHandler(async (req, res) => {
+  const order = await Order.findById(req.params.id).populate('patient assignedNurse');
+  if (!order) throw new ApiError(404, 'Order not found');
+  const uid = String(req.user.id);
+  const isPatient = order.patient && String(order.patient._id || order.patient) === uid;
+  const isNurse = order.assignedNurse && String(order.assignedNurse._id || order.assignedNurse) === uid;
+  if (!isPatient && !isNurse) throw new ApiError(403, 'Not authorized for this order');
+  if (!['assigned', 'in_progress'].includes(order.status)) throw new ApiError(400, 'Calls are available during an active visit');
+
+  const { effectivePermissions } = require('./permissions.controller');
+  const { planOf } = require('./subscription.controller');
+  let tel = null;
+  let calleeId = null;
+  if (isPatient) {
+    const nurseDoc = order.assignedNurse;
+    if (!nurseDoc) throw new ApiError(400, 'No nurse assigned yet');
+    const p = effectivePermissions(nurseDoc);
+    if (p.call_nurse === false) throw new ApiError(403, 'Calling is disabled for this nurse by admin');
+    tel = nurseDoc.phone || null;
+    calleeId = nurseDoc._id || nurseDoc;
+  } else {
+    const patientDoc = order.patient;
+    const p = effectivePermissions(patientDoc);
+    if (p.call_patient === false) throw new ApiError(403, 'Calling is disabled for this account by admin');
+    tel = patientDoc.phone || null;
+    calleeId = patientDoc._id || patientDoc;
+  }
+  if (!tel) throw new ApiError(400, 'No registered number');
+
+  const CallLog = require('../models/CallLog');
+  const myPlan = planOf(req.user);
+  const unlimited = ['pro', 'vip', 'nurse_vip'].includes(myPlan);
+  const used = await CallLog.countDocuments({ order: order._id, caller: req.user.id });
+  if (!unlimited && used >= 3) {
+    throw new ApiError(403, 'Free plan: 3 calls per order used up — upgrade to Pro for unlimited calling / الخطة المجانية: ٣ مكالمات فقط لكل زيارة — اشترك في Pro للمكالمات غير المحدودة');
+  }
+  await CallLog.create({ order: order._id, caller: req.user.id, callerRole: isPatient ? 'patient' : 'nurse' });
+
+  try {
+    await Notification.create({
+      recipient: calleeId, title: '📞 مكالمة واردة',
+      message: `مكالمة واردة في الطلب #${order.orderNumber} من ${isPatient ? 'المريض' : 'الممرض'}`,
+      type: 'general', data: { orderId: order._id }
+    });
+    const { emitToUser } = require('../sockets');
+    emitToUser(String(calleeId), 'notification', { title: '📞 مكالمة واردة', orderId: order._id });
+  } catch (_) {}
+
+  ResponseHelper.success(res, {
+    tel, plan: myPlan, unlimited,
+    remaining: unlimited ? null : Math.max(0, 3 - used - 1)
+  }, unlimited ? 'Calling…' : 'Calling…');
+});
+
 // POST /api/orders/:id/cancel {reason} — refunds held escrow
 const cancelOrder = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id);
@@ -789,4 +846,4 @@ const completeCash = asyncHandler(async (req, res) => {
   ResponseHelper.success(res, { orderId: order._id, status: 'completed', cashAmount }, 'تم إنهاء الخدمة بعد استلام المبلغ نقداً');
 });
 
-module.exports = { createSimple, acceptOrder, startService, arriveOrder, submitVisitReport, confirmOrder, cancelOrder, getOrderCompat, rateOrder, approveOffer, payManual, submitOffer, acceptSuggestedPrice, respondToAssignment, completeCash };
+module.exports = { createSimple, acceptOrder, startService, arriveOrder, submitVisitReport, requestCall, confirmOrder, cancelOrder, getOrderCompat, rateOrder, approveOffer, payManual, submitOffer, acceptSuggestedPrice, respondToAssignment, completeCash };
