@@ -8,6 +8,8 @@
   var pendingIceCandidates = [];
   var ringtoneInterval = null;
   var callTimeout = null;
+  var signalPollInterval = null;
+  var signalPollInFlight = false;
   var isMuted = false;
   var isSpeaker = false;
 
@@ -19,7 +21,19 @@
     ]
   };
 
+  function usesApiSignaling() {
+    var host = String(window.location.hostname || '').toLowerCase();
+    if (host.endsWith('.vercel.app') || host.endsWith('.github.io')) return true;
+    try {
+      var apiHost = new URL(api.baseURL, window.location.href).hostname.toLowerCase();
+      return apiHost.endsWith('.vercel.app');
+    } catch (e) {
+      return false;
+    }
+  }
+
   function getSocket() {
+    if (usesApiSignaling()) return null;
     if (socket) {
       setupSocketListeners(socket);
       return socket;
@@ -62,17 +76,24 @@
   function setupSocketListeners(s) {
     if (listeningSocket === s) return;
     listeningSocket = s;
-    s.on('call_offer', function (data) {
+    ['call_offer', 'call_answer', 'call_ice', 'call_end', 'call_reject', 'call_busy'].forEach(function (event) {
+      s.on(event, function (data) { handleCallSignal(event, data, s); });
+    });
+  }
+
+  function handleCallSignal(event, data) {
+    if (event === 'call_offer') {
       if (currentCall && currentCall.state !== 'idle') {
-        s.emit('call_busy', { to: data.from });
+        sendCallSignal('call_busy', { to: data.from }).catch(function () {});
         return;
       }
       pendingIceCandidates = [];
       currentCall = { state: 'incoming', from: data.from, offer: data.offer };
       showIncomingCall(data.from);
-    });
+      return;
+    }
 
-    s.on('call_answer', function (data) {
+    if (event === 'call_answer') {
       if (!currentCall || currentCall.state !== 'calling') return;
       if (pc) {
         pc.setRemoteDescription(new RTCSessionDescription(data.answer)).then(function () {
@@ -87,34 +108,78 @@
           endCall(false);
         });
       }
-    });
+      return;
+    }
 
-    s.on('call_ice', function (data) {
+    if (event === 'call_ice') {
       if (!data.candidate) return;
       if (!pc || !pc.remoteDescription || !pc.remoteDescription.type) {
         pendingIceCandidates.push(data.candidate);
         return;
       }
       pc.addIceCandidate(new RTCIceCandidate(data.candidate)).catch(function () {});
-    });
+      return;
+    }
 
-    s.on('call_end', function () {
-      endCall(true);
-    });
+    if (event === 'call_end') {
+      endCall(false);
+      return;
+    }
 
-    s.on('call_reject', function () {
+    if (event === 'call_reject') {
       if (currentCall && currentCall.state === 'calling') {
         showAlert('تم رفض المكالمة / Call rejected', 'error');
         endCall(false);
       }
-    });
+      return;
+    }
 
-    s.on('call_busy', function () {
+    if (event === 'call_busy') {
       if (currentCall && currentCall.state === 'calling') {
         showAlert('الطرف الآخر مشغول / The other party is busy', 'error');
         endCall(false);
       }
+    }
+  }
+
+  function sendCallSignal(event, data) {
+    if (usesApiSignaling() || !socket || !socket.connected) {
+      if (typeof api === 'undefined' || !api || typeof api.request !== 'function') {
+        return Promise.reject(new Error('Call signaling API is unavailable'));
+      }
+      var payload = {};
+      Object.keys(data || {}).forEach(function (key) {
+        if (key !== 'to') payload[key] = data[key];
+      });
+      return api.request('POST', '/calls/signals', {
+        to: data && data.to,
+        event: event,
+        payload: payload
+      });
+    }
+    socket.emit(event, data);
+    return Promise.resolve({ success: true });
+  }
+
+  function pollCallSignals() {
+    if (!usesApiSignaling() || signalPollInFlight || typeof api === 'undefined' || !api || typeof api.request !== 'function') return;
+    signalPollInFlight = true;
+    api.request('GET', '/calls/signals').then(function (result) {
+      var signals = result && Array.isArray(result.data) ? result.data : [];
+      signals.forEach(function (signal) {
+        if (!signal || !signal.event || !signal.from) return;
+        var data = Object.assign({ from: signal.from }, signal.payload || {});
+        handleCallSignal(signal.event, data, null);
+      });
+    }).catch(function () {}).then(function () {
+      signalPollInFlight = false;
     });
+  }
+
+  function startCallSignalPolling() {
+    if (!usesApiSignaling() || signalPollInterval) return;
+    pollCallSignals();
+    signalPollInterval = setInterval(pollCallSignals, 2000);
   }
 
   function addPendingIceCandidates() {
@@ -130,8 +195,7 @@
 
     pc.onicecandidate = function (e) {
       if (e.candidate && currentCall && currentCall.from) {
-        var s = getSocket();
-        if (s) s.emit('call_ice', { to: currentCall.from, candidate: e.candidate });
+        sendCallSignal('call_ice', { to: currentCall.from, candidate: e.candidate }).catch(function () {});
       }
     };
 
@@ -155,15 +219,17 @@
   }
 
   function startCall(calleeId, calleeName) {
-    var s = getSocket();
-    if (!s) { showAlert('الاتصال غير متاح — تأكد من اتصالك بالإنترنت', 'error'); return; }
+    var apiTransport = usesApiSignaling();
+    var s = apiTransport ? null : getSocket();
+    if (!apiTransport && !s) { showAlert('الاتصال غير متاح — تأكد من اتصالك بالإنترنت', 'error'); return; }
     if (currentCall) { showAlert('لديك مكالمة نشطة بالفعل', 'error'); return; }
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       showAlert('المتصفح لا يدعم المكالمات الصوتية', 'error');
       return;
     }
 
-    waitForSocket(s).then(function () {
+    startCallSignalPolling();
+    (apiTransport ? Promise.resolve() : waitForSocket(s)).then(function () {
       return navigator.mediaDevices.getUserMedia({ audio: true });
     }).then(function (stream) {
       localStream = stream;
@@ -174,7 +240,8 @@
 
       pc.createOffer().then(function (offer) {
         return pc.setLocalDescription(offer).then(function () {
-          s.emit('call_offer', { to: calleeId, offer: offer });
+          return sendCallSignal('call_offer', { to: calleeId, offer: offer });
+        }).then(function () {
           callTimeout = setTimeout(function () {
             if (currentCall && currentCall.state === 'calling') {
               showAlert('لم يتم الرد / No answer', 'error');
@@ -194,15 +261,17 @@
 
   function answerCall() {
     if (!currentCall || currentCall.state !== 'incoming') return;
-    var s = getSocket();
-    if (!s) return;
+    var apiTransport = usesApiSignaling();
+    var s = apiTransport ? null : getSocket();
+    if (!apiTransport && !s) return;
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       showAlert('المتصفح لا يدعم المكالمات الصوتية', 'error');
       rejectCall();
       return;
     }
 
-    waitForSocket(s).then(function () {
+    startCallSignalPolling();
+    (apiTransport ? Promise.resolve() : waitForSocket(s)).then(function () {
       return navigator.mediaDevices.getUserMedia({ audio: true });
     }).then(function (stream) {
       localStream = stream;
@@ -214,7 +283,8 @@
         return pc.createAnswer();
       }).then(function (answer) {
         return pc.setLocalDescription(answer).then(function () {
-            s.emit('call_answer', { to: currentCall.from, answer: answer });
+          return sendCallSignal('call_answer', { to: currentCall.from, answer: answer });
+        }).then(function () {
             hideCallUI();
             currentCall.state = 'connected';
             showConnectedUI(currentCall.name);
@@ -227,10 +297,7 @@
   }
 
   function rejectCall() {
-    var s = socket;
-    if (s && currentCall && currentCall.from) {
-      s.emit('call_reject', { to: currentCall.from });
-    }
+    if (currentCall && currentCall.from) sendCallSignal('call_reject', { to: currentCall.from }).catch(function () {});
     endCall(false);
   }
 
@@ -238,9 +305,8 @@
     if (callTimeout) { clearTimeout(callTimeout); callTimeout = null; }
     if (ringtoneInterval) { clearInterval(ringtoneInterval); ringtoneInterval = null; }
 
-    var s = getSocket();
-    if (notify && s && currentCall && currentCall.from) {
-      s.emit('call_end', { to: currentCall.from });
+    if (notify && currentCall && currentCall.from) {
+      sendCallSignal('call_end', { to: currentCall.from }).catch(function () {});
     }
 
     if (pc) { pc.close(); pc = null; }
@@ -390,7 +456,14 @@
   }
 
   window.QarribCall = {
-    initialize: function () { return getSocket(); },
+    version: 4,
+    initialize: function () {
+      if (usesApiSignaling()) {
+        startCallSignalPolling();
+        return null;
+      }
+      return getSocket();
+    },
     startCall: startCall,
     answerCall: answerCall,
     rejectCall: rejectCall,

@@ -23,6 +23,7 @@ const serviceRoutes = require('./routes/service.routes');
 const permissionRoutes = require('./routes/permissions.routes');
 const subscriptionRoutes = require('./routes/subscription.routes');
 const assistantRoutes = require('./routes/assistant.routes');
+const callSignalRoutes = require('./routes/callSignal.routes');
 
 const app = express();
 app.set('trust proxy', 1); // required on Render/Railway/Heroku/Vercel (https + rate-limit IPs)
@@ -100,6 +101,7 @@ app.use('/api/services', serviceRoutes);
 app.use('/api/permissions', permissionRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/assistant', assistantRoutes);
+app.use('/api/calls', callSignalRoutes);
 
 // Static frontend (same origin, avoids CORS in production — Render/desktop only.
 // On Vercel the frontend is served as static output, so these simply never match.)
