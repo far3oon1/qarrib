@@ -34,6 +34,7 @@ router.post('/admin/register', validate(adminRegister), authController.adminRegi
 router.post('/admin/reset-password', protect, authorize('admin'), validate(adminResetPassword), authController.adminResetPassword);
 router.post('/upload-documents', protect, handleUploadMultiple(), authController.uploadDocuments);
 router.get('/me', protect, authController.getMe);
+router.get('/admin/contact', protect, authController.getAdminContact);
 router.put('/me', protect, authController.updateProfile);
 
 module.exports = router;

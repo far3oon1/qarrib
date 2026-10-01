@@ -280,6 +280,15 @@ const logout = asyncHandler(async (req, res) => {
   ResponseHelper.success(res, { ok: true }, 'تم تسجيل الخروج بنجاح');
 });
 
+const getAdminContact = asyncHandler(async (req, res) => {
+  const admin = await User.findOne({ role: 'admin' }).select('_id fullName name');
+  if (!admin) throw new ApiError(404, 'No admin found');
+  ResponseHelper.success(res, {
+    id: String(admin._id),
+    name: admin.fullName || admin.name || 'الإدارة'
+  }, 'Admin contact');
+});
+
 // Frontend compat: re-upload verification docs after registration
 // (national ID for patients; ID + nursing license for nurses)
 // Accepts ANY field name and ANY file type.
@@ -510,6 +519,7 @@ module.exports = {
   logout,
   uploadDocuments,
   getMe,
+  getAdminContact,
   updateProfile,
   adminLogin,
   adminRegister,

@@ -245,9 +245,8 @@
                     var calleeName = r.data.calleeName || 'الممرض';
                     if (calleeId && window.QarribCall) {
                         QarribCall.startCall(calleeId, calleeName);
-                    } else if (r.data.tel) {
-                        try { if (window.QarribPerms) QarribPerms.call(r.data.tel); else location.href = 'tel:' + r.data.tel; }
-                        catch(e){ location.href = 'tel:' + r.data.tel; }
+                    } else {
+                        showAlert('الاتصال الصوتي غير متاح — تأكد من اتصالك بالإنترنت', 'error');
                     }
                 }
             }

@@ -325,7 +325,7 @@ const submitVisitReport = asyncHandler(async (req, res) => {
 });
 
 // GET /api/orders/:id/call-quota — read-only: can this user call? (no logging).
-// Free plan: no calls. Pro / VIP / VIP-Nurse: unlimited.
+// Free plan: no calls. Pro / VIP / VIP-Nurse / Admin: unlimited.
 const callQuota = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id);
   if (!order) throw new ApiError(404, 'Order not found');
@@ -336,7 +336,7 @@ const callQuota = asyncHandler(async (req, res) => {
   const { planOf } = require('./subscription.controller');
   const CallLog = require('../models/CallLog');
   const myPlan = planOf(req.user);
-  const unlimited = ['pro', 'vip', 'nurse_vip'].includes(myPlan);
+  const unlimited = ['pro', 'vip', 'nurse_vip', 'admin'].includes(myPlan) || req.user.role === 'admin';
   const used = await CallLog.countDocuments({ order: order._id, caller: req.user.id });
   ResponseHelper.success(res, {
     plan: myPlan, unlimited, used,
@@ -345,7 +345,7 @@ const callQuota = asyncHandler(async (req, res) => {
 });
 
 // POST /api/orders/:id/call — subscribers-only in-app calling.
-// Free plan: NO calls. Pro / VIP / VIP-Nurse: unlimited priority calling.
+// Free plan: NO calls. Pro / VIP / VIP-Nurse / Admin: unlimited priority calling.
 // Respects the callee's call permission (revoked => 403, same as track pages).
 const requestCall = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id).populate('patient assignedNurse');
@@ -378,7 +378,7 @@ const requestCall = asyncHandler(async (req, res) => {
 
   const CallLog = require('../models/CallLog');
   const myPlan = planOf(req.user);
-  const unlimited = ['pro', 'vip', 'nurse_vip'].includes(myPlan);
+  const unlimited = ['pro', 'vip', 'nurse_vip', 'admin'].includes(myPlan) || req.user.role === 'admin';
   if (!unlimited) {
     throw new ApiError(403, 'الاتصال للمشتركين فقط — اشترك في Pro أو VIP للاتصال / Calling is for subscribers only — upgrade to Pro or VIP to call');
   }

@@ -55,6 +55,9 @@
 
         function esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
 
+        var adminId = null;
+        var adminName = 'الإدارة';
+
         async function init(){
             try {
                 var me = await api.getMe();
@@ -67,13 +70,18 @@
                 if (sub.success) plan = sub.data.plan || 'free';
                 isSubscriber = ['pro', 'vip', 'nurse_vip'].includes(plan);
 
+                if (userRole === 'admin') {
+                    isSubscriber = true;
+                    plan = 'admin';
+                }
+
                 var badge = document.getElementById('planBadge');
                 var btn = document.getElementById('callBtn');
                 var status = document.getElementById('callStatus');
 
                 if (isSubscriber) {
-                    badge.className = 'plan-badge ' + (plan === 'vip' || plan === 'nurse_vip' ? 'vip' : 'pro');
-                    badge.textContent = plan === 'vip' ? '👑 VIP' : plan === 'nurse_vip' ? '⭐ VIP Nurse' : 'Pro';
+                    badge.className = 'plan-badge ' + (plan === 'vip' || plan === 'nurse_vip' ? 'vip' : plan === 'admin' ? 'pro' : 'pro');
+                    badge.textContent = plan === 'vip' ? '👑 VIP' : plan === 'nurse_vip' ? '⭐ VIP Nurse' : plan === 'admin' ? '👑 Admin' : 'Pro';
                     btn.classList.remove('locked');
                     status.textContent = '✅ اضغط للاتصال بالإدارة الآن';
                 } else {
@@ -82,6 +90,14 @@
                     btn.classList.add('locked');
                     status.textContent = '🔒 الاتصال الصوتي متاح للمشتركين فقط — اشترك في Pro أو VIP';
                 }
+
+                try {
+                    var ac = await api.getAdminContact();
+                    if (ac.success && ac.data) {
+                        adminId = ac.data.id;
+                        adminName = ac.data.name || 'الإدارة';
+                    }
+                } catch(e) {}
             } catch(e) {
                 window.location.href = 'login.html';
             }
@@ -94,8 +110,10 @@
                 }
                 return;
             }
-            var adminId = 'admin';
-            var adminName = 'الإدارة';
+            if (!adminId) {
+                showAlert('لم يتم العثور على حساب الإدارة', 'error');
+                return;
+            }
             if (window.QarribCall) {
                 QarribCall.startCall(adminId, adminName);
             } else {

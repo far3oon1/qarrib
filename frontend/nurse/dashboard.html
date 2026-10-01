@@ -133,7 +133,8 @@
 </div>
 
 <script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
-<script src="../js/api.js?v=9"></script>
+<script src="../js/api.js?v=10"></script>
+<script src="../js/call.js?v=1"></script>
 <script src="../js/auth.js?v=6"></script>
 <script src="../js/notifications.js"></script>
 <script src="../js/notify-popup.js?v=1"></script>
@@ -141,7 +142,7 @@
 <script>
     if (!requireRole('nurse')) redirectToLogin();
     function orderCard(o){
-        var callBtn = o.patient && o.patient.phone ? '<a class="q-btn q-btn-secondary q-btn-sm" style="text-decoration:none;" href="tel:' + o.patient.phone + '">📞 ' + o.patient.phone + '</a>' : '';
+        var callBtn = o.patient && o.patient.phone ? '<button class="q-btn q-btn-secondary q-btn-sm" onclick="QarribCall.startCall(\'' + (o.patient.id || o.patient._id) + '\',\'' + (o.patient.name || 'المريض').replace(/'/g,'') + '\')">📞 Call</button>' : '';
         return '<div class="order-row"><div style="flex:1;"><div style="font-weight:700;">' + (o.serviceType||'Visit') + ' — ' + (o.amount||0) + ' EGP</div>' +
         '<div style="font-size:13px;color:#4A605E;">' + (o.address||'') + ' · ' + (o.status||'') + '</div>' +
         '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;"><a class="q-btn q-btn-sm" style="text-decoration:none;" href="track-order.html?order=' + o.id + '">Track patient 📍</a>' + callBtn + '</div></div>' +
