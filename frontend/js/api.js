@@ -332,6 +332,9 @@ API.prototype.submitVisitReport = function (orderId, summary) {
 API.prototype.logCall = function (orderId) {
     return this.request('POST', '/orders/' + orderId + '/call', {});
 };
+API.prototype.getCallQuota = function (orderId) {
+    return this.request('GET', '/orders/' + orderId + '/call-quota');
+};
 // Audit log (admin panel only)
 API.prototype.getAuditLog = function (query) {
     if (query === undefined) query = '';

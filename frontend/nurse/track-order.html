@@ -85,7 +85,7 @@
 <script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="/socket.io/socket.io.js"></script>
-<script src="../js/api.js?v=9"></script>
+<script src="../js/api.js?v=10"></script>
 <script src="../js/auth.js?v=6"></script>
 <script src="../js/notifications.js"></script>
 <script src="../js/notify-popup.js?v=1"></script>
@@ -141,8 +141,7 @@
                 var phone = o.patient && o.patient.phone;
                 var callBtn = document.getElementById('callBtn');
                 if (o.patient && o.patient.callDisabled) { callBtn.textContent = 'اتصال محظور 🔒'; callBtn.onclick = function(){ showAlert('الاتصال معطل لهذا الحساب من الإدارة', 'error'); }; }
-                else if (phone) { callBtn.textContent = 'اتصال 📞 ' + phone; callBtn.onclick = function(){ placeCall(); }; }
-                else { callBtn.textContent = 'اتصال 📞'; callBtn.onclick = function(){ placeCall(); }; }
+                else { callBtn.textContent = 'اتصال 📞 …'; callBtn.onclick = function(){ placeCall(); }; paintCallQuota(); }
             } catch(e){}
             document.getElementById('startBtn').style.display = o.status === 'assigned' ? 'block' : 'none';
             document.getElementById('doneBtn').style.display = (o.status === 'assigned' || o.status === 'in_progress') ? 'block' : 'none';
@@ -205,13 +204,23 @@
         try {
             var r = await api.logCall(orderId);
             if (r.success && r.data && r.data.tel) {
-                if (r.data.remaining != null) showAlert('مكالمات متبقية لهذه الزيارة (Free): ' + r.data.remaining);
                 var tel = r.data.tel;
                 try { if (window.QarribPerms) QarribPerms.call(tel); else window.location.href = 'tel:' + tel; }
                 catch(e){ window.location.href = 'tel:' + tel; }
+                paintCallQuota();
             }
         }
         catch(e){ showAlert(e.message || 'تعذر الاتصال', 'error'); }
+    }
+    // Visible call state: subscribers "📞 ∞" — Free sees locked "🔒 Pro"
+    async function paintCallQuota(){
+        try {
+            var q = await api.getCallQuota(orderId);
+            var btn = document.getElementById('callBtn');
+            if (!btn || !q.success) return;
+            if (q.data.unlimited) btn.textContent = 'اتصال 📞 ∞';
+            else btn.textContent = 'اتصال 🔒 Pro';
+        } catch(e){}
     }
     async function doArrive(){
         if (!confirm('تأكيد وصولك لموقع المريض؟ سيتم إشعار المريض فوراً.')) return;
