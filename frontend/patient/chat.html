@@ -78,7 +78,7 @@
         <div class="header">
             <div class="header-content">
                 <div class="logo">الرسائل</div>
-                <a href="support-chat.html" style="font-size:13px;font-weight:700;color:#0B5F5A;text-decoration:none;">🎧 دعم الإدارة</a>
+                <a id="supportLink" href="support-chat.html" style="display:none;font-size:13px;font-weight:700;color:#0B5F5A;text-decoration:none;">🎧 دعم الإدارة</a>
             </div>
         </div>
 
@@ -107,7 +107,7 @@
     </div>
 
     <script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
-    <script src="../js/api.js?v=6"></script>
+    <script src="../js/api.js?v=9"></script>
     <script src="../js/auth.js?v=6"></script>
     <script src="../js/notifications.js"></script>
     <script src="../js/notify-popup.js?v=1"></script>
@@ -155,6 +155,16 @@
         }
 
         loadChats();
+        // Support chat link: Pro/VIP subscribers only — Free plan never sees it
+        (async function gateSupport(){
+            try {
+                var r = await api.getMySubscription();
+                var pl = r.success && r.data ? r.data.plan : 'free';
+                if (pl === 'pro' || pl === 'vip') {
+                    document.getElementById('supportLink').style.display = 'inline';
+                }
+            } catch(e){}
+        })();
     </script>
 </body>
 </html>

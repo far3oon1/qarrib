@@ -67,6 +67,10 @@
             <div class="stat plain"><div class="lbl">Active orders</div><div class="val" id="statActive">–</div></div>
             <div class="stat plain"><div class="lbl">New nurse offers</div><div class="val" id="statOffers">–</div></div>
         </div>
+        <div id="supportCard" style="display:none;background:#0B5F5A;color:#fff;border-radius:18px;padding:16px 20px;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div style="flex:1;min-width:200px;"><div style="font-weight:800;font-size:16px;" id="supportTitle">🎧 Direct admin support</div><div style="font-size:13px;opacity:.85;" id="supportSub">Message the admin anytime — priority answers for subscribers.</div></div>
+            <a href="support-chat.html" class="q-btn q-btn-secondary q-btn-sm" style="text-decoration:none;">Open support chat</a>
+        </div>
         <div class="panels">
             <section class="panel">
                 <div style="display:flex;justify-content:space-between;align-items:center;"><h2 style="font-size:20px;">Active orders</h2><a href="track-nurse.html" style="font-size:15px;font-weight:600;color:#0B5F5A;">View all</a></div>
@@ -120,7 +124,7 @@
 </div>
 
 <script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
-<script src="../js/api.js?v=6"></script>
+    <script src="../js/api.js?v=9"></script>
 <script src="../js/auth.js?v=6"></script>
 <script src="../js/notifications.js"></script>
 <script src="../js/notify-popup.js?v=1"></script>
@@ -209,6 +213,21 @@
                     u.style.cssText = 'font-size:13px;font-weight:700;color:#0B5F5A;';
                     u.textContent = 'Upgrade to Pro 250 / VIP 500 →';
                     document.querySelector('.dash-top').appendChild(u);
+                }
+                // Direct admin support card: Pro/VIP only — Free sees nothing
+                var pl = r.data.plan || 'free';
+                if (pl === 'pro' || pl === 'vip') {
+                    var sc = document.getElementById('supportCard');
+                    if (sc) {
+                        sc.style.display = 'flex';
+                        if (pl === 'vip') {
+                            document.getElementById('supportTitle').textContent = '👑 VIP · Your dedicated manager chat';
+                            document.getElementById('supportSub').textContent = 'Message the admin anytime, day or night — VIP answers first.';
+                        } else {
+                            document.getElementById('supportTitle').textContent = '🎧 Priority admin support chat';
+                            document.getElementById('supportSub').textContent = 'Message the admin directly — priority answers for Pro members.';
+                        }
+                    }
                 }
             }
         } catch(e){}
