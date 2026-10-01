@@ -128,6 +128,32 @@
                 </div>
                 <button class="btn btn-primary" id="withdrawBtn">طلب سحب</button>
             </div>
+
+            <div class="withdraw-section" style="border:2px solid #0B5F5A;">
+                <h3 style="margin-bottom: 8px;">💰 شحن الرصيد (للاشتراك في خطة VIP)</h3>
+                <div style="font-size:13px;color:#4A605E;margin-bottom:12px;">اشحن محفظتك ثم اشترك في <a href="../plans.html" style="color:#0B5F5A;font-weight:700;">خطة الممرض المميز ⭐</a> من المحفظة مباشرة.</div>
+                <div style="display:flex;gap:8px;margin-bottom:12px;">
+                    <button type="button" class="btn btn-sm btn-primary" id="tabInsta" onclick="setMethod('instapay')">انستا باي</button>
+                    <button type="button" class="btn btn-sm btn-outline" id="tabVf" onclick="setMethod('vodafone_cash')">📱 فودافون كاش</button>
+                </div>
+                <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:14px;margin-bottom:12px;">
+                    <div style="font-size:13px;color:#166534;margin-bottom:6px;" id="payHint">حوّل المبلغ إلى حساب التطبيق (انستا باي):</div>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span id="ownerAccount" style="font-size:20px;font-weight:800;direction:ltr;">...</span>
+                        <button type="button" class="btn btn-sm btn-outline" onclick="copyOwner()">نسخ</button>
+                    </div>
+                    <div style="font-size:12px;color:#64748b;margin-top:8px;">بعد التحويل أدخل المبلغ ورقم العملية، وسيضيف الأدمن الرصيد بعد التأكد.</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">المبلغ المحوّل (جنيه)</label>
+                    <input type="number" class="form-input" id="depositAmount" placeholder="100" min="10">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">رقم العملية (مرجع التحويل)</label>
+                    <input type="text" class="form-input" id="depositRef" placeholder="مثال: 123456789">
+                </div>
+                <button class="btn btn-primary" id="depositBtn" style="margin-top:12px;width:100%;">تأكيد التحويل</button>
+            </div>
         </div>
 
         <div class="transfer-section">
@@ -166,12 +192,63 @@
 </div>
 
 <script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
-    <script src="../js/api.js?v=6"></script>
+    <script src="../js/api.js?v=9"></script>
 <script src="../js/auth.js?v=6"></script>
     <script src="../js/notifications.js"></script>
     <script src="../js/notify-popup.js?v=1"></script>
 <script>
     if (!requireRole('nurse')) redirectToLogin();
+
+    var payMethod = 'instapay';
+    var ownerNumbers = { instapay: '01150209401', vodafone_cash: '01003790634' };
+
+    function setMethod(m) {
+        payMethod = m;
+        var isVf = m === 'vodafone_cash';
+        document.getElementById('tabInsta').className = 'btn btn-sm ' + (isVf ? 'btn-outline' : 'btn-primary');
+        document.getElementById('tabVf').className = 'btn btn-sm ' + (isVf ? 'btn-primary' : 'btn-outline');
+        document.getElementById('payHint').textContent = isVf ? 'حوّل المبلغ إلى رقم فودافون كاش:' : 'حوّل المبلغ إلى حساب التطبيق (انستا باي):';
+        document.getElementById('ownerAccount').textContent = ownerNumbers[m] || '...';
+    }
+
+    function copyOwner() {
+        var num = document.getElementById('ownerAccount').textContent;
+        if (navigator.clipboard) navigator.clipboard.writeText(num).then(function(){ showAlert('تم نسخ الرقم'); });
+    }
+
+    async function loadOwner() {
+        try {
+            var acc = await api.getOwnerAccount();
+            if (acc.success) {
+                if (acc.data.instapay) ownerNumbers.instapay = acc.data.instapay;
+                if (acc.data.vodafoneCash) ownerNumbers.vodafone_cash = acc.data.vodafoneCash;
+                setMethod(payMethod);
+            }
+        } catch (e) { setMethod(payMethod); }
+    }
+
+    document.getElementById('depositBtn').addEventListener('click', async function(){
+        var amount = parseFloat(document.getElementById('depositAmount').value);
+        var reference = document.getElementById('depositRef').value.trim();
+        if (!amount || amount < 10) { showAlert('يرجى إدخال مبلغ صحيح (minimum 10 جنيه)', 'error'); return; }
+        var btn = document.getElementById('depositBtn');
+        btn.disabled = true;
+        btn.textContent = 'جاري الإرسال...';
+        try {
+            var result = await api.topupRequest({ amount: amount, reference: reference, method: payMethod });
+            if (result.success) {
+                showAlert('تم إرسال طلب الشحن! سيضاف الرصيد بعد تأكيد الإدارة.', 'success');
+                document.getElementById('depositAmount').value = '';
+                document.getElementById('depositRef').value = '';
+                loadWallet();
+            }
+        } catch (error) {
+            showAlert(error.message || 'فشل إرسال الطلب', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'تأكيد التحويل';
+        }
+    });
 
     async function loadWallet() {
         try {
@@ -259,6 +336,7 @@
         try { var me = await api.getMe(); var u = me.data && me.data.user; if (u && u.payoutAccount) document.getElementById('payoutAccount').value = u.payoutAccount; } catch(e){}
     })();
 
+    loadOwner();
     loadWallet();
     loadTransfers();
 </script>

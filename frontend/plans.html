@@ -43,20 +43,26 @@
         <div style="font-size:13px;color:#4A605E;margin:4px 0 10px;">Patients see the trusted badge on your name and you rank first in every list.</div>
     </div>
     <div class="q-card" style="padding:18px;border:2px solid #0B5F5A;">
-        <div style="font-weight:800;font-size:17px;">💳 Pay via InstaPay to this number</div>
-        <div style="font-size:13px;color:#4A605E;margin:4px 0 10px;">Step 1 — transfer the plan price to the official Qarrib number.<br>Step 2 — enter the amount reference below and press InstaPay transfer.<br>Step 3 — admin verifies and activates your plan (you get a bell alert).</div>
+        <div style="font-weight:800;font-size:17px;">💳 Pay via InstaPay or Vodafone Cash</div>
+        <div style="font-size:13px;color:#4A605E;margin:4px 0 10px;">Step 1 — transfer the plan price to the official Qarrib number.<br>Step 2 — enter the amount reference below and press the matching transfer button.<br>Step 3 — admin verifies and activates your plan (you get a bell alert).</div>
         <div style="display:flex;align-items:center;gap:10px;background:#F6F3EC;border-radius:12px;padding:10px 14px;margin-bottom:10px;">
+            <span style="font-size:13px;font-weight:700;">InstaPay:</span>
             <span class="paynum" id="instaNumber">01150209401</span>
             <button type="button" class="q-btn q-btn-sm" onclick="copyInsta()">Copy</button>
         </div>
+        <div style="display:flex;align-items:center;gap:10px;background:#FEF2F2;border:1px solid #FECACA;border-radius:12px;padding:10px 14px;margin-bottom:10px;">
+            <span style="font-size:13px;font-weight:700;">📱 VF Cash:</span>
+            <span class="paynum" id="vfNumber" dir="ltr">01003790634</span>
+            <button type="button" class="q-btn q-btn-sm" onclick="copyVf()">Copy</button>
+        </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <input id="payRef" class="q-input" placeholder="InstaPay reference (for InstaPay only)" style="flex:1;min-width:200px;">
+            <input id="payRef" class="q-input" placeholder="Transfer reference (for manual transfers)" style="flex:1;min-width:200px;">
         </div>
         <div style="font-size:12px;color:#4A605E;margin-top:8px;">Or pay instantly from wallet balance with the wallet button on any plan. Cancel anytime — you drop back to Free.</div>
     </div>
 </div>
 <script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
-<script src="js/api.js?v=6"></script>
+<script src="js/api.js?v=9"></script>
 <script src="js/auth.js?v=6"></script>
 <script src="js/notifications.js"></script>
 <script src="js/notify-popup.js?v=1"></script>
@@ -67,7 +73,7 @@
     document.getElementById('hotlineBtn').href = 'tel:' + ADMIN_HOTLINE;
     var FEAT_LABELS = {
         request_nurse:'Request a nurse', live_tracking:'Live nurse/patient tracking', chat_basic:'Chat',
-        wallet_pay:'Wallet & InstaPay payments', wallet_view:'Wallet view', rate_feedback:'Rate with stars & feedback',
+        wallet_pay:'Wallet, InstaPay & Vodafone Cash payments', wallet_view:'Wallet view', rate_feedback:'Rate with stars & feedback',
         unlimited_calls:'Unlimited calling (nurse/patient numbers)', priority_matching:'Priority matching (nearest first)',
         gallery_priority:'Priority photo uploads', support_priority:'Priority support (8am–12am)',
         discount_5:'5% service discount', admin_hotline_24h:'24/7 admin hotline calling', dedicated_manager:'Dedicated account manager',
@@ -84,6 +90,7 @@
             myRole = r.data.myRole || 'patient';
             PLANS = r.data.plans || [];
             if (r.data.ownerInstaPay) document.getElementById('instaNumber').textContent = r.data.ownerInstaPay;
+            if (r.data.ownerVfCash) document.getElementById('vfNumber').textContent = r.data.ownerVfCash;
             var myLabel = myPlan === 'nurse_vip' ? 'VIP Nurse' : myPlan.toUpperCase();
             document.getElementById('myPlanLine').innerHTML = 'Your current plan: <strong>' + myLabel + '</strong>';
             document.getElementById('plansTitle').textContent = myRole === 'nurse' ? 'Free Nurse · VIP Nurse' : 'Free · Pro · VIP';
@@ -107,7 +114,8 @@
                         ? (isCur ? '<button class="q-btn q-btn-secondary" disabled>Current plan</button>' : '<button class="q-btn q-btn-secondary" onclick="downgrade()">Downgrade to Free</button>')
                         : (isCur ? '<button class="q-btn q-btn-secondary" disabled>Current plan</button>'
                             : '<button class="q-btn" onclick="buy(\'' + p.id + '\',\'wallet\')">Subscribe · wallet (' + p.price + ' EGP)</button>' +
-                              '<button class="q-btn q-btn-secondary" onclick="buy(\'' + p.id + '\',\'instapay\')">InstaPay transfer</button>')) +
+                              '<button class="q-btn q-btn-secondary" onclick="buy(\'' + p.id + '\',\'instapay\')">InstaPay transfer</button>' +
+                              '<button class="q-btn q-btn-secondary" style="margin-top:6px;" onclick="buy(\'' + p.id + '\',\'vodafone_cash\')">📱 Vodafone Cash transfer</button>')) +
                     '</div>';
             }).join('');
             document.getElementById('vipBox').style.display = (myPlan==='vip') ? 'block' : 'none';
@@ -122,12 +130,21 @@
             else { var t=document.createElement('input'); t.value=n; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); showAlert('Number copied: ' + n); }
         } catch(e){ showAlert(n); }
     };
+    window.copyVf = function(){
+        var n = document.getElementById('vfNumber').textContent.trim();
+        try {
+            if (navigator.clipboard) navigator.clipboard.writeText(n).then(function(){ showAlert('Number copied: ' + n); });
+            else { var t=document.createElement('input'); t.value=n; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); showAlert('Number copied: ' + n); }
+        } catch(e){ showAlert(n); }
+    };
     window.buy = async function(plan, method){
         var ref = (document.getElementById('payRef')||{}).value || '';
-        var num = document.getElementById('instaNumber').textContent.trim();
-        if (method==='instapay') {
+        var isVf = method === 'vodafone_cash';
+        var num = isVf ? document.getElementById('vfNumber').textContent.trim() : document.getElementById('instaNumber').textContent.trim();
+        var label = isVf ? 'فودافون كاش / Vodafone Cash' : 'انستا باي / InstaPay';
+        if (method==='instapay' || isVf) {
             if (!ref.trim() && !confirm('تحويل المبلغ ' + planPrice(plan) + ' جنيه إلى ' + num + ' أولاً، ثم أدخل المرجع — متابعة؟ / Transfer ' + planPrice(plan) + ' EGP to ' + num + ' first, then enter reference — continue?')) return;
-            if (!confirm('طلب ' + plan.toUpperCase() + ' عبر انستا باي إلى ' + num + '؟ سيُرسل طلبك للإدارة للتفعيل. / Request ' + plan.toUpperCase() + ' via InstaPay to ' + num + '? Your request goes to admin for activation.')) return;
+            if (!confirm('طلب ' + plan.toUpperCase() + ' عبر ' + label + ' إلى ' + num + '؟ سيُرسل طلبك للإدارة للتفعيل. / Request ' + plan.toUpperCase() + ' via ' + label + ' to ' + num + '? Your request goes to admin for activation.')) return;
         } else {
             if (!confirm('اشترك في ' + plan.toUpperCase() + ' من المحفظة؟ / Subscribe to ' + plan.toUpperCase() + ' from wallet?')) return;
         }

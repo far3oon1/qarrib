@@ -102,6 +102,7 @@ function isTrustedNurse(nurseDoc) {
 }
 
 const ownerInstaPay = () => process.env.OWNER_INSTAPAY_NUMBER || '01150209401';
+const ownerVfCash = () => process.env.OWNER_VF_CASH_NUMBER || '01003790634';
 
 async function refreshUserPlan(user) {
   const sub = user.subscription || {};
@@ -130,7 +131,7 @@ const listPlans = asyncHandler(async (req, res) => {
     : role === 'admin'
       ? [plans.free, plans.pro, plans.vip, plans.nurse_vip]
       : [plans.free, plans.pro, plans.vip];
-  ResponseHelper.success(res, { plans: list, myPlan: mine, myRole: role, ownerInstaPay: ownerInstaPay() }, 'Subscription plans');
+  ResponseHelper.success(res, { plans: list, myPlan: mine, myRole: role, ownerInstaPay: ownerInstaPay(), ownerVfCash: ownerVfCash() }, 'Subscription plans');
 });
 
 // GET /api/subscriptions/me
@@ -155,7 +156,7 @@ const mySubscription = asyncHandler(async (req, res) => {
 const subscribe = asyncHandler(async (req, res) => {
   const { plan, method, reference } = req.body;
   if (!['pro', 'vip', 'nurse_vip'].includes(plan)) throw new ApiError(400, 'plan must be pro, vip or nurse_vip');
-  if (!['wallet', 'instapay'].includes(method)) throw new ApiError(400, 'method must be wallet or instapay');
+  if (!['wallet', 'instapay', 'vodafone_cash'].includes(method)) throw new ApiError(400, 'method must be wallet, instapay or vodafone_cash');
   const me = await User.findById(req.user.id);
   await refreshUserPlan(me);
   // Plans are role-locked: nurse_vip is nurses-only, pro/vip are patients-only
@@ -192,23 +193,25 @@ const subscribe = asyncHandler(async (req, res) => {
     return ResponseHelper.success(res, { plan, expiresAt: endsAt, price }, `Subscribed to ${plan.toUpperCase()} — active for 30 days`);
   }
 
-  // instapay: pending until admin approves (user transferred to owner account)
+  // instapay / vodafone_cash: pending until admin approves (user transferred to owner account)
+  const methodLabel = method === 'vodafone_cash' ? 'Vodafone Cash' : 'InstaPay';
+  const ownerNumber = method === 'vodafone_cash' ? ownerVfCash() : ownerInstaPay();
   const sub = await Subscription.create({
-    user: me._id, plan, price, status: 'pending', paymentMethod: 'instapay',
+    user: me._id, plan, price, status: 'pending', paymentMethod: method,
     reference: (reference || '').trim() || null
   });
   me.subscription = { plan: me.subscription?.plan || 'free', status: me.subscription?.plan && me.subscription.plan !== 'free' ? me.subscription.status : 'active', startedAt: me.subscription?.startedAt || null, expiresAt: me.subscription?.expiresAt || null };
   await me.save();
-  await Notification.create({ recipient: me._id, title: 'Subscription request received', message: `We received your ${plan.toUpperCase()} request (${price} EGP via InstaPay) — admin will activate it after verifying the transfer.`, type: 'payment', data: { subscriptionId: sub._id, plan } });
+  await Notification.create({ recipient: me._id, title: 'Subscription request received', message: `We received your ${plan.toUpperCase()} request (${price} EGP via ${methodLabel}) — admin will activate it after verifying the transfer.`, type: 'payment', data: { subscriptionId: sub._id, plan } });
   const admins = await User.find({ role: 'admin' }).select('_id');
   for (const a of admins) {
-    await Notification.create({ recipient: a._id, title: 'New subscription to review', message: `${me.fullName} requested ${plan.toUpperCase()} (${price} EGP, InstaPay ref: ${(reference || '').trim() || '—'})`, type: 'payment', data: { subscriptionId: sub._id, userId: me._id, plan } });
+    await Notification.create({ recipient: a._id, title: 'New subscription to review', message: `${me.fullName} requested ${plan.toUpperCase()} (${price} EGP, ${methodLabel} ref: ${(reference || '').trim() || '—'})`, type: 'payment', data: { subscriptionId: sub._id, userId: me._id, plan } });
   }
   try {
     const { emitToUser } = require('../sockets');
     admins.forEach((x) => emitToUser(String(x._id), 'notification', { title: 'New subscription to review', plan }));
   } catch (_) {}
-  ResponseHelper.success(res, { plan, price, status: 'pending', subscriptionId: sub._id, ownerInstaPay: ownerInstaPay() }, `Request sent — transfer ${price} EGP via InstaPay to ${ownerInstaPay()}, then admin activates your plan after verifying`);
+  ResponseHelper.success(res, { plan, price, status: 'pending', subscriptionId: sub._id, ownerInstaPay: ownerInstaPay(), ownerVfCash: ownerVfCash() }, `Request sent — transfer ${price} EGP via ${methodLabel} to ${ownerNumber}, then admin activates your plan after verifying`);
 });
 
 // POST /api/subscriptions/cancel

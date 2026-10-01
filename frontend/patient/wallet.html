@@ -99,9 +99,13 @@
             </div>
 
             <div class="deposit-section">
-                <h3 style="margin-bottom: 16px;">شحن المحفظة عبر انستا باي</h3>
+                <h3 style="margin-bottom: 16px;">شحن المحفظة</h3>
+                <div style="display:flex;gap:8px;margin-bottom:12px;">
+                    <button type="button" class="btn btn-sm btn-primary" id="tabInsta" onclick="setMethod('instapay')">انستا باي</button>
+                    <button type="button" class="btn btn-sm btn-outline" id="tabVf" onclick="setMethod('vodafone_cash')">📱 فودافون كاش</button>
+                </div>
                 <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 14px; margin-bottom: 16px;">
-                    <div style="font-size: 13px; color: #166534; margin-bottom: 6px;">حوّل المبلغ إلى حساب التطبيق:</div>
+                    <div style="font-size: 13px; color: #166534; margin-bottom: 6px;" id="payHint">حوّل المبلغ إلى حساب التطبيق (انستا باي):</div>
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <span id="ownerAccount" style="font-size: 20px; font-weight: 800; direction: ltr;">...</span>
                         <button type="button" class="btn btn-sm btn-outline" onclick="copyOwner()">نسخ</button>
@@ -164,7 +168,7 @@
 </div>
 
 <script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
-    <script src="../js/api.js?v=6"></script>
+    <script src="../js/api.js?v=9"></script>
 <script src="../js/auth.js?v=6"></script>
     <script src="../js/notifications.js"></script>
     <script src="../js/notify-popup.js?v=1"></script>
@@ -172,12 +176,27 @@
     if (!requireRole('patient')) redirectToLogin();
 
     var allNurses = [];
+    var payMethod = 'instapay';
+    var ownerNumbers = { instapay: '01150209401', vodafone_cash: '01003790634' };
+
+    function setMethod(m) {
+        payMethod = m;
+        var isVf = m === 'vodafone_cash';
+        document.getElementById('tabInsta').className = 'btn btn-sm ' + (isVf ? 'btn-outline' : 'btn-primary');
+        document.getElementById('tabVf').className = 'btn btn-sm ' + (isVf ? 'btn-primary' : 'btn-outline');
+        document.getElementById('payHint').textContent = isVf ? 'حوّل المبلغ إلى رقم فودافون كاش:' : 'حوّل المبلغ إلى حساب التطبيق (انستا باي):';
+        document.getElementById('ownerAccount').textContent = ownerNumbers[m] || '...';
+    }
 
     async function loadOwner() {
         try {
             const acc = await api.getOwnerAccount();
-            if (acc.success) document.getElementById('ownerAccount').textContent = acc.data.instapay;
-        } catch (e) { document.getElementById('ownerAccount').textContent = '01150209401'; }
+            if (acc.success) {
+                if (acc.data.instapay) ownerNumbers.instapay = acc.data.instapay;
+                if (acc.data.vodafoneCash) ownerNumbers.vodafone_cash = acc.data.vodafoneCash;
+                setMethod(payMethod);
+            }
+        } catch (e) { setMethod(payMethod); }
     }
 
     function copyOwner() {
@@ -243,7 +262,7 @@
         btn.textContent = 'جاري الإرسال...';
 
         try {
-            const result = await api.topupRequest({ amount, reference });
+            const result = await api.topupRequest({ amount, reference, method: payMethod });
             if (result.success) {
                 showAlert('تم إرسال طلب الشحن! سيضاف الرصيد بعد تأكيد الإدارة.', 'success');
                 document.getElementById('depositAmount').value = '';

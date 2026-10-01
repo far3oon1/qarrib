@@ -7,7 +7,7 @@ const subscriptionSchema = new mongoose.Schema({
   price: { type: Number, required: true, min: 0 },
   durationDays: { type: Number, default: 30 },
   status: { type: String, enum: ['pending', 'active', 'expired', 'cancelled', 'rejected'], default: 'pending', index: true },
-  paymentMethod: { type: String, enum: ['wallet', 'instapay', 'cash', 'free'], default: 'wallet' },
+  paymentMethod: { type: String, enum: ['wallet', 'instapay', 'vodafone_cash', 'cash', 'free'], default: 'wallet' },
   reference: { type: String, default: null, maxlength: 100 },
   startsAt: { type: Date, default: null },
   endsAt: { type: Date, default: null },
