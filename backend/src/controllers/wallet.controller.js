@@ -92,31 +92,33 @@ const requestWithdrawal = asyncHandler(async (req, res) => {
   ResponseHelper.success(res, tx, 'Withdrawal request submitted. It will be processed within 24-48 hours.');
 });
 
-// Patient top-up: "no balance until purchase" — user transfers via InstaPay
-// to the owner account, then submits amount + reference for admin approval.
+// Wallet top-up: user transfers via InstaPay OR Vodafone Cash to the owner
+// account, then submits amount + reference for admin approval.
 const topupRequest = asyncHandler(async (req, res) => {
-  const { amount, reference } = req.body;
+  const { amount, reference, method } = req.body;
   if (!amount || Number(amount) < 10) throw new ApiError(400, 'Minimum top-up is 10 EGP');
+  const payMethod = method === 'vodafone_cash' ? 'vodafone_cash' : 'instapay';
+  const methodLabel = payMethod === 'vodafone_cash' ? 'Vodafone Cash' : 'InstaPay';
   const user = await User.findById(req.user.id);
   const tx = await Wallet.create({
     user: user._id,
     type: 'deposit',
     amount: Number(amount),
     status: 'pending',
-    paymentMethod: 'instapay',
+    paymentMethod: payMethod,
     reference: (reference || '').trim() || null,
-    description: `Wallet top-up request (InstaPay)${reference ? ' ref: ' + reference.trim() : ''}`,
+    description: `Wallet top-up request (${methodLabel})${reference ? ' ref: ' + reference.trim() : ''}`,
     balanceAfter: user.walletBalance || 0
   });
-  // Notify admins to review + add balance (owner InstaPay number flow)
+  // Notify admins to review + add balance (owner InstaPay / VF Cash number flow)
   const admins = await User.find({ role: 'admin' }).select('_id');
   for (const a of admins) {
     await Notification.create({
       recipient: a._id,
       title: 'طلب شحن محفظة',
-      message: `${user.fullName} طلب شحن ${Number(amount)} ج.م (مرجع: ${(reference || '').trim() || '—'})`,
+      message: `${user.fullName} طلب شحن ${Number(amount)} ج.م عبر ${methodLabel} (مرجع: ${(reference || '').trim() || '—'})`,
       type: 'payment',
-      data: { topupId: tx._id, userId: user._id, amount: Number(amount), reference: (reference || '').trim() || null }
+      data: { topupId: tx._id, userId: user._id, amount: Number(amount), reference: (reference || '').trim() || null, method: payMethod }
     });
   }
   try {
