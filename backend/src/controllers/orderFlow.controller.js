@@ -566,14 +566,27 @@ const payManual = asyncHandler(async (req, res) => {
       balanceAfter: patient.walletBalance
     });
   } else {
+    // Manual transfer (InstaPay / Vodafone Cash to the owner account):
+    // NOTHING is credited until the admin accepts it on the Payments page.
+    const dup = await Wallet.findOne({ order: order._id, type: 'payment', status: 'pending' });
+    if (dup) throw new ApiError(400, 'لديك تحويل معلق قيد مراجعة الإدارة — انتظر القبول');
     const vfCash = method === 'vodafone_cash';
-    await Wallet.create({
+    const tx = await Wallet.create({
       user: patient._id, order: order._id, type: 'payment',
-      amount: order.finalPrice, status: 'completed', paymentMethod: vfCash ? 'vodafone_cash' : 'instapay',
+      amount: order.finalPrice, status: 'pending', paymentMethod: vfCash ? 'vodafone_cash' : 'instapay',
       reference: (reference || '').trim() || null,
       description: vfCash ? `Vodafone Cash transfer to owner for order ${order.orderNumber}` : `InstaPay transfer to owner for order ${order.orderNumber}`,
       balanceAfter: patient.walletBalance || 0
     });
+    const payAdmins = await User.find({ role: 'admin' }).select('_id');
+    for (const a of payAdmins) {
+      await Notification.create({ recipient: a._id, title: 'تحويل طلب بانتظار القبول 💰', message: `${patient.fullName} حوّل ${order.finalPrice} ج.م للطلب #${order.orderNumber} (${vfCash ? 'فودافون كاش' : 'InstaPay'}، مرجع: ${(reference || '').trim() || '—'}) — اقبل التحويل لتفعيل الطلب`, type: 'payment', data: { orderId: order._id, paymentId: tx._id } });
+    }
+    try {
+      const { emitToUser } = require('../sockets');
+      payAdmins.forEach((a) => emitToUser(String(a._id), 'notification', { title: 'تحويل طلب بانتظار القبول', orderId: order._id }));
+    } catch (_) {}
+    return ResponseHelper.success(res, { orderId: order._id, escrowStatus: order.escrowStatus, pendingAdminApproval: true, paymentId: tx._id }, 'تم إرسال التحويل — سيُفعّل الطلب بعد قبول الإدارة');
   }
 
   order.paymentStatus = 'paid';

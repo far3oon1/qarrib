@@ -704,6 +704,67 @@ const reviewTopup = asyncHandler(async (req, res) => {
   ResponseHelper.success(res, { topupId, status: tx.status }, approve ? 'تم تأكيد الشحن' : 'تم رفض الشحن');
 });
 
+// Manual order payments (InstaPay / Vodafone Cash to owner): patient sends
+// the transfer, NOTHING is credited until the admin accepts it here.
+const getPendingOrderPayments = asyncHandler(async (req, res) => {
+  const txs = await Wallet.find({ type: 'payment', status: 'pending' })
+    .populate('user', 'fullName email phone')
+    .populate('order', 'orderNumber finalPrice status')
+    .sort({ createdAt: -1 })
+    .limit(50);
+  ResponseHelper.success(res, txs.map((t) => ({
+    id: String(t._id),
+    amount: t.amount,
+    paymentMethod: t.paymentMethod,
+    reference: t.reference,
+    description: t.description,
+    createdAt: t.createdAt,
+    order: t.order ? { id: String(t.order._id), orderNumber: t.order.orderNumber, finalPrice: t.order.finalPrice, status: t.order.status } : null,
+    user: t.user ? { id: String(t.user._id), name: t.user.fullName, email: t.user.email, phone: t.user.phone } : null
+  })), 'تحويلات الطلبات المعلقة');
+});
+
+const reviewOrderPayment = asyncHandler(async (req, res) => {
+  const { paymentId } = req.params;
+  const raw = req.body.action || req.body.status;
+  const approve = (raw === 'approve' || raw === 'approved');
+  const tx = await Wallet.findOne({ _id: paymentId, type: 'payment', status: 'pending' });
+  if (!tx) throw new ApiError(404, 'Order payment not found');
+  const order = await Order.findById(tx.order);
+  if (!order) throw new ApiError(404, 'الطلب غير موجود');
+
+  if (approve) {
+    tx.status = 'completed';
+    await tx.save();
+    order.paymentStatus = 'paid';
+    order.paymentMethod = tx.paymentMethod;
+    order.escrowStatus = 'held';
+    order.statusHistory.push({ status: order.status, changedBy: req.user.id, notes: `Admin accepted manual transfer (${tx.paymentMethod}) — escrow held` });
+    await order.save();
+
+    const { releaseEscrowToNurse } = require('../utils/releaseEscrow');
+    const released = await releaseEscrowToNurse(order);
+
+    await Notification.create({ recipient: order.patient, title: 'الإدارة قبلت تحويلك ✅', message: `قبلت الإدارة تحويلك ${tx.amount} ج.م للطلب #${order.orderNumber} — تم تفعيل الطلب`, type: 'order', data: { orderId: order._id } });
+    if (order.assignedNurse && !released.released) {
+      await Notification.create({ recipient: order.assignedNurse, title: 'تم الدفع', message: `تم دفع طلبك #${order.orderNumber}`, type: 'order', data: { orderId: order._id } });
+    }
+    try {
+      const { emitToOrder, emitToUser } = require('../sockets');
+      emitToOrder(String(order._id), 'order_update', { orderId: order._id, status: order.status, paymentStatus: 'paid' });
+      emitToUser(String(order.patient), 'notification', { title: 'الإدارة قبلت تحويلك ✅', orderId: order._id });
+    } catch (_) {}
+    try { require('../utils/audit').logAdmin(req, 'order.price', { targetType: 'order', targetId: String(order._id), details: `accepted ${tx.amount} EGP via ${tx.paymentMethod} (ref ${tx.reference || '—'})` }); } catch (_) {}
+    ResponseHelper.success(res, { paymentId, status: tx.status, paidToNurse: released.earning || 0 }, released.released ? 'تم القبول وتحويل المبلغ لرصيد الممرض' : 'تم القبول وتفعيل الطلب');
+  } else {
+    tx.status = 'failed';
+    await tx.save();
+    await Notification.create({ recipient: order.patient, title: 'تم رفض التحويل ❌', message: `رفضت الإدارة تحويلك ${tx.amount} ج.م للطلب #${order.orderNumber} — تحقق من المرجع وحاول مجدداً`, type: 'order', data: { orderId: order._id } });
+    try { require('../utils/audit').logAdmin(req, 'order.price', { targetType: 'order', targetId: String(order._id), details: `rejected ${tx.amount} EGP via ${tx.paymentMethod}` }); } catch (_) {}
+    ResponseHelper.success(res, { paymentId, status: tx.status }, 'تم رفض التحويل وإشعار المريض');
+  }
+});
+
 // Admin approves completion: closes the order. With direct pay the money
 // already went to the nurse on payment/assignment — this only pays out
 // when an escrow is still held (never double-pays).
@@ -1270,6 +1331,7 @@ module.exports = {
   getAllUsers, getUserById, createUser, updateUser, deleteUser, resetUserPassword, toggleUserStatus,
   getAllOrders, getOrderDetails, deleteOrder, reviewOrderPrice, setOrderPrice, updateOrderStatus, getPaymentsStats,
   getPendingTopups, reviewTopup, completeOrder,
+  getPendingOrderPayments, reviewOrderPayment,
   getPendingWithdrawals, reviewWithdrawal, approveNurseOffer,
   approveService, suggestOrderPrice, getFeedbacks, getNurseReports, updateService,
   rejectNurseOffer, getAllOffers,
