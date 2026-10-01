@@ -234,6 +234,9 @@ API.prototype.logout = function () {
 API.prototype.getMe = function () {
     return this.request('GET', '/auth/me');
 };
+API.prototype.getAdminContact = function () {
+    return this.request('GET', '/auth/admin/contact');
+};
 API.prototype.uploadDocuments = function (formData) {
     return this.request('POST', '/auth/upload-documents', formData, true);
 };
