@@ -35,11 +35,19 @@ const AR_TO_EN = {
   'جميع الحقول مطلوبة: الاسم، البريد، الهاتف، كلمة المرور، الرقم القومي، الدور': 'All fields are required: name, email, phone, password, national ID, role',
   'قائمة المستخدمين': 'Users list',
   'بيانات المستخدم': 'User data',
+  'تم حظرك لمخالفة قواعد التطبيق': 'You have been blocked for breaking the rules of the app',
 };
 
 function toEnglish(message) {
   if (!message || typeof message !== 'string') return message;
   if (AR_TO_EN[message] !== undefined) return AR_TO_EN[message];
+  // Blocked-device denials carry the admin's reason after a colon
+  // ("تم حظرك لمخالفة قواعد التطبيق: <reason>") — translate the fixed
+  // part, keep the admin's reason text as-is.
+  var prefix = 'تم حظرك لمخالفة قواعد التطبيق';
+  if (message.indexOf(prefix + ':') === 0) {
+    return 'You have been blocked for breaking the rules of the app' + message.slice(prefix.length);
+  }
   // Mongoose duplicate-key fallback comes in English already ("email is
   // already registered") — keep as-is.
   return message;

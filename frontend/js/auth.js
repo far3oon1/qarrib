@@ -144,9 +144,22 @@ document.addEventListener('DOMContentLoaded', async function() {
                 clearAuth();
             }
         } catch (error) {
+            var rawMsg = String((error && error.message) || '');
+            // Blocked by admin (device/account) -> kick to sign-in with the
+            // blocked-for-rules banner, so the user always sees WHY.
+            if (/blocked|تم حظر|مخالفة قواعد/i.test(rawMsg)) {
+                clearAuth();
+                try {
+                    var here = window.location.pathname || '';
+                    if (here.indexOf('login.html') === -1 && here.indexOf('register.html') === -1) {
+                        window.location.href = '/login.html?blocked=1';
+                    }
+                } catch (e) {}
+                return;
+            }
             // Log out only on real authentication failures (expired/invalid
             // token, deleted user) — never on transient network/server errors.
-            var msg = String((error && error.message) || '').toLowerCase();
+            var msg = rawMsg.toLowerCase();
             if (/(^|[^0-9])401([^0-9]|$)|unauthorized|no token|user not found|jwt expired|invalid token|invalid signature/.test(msg)) {
                 clearAuth();
             }

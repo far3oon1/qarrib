@@ -21,28 +21,34 @@ const protect = asyncHandler(async (req, res, next) => {
     throw new ApiError(401, 'User not found');
   }
 
-  // Disabled account -> kick out immediately (admin blocked from panel)
-  if (req.user.isActive === false) {
-    throw new ApiError(403, 'الحساب معطل، يرجى التواصل مع الدعم');
-  }
+  // Disabled/suspended account -> kick out immediately.
+  // Suspended is only ever set by the admin device-block flow, so it shows
+  // the blocked-for-rules sentence.
+  const { blockedMessage } = require('../utils/device');
   if (req.user.status === 'suspended') {
-    throw new ApiError(403, 'تم إيقاف الحساب من الإدارة — تواصل مع الدعم');
+    throw new ApiError(403, blockedMessage());
+  }
+  if (req.user.isActive === false) {
+    try {
+      const Device = require('../models/Device');
+      const hit = await Device.findOne({ user: req.user._id, blocked: true }).sort({ blockedAt: -1 }).lean();
+      if (hit) throw new ApiError(403, blockedMessage(hit.blockReason));
+    } catch (e) {
+      if (e.statusCode === 403) throw e;
+    }
+    throw new ApiError(403, 'الحساب معطل، يرجى التواصل مع الدعم');
   }
 
   // Blocked device -> kick out even with a valid token
   try {
-    const { getDeviceMeta, assertDeviceAllowed } = require('../utils/device');
+    const { getDeviceMeta, assertDeviceAllowed, assertUserNotBlocked } = require('../utils/device');
     const meta = getDeviceMeta(req);
     // Only enforce when the client actually sends a device id/fingerprint
     if (req.headers['x-device-id'] || req.body?.deviceId) {
       await assertDeviceAllowed(meta);
     }
-    // Per-account device block (same fingerprint blocked for this user)
-    const Device = require('../models/Device');
-    if (meta.fingerprint) {
-      const hit = await Device.findOne({ user: req.user._id, blocked: true, fingerprint: meta.fingerprint }).lean();
-      if (hit) throw new ApiError(403, `This device is blocked by the admin${hit.blockReason ? ': ' + hit.blockReason : ''}. Contact support.`);
-    }
+    // Per-account device block (any blocked device row for this user)
+    await assertUserNotBlocked(req.user);
   } catch (e) {
     if (e.statusCode === 401 || e.statusCode === 403) throw e;
     // tracking failure must never break auth
