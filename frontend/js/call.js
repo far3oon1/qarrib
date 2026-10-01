@@ -21,7 +21,8 @@
     if (socket && socket.connected) return socket;
     if (typeof io === 'undefined') return null;
     try {
-      socket = io({ auth: { token: localStorage.getItem('token') } });
+      var backendUrl = window.QARRIB_BACKEND_URL || 'https://qarrib.onrender.com';
+      socket = io(backendUrl, { auth: { token: localStorage.getItem('token') } });
       setupSocketListeners(socket);
       return socket;
     } catch (e) { return null; }
