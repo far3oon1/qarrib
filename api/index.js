@@ -20,22 +20,21 @@ const app = require('../backend/src/app');
 
 module.exports = async (req, res) => {
   const url = String((req && req.url) || '');
-  // Never let the database hold the request longer than a few seconds —
-  // serverless functions must answer fast even when MongoDB is unreachable.
-  const dbTimeout = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error('DB connect timeout')), 8000)
-  );
-  try {
-    await Promise.race([ensureDB(), dbTimeout]);
-  } catch (err) {
-    // Stay up without a database for health checks (mirrors server.js,
-    // which keeps listening when MongoDB is unreachable). Other routes get
-    // a clear 503 JSON instead of a function crash.
-    // NOTE: the Express app is exported directly (no serverless-http
-    // wrapper) — the wrapper hangs indefinitely on Vercel's Node runtime.
-    if (url.indexOf('/health') === -1) {
+  // Health probes check process liveness; database readiness is checked on API requests.
+  if (url.indexOf('/health') === -1) {
+    let dbTimeoutId;
+    const dbTimeout = new Promise((_, reject) => {
+      dbTimeoutId = setTimeout(() => reject(new Error('DB connect timeout')), 15000);
+    });
+    try {
+      await Promise.race([ensureDB(), dbTimeout]);
+    } catch (err) {
+      console.error(`MongoDB unavailable (${err.name}): ${err.message}`);
       return res.status(503).json({ success: false, message: 'Database unavailable, please try again shortly.', message_en: 'Database unavailable, please try again shortly.' });
+    } finally {
+      clearTimeout(dbTimeoutId);
     }
   }
+  // NOTE: the Express app is exported directly (no serverless-http wrapper).
   return app(req, res);
 };
