@@ -86,6 +86,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="/socket.io/socket.io.js"></script>
 <script src="../js/api.js?v=10"></script>
+<script src="../js/call.js?v=1"></script>
 <script src="../js/auth.js?v=6"></script>
 <script src="../js/notifications.js"></script>
 <script src="../js/notify-popup.js?v=1"></script>
@@ -136,12 +137,11 @@
             document.getElementById('orderInfo').textContent = (o.serviceType || '') + ' | ' + (o.amount || o.finalPrice || '') + ' ج.م | ' + (o.address || '');
             document.getElementById('statusBadge').textContent = o.status;
             document.getElementById('chatBtn').onclick = function(){ window.location.href = 'chat-room.html?order=' + orderId; };
-            // Call patient: plan-priority in-app call (Free 3/order, subscribers unlimited)
+            // Call patient: in-app voice call (subscribers only)
             try {
-                var phone = o.patient && o.patient.phone;
                 var callBtn = document.getElementById('callBtn');
                 if (o.patient && o.patient.callDisabled) { callBtn.textContent = 'اتصال محظور 🔒'; callBtn.onclick = function(){ showAlert('الاتصال معطل لهذا الحساب من الإدارة', 'error'); }; }
-                else { callBtn.textContent = 'اتصال 📞 …'; callBtn.onclick = function(){ placeCall(); }; paintCallQuota(); }
+                else { callBtn.textContent = 'اتصال 📞 ∞'; callBtn.onclick = function(){ placeCall(); }; paintCallQuota(); }
             } catch(e){}
             document.getElementById('startBtn').style.display = o.status === 'assigned' ? 'block' : 'none';
             document.getElementById('doneBtn').style.display = (o.status === 'assigned' || o.status === 'in_progress') ? 'block' : 'none';
@@ -203,10 +203,15 @@
     async function placeCall(){
         try {
             var r = await api.logCall(orderId);
-            if (r.success && r.data && r.data.tel) {
-                var tel = r.data.tel;
-                try { if (window.QarribPerms) QarribPerms.call(tel); else window.location.href = 'tel:' + tel; }
-                catch(e){ window.location.href = 'tel:' + tel; }
+            if (r.success && r.data) {
+                var calleeId = r.data.calleeId;
+                var calleeName = r.data.calleeName || 'المريض';
+                if (calleeId && window.QarribCall) {
+                    QarribCall.startCall(calleeId, calleeName);
+                } else if (r.data.tel) {
+                    try { if (window.QarribPerms) QarribPerms.call(r.data.tel); else window.location.href = 'tel:' + r.data.tel; }
+                    catch(e){ window.location.href = 'tel:' + r.data.tel; }
+                }
                 paintCallQuota();
             }
         }

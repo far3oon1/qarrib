@@ -141,6 +141,37 @@ function initializeSocket(server) {
       } catch (_) { /* ignore */ }
     });
 
+    // WebRTC in-app voice calling signaling
+    socket.on('call_offer', ({ to, offer }) => {
+      if (!to || !offer) return;
+      io.to(`user_${to}`).emit('call_offer', { from: socket.userId, offer });
+    });
+
+    socket.on('call_answer', ({ to, answer }) => {
+      if (!to || !answer) return;
+      io.to(`user_${to}`).emit('call_answer', { from: socket.userId, answer });
+    });
+
+    socket.on('call_ice', ({ to, candidate }) => {
+      if (!to || !candidate) return;
+      io.to(`user_${to}`).emit('call_ice', { from: socket.userId, candidate });
+    });
+
+    socket.on('call_end', ({ to }) => {
+      if (!to) return;
+      io.to(`user_${to}`).emit('call_end', { from: socket.userId });
+    });
+
+    socket.on('call_reject', ({ to }) => {
+      if (!to) return;
+      io.to(`user_${to}`).emit('call_reject', { from: socket.userId });
+    });
+
+    socket.on('call_busy', ({ to }) => {
+      if (!to) return;
+      io.to(`user_${to}`).emit('call_busy', { from: socket.userId });
+    });
+
     socket.on('disconnect', () => {
       User.findByIdAndUpdate(socket.userId, { isOnline: false }).catch(() => {});
     });
