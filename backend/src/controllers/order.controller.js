@@ -7,6 +7,7 @@ const ResponseHelper = require('../utils/response');
 const asyncHandler = require('../utils/asyncHandler');
 const { uploadToCloudinary } = require('../config/cloudinary');
 const fs = require('fs');
+const { getAdminIds } = require('../utils/adminIds');
 
 const createOrder = asyncHandler(async (req, res) => {
   const { service, description, governorate, city, address, preferredDate, preferredTime } = req.body;
@@ -155,7 +156,7 @@ const updateNurseOrderStatus = asyncHandler(async (req, res) => {
   await Notification.create({ recipient: order.patient, title: status === 'in_progress' ? 'بدأت الخدمة' : 'تم إنجاز الخدمة', message: status === 'in_progress' ? `الممرض بدأ تنفيذ طلبك #${order.orderNumber}` : `تم إنجاز طلبك #${order.orderNumber}`, type: 'order', data: { orderId: order._id } });
 
   if (status === 'completed' && order.nurseConfirmed) {
-    const admins = await User.find({ role: 'admin' }).select('_id');
+    const admins = await getAdminIds();
     for (const a of admins) {
       await Notification.create({ recipient: a._id, title: 'طلب جاهز للإنجاز', message: `الطلب #${order.orderNumber} منجز — أكّد الإنجاز لتحويل ${order.nurseEarnings || 0} ج.م للممرض`, type: 'order', data: { orderId: order._id, nurseEarnings: order.nurseEarnings || 0 } });
     }

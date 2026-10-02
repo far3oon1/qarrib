@@ -6,6 +6,7 @@ const ApiError = require('../utils/ApiError');
 const ResponseHelper = require('../utils/response');
 const asyncHandler = require('../utils/asyncHandler');
 const { shapeOrder } = require('../utils/orderShape');
+const { getAdminIds } = require('../utils/adminIds');
 
 const toRad = (d) => (d * Math.PI) / 180;
 const distanceKm = (a, b) => {
@@ -17,18 +18,41 @@ const distanceKm = (a, b) => {
   return 2 * R * Math.asin(Math.sqrt(s));
 };
 
+// Statuses that count as "still in play" for the dashboard tiles.
+const ACTIVE_ORDER_STATUSES = ['offers_received', 'under_review', 'price_approved', 'paid', 'assigned', 'in_progress'];
+const DASHBOARD_LIST_LIMIT = 5;
+
 const getDashboard = asyncHandler(async (req, res) => {
-  const orders = await Order.find({ patient: req.user.id })
-    .populate('service', 'nameAr basePrice')
-    .populate('assignedNurse', 'fullName phone')
-    .populate('offers.nurse', 'fullName phone rating specialization')
-    .sort({ createdAt: -1 });
-  const shaped = orders.map(shapeOrder);
   // Requests that are open for nurses to accept are hidden from the patient
   // entirely — they reappear once a nurse accepts (assigned) or action is needed.
-  const visible = shaped.filter((o) => o.status !== 'open');
-  const active = visible.filter((o) => ['offers_received', 'under_review', 'price_approved', 'paid', 'assigned', 'in_progress'].includes(o.status));
-  const completed = visible.filter((o) => o.status === 'completed');
+  //
+  // This used to load *every* order the patient had ever placed, hydrate all of
+  // them through three populates, and then throw all but 5 away in JS. Counts now
+  // come from indexed countDocuments() and the two lists are bounded, so the cost
+  // is flat regardless of how many orders the patient has.
+  const visibleFilter = { patient: req.user.id, status: { $ne: 'open' } };
+  const activeFilter = { patient: req.user.id, status: { $in: ACTIVE_ORDER_STATUSES } };
+
+  const [recent, activeList, totalOrders, activeCount, completedCount] = await Promise.all([
+    Order.find(visibleFilter)
+      .populate('service', 'nameAr basePrice')
+      .populate('assignedNurse', 'fullName phone')
+      .populate('offers.nurse', 'fullName phone rating specialization')
+      .sort({ createdAt: -1 })
+      .limit(DASHBOARD_LIST_LIMIT)
+      .lean(),
+    Order.find(activeFilter)
+      .populate('service', 'nameAr basePrice')
+      .populate('assignedNurse', 'fullName phone')
+      .populate('offers.nurse', 'fullName phone rating specialization')
+      .sort({ createdAt: -1 })
+      .limit(DASHBOARD_LIST_LIMIT)
+      .lean(),
+    Order.countDocuments(visibleFilter),
+    Order.countDocuments(activeFilter),
+    Order.countDocuments({ patient: req.user.id, status: 'completed' })
+  ]);
+
   ResponseHelper.success(res, {
     user: {
       id: req.user.id,
@@ -37,9 +61,9 @@ const getDashboard = asyncHandler(async (req, res) => {
       walletBalance: req.user.walletBalance || 0,
       location: req.user.location
     },
-    stats: { totalOrders: visible.length, activeOrders: active.length, completedOrders: completed.length },
-    activeOrders: active.slice(0, 5),
-    recentOrders: visible.slice(0, 5)
+    stats: { totalOrders, activeOrders: activeCount, completedOrders: completedCount },
+    activeOrders: activeList.map(shapeOrder),
+    recentOrders: recent.map(shapeOrder)
   }, 'Patient dashboard');
 });
 
@@ -193,7 +217,7 @@ const requestService = asyncHandler(async (req, res) => {
       nurses.forEach((n) => emitToUser(String(n._id), 'notification', { title: 'طلب جديد متاح', orderId: order._id }));
     } catch (_) { /* sockets optional */ }
   } else {
-    const admins = await User.find({ role: 'admin' }).select('_id').limit(20);
+    const admins = await getAdminIds({ limit: 20 });
     for (const a of admins) {
       await Notification.create({ recipient: a._id, title: 'طلب جديد يحتاج تسعير 💰', message: `طلب جديد #${order.orderNumber}: ${serviceDoc.nameAr} — حدد السعر ليظهر للممرضين`, type: 'order', data: { orderId: order._id } });
     }
@@ -222,7 +246,7 @@ const giveFeedback = asyncHandler(async (req, res) => {
     await nurse.save();
   }
   // Forward patient feedback to the admin panel + back to the nurse
-  const fbAdmins = await User.find({ role: 'admin' }).select('_id');
+  const fbAdmins = await getAdminIds();
   for (const a of fbAdmins) {
     await Notification.create({ recipient: a._id, title: 'تقييم جديد من مريض', message: `المريض قيّم الطلب #${order.orderNumber} بـ ${rating}/5${review ? ' — ' + String(review).slice(0, 120) : ''}`, type: 'general', data: { orderId: order._id, rating, review: review || null } });
   }

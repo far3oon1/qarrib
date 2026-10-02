@@ -42,4 +42,9 @@ const notificationSchema = new mongoose.Schema({
 
 notificationSchema.index({ recipient: 1, isRead: 1 });
 
+// The list endpoint is `find({ recipient }).sort({ createdAt: -1 }).skip().limit()`.
+// The index above cannot serve that sort, so Mongo buffered and sorted every
+// notification for the user. This compound key answers filter + sort together.
+notificationSchema.index({ recipient: 1, createdAt: -1 });
+
 module.exports = mongoose.model('Notification', notificationSchema);

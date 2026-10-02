@@ -9,6 +9,7 @@ const ResponseHelper = require('../utils/response');
 const asyncHandler = require('../utils/asyncHandler');
 const { getDeviceMeta } = require('../utils/device');
 const { logAdmin, ACTIONS } = require('../utils/audit');
+const { invalidateAdminIds } = require('../utils/adminIds');
 
 // ---------- ADMIN ACCOUNTS ----------
 // GET /admin/admins — list every admin (admin panel only)
@@ -40,6 +41,7 @@ const createAdmin = asyncHandler(async (req, res) => {
   ResponseHelper.success(res, {
     admin: { id: String(admin._id), fullName: admin.fullName, email: admin.email, phone: admin.phone },
   }, 'تم إنشاء حساب الأدمن بنجاح', 201);
+  invalidateAdminIds();
   logAdmin(req, 'admin.create', { targetType: 'admin', targetId: String(admin._id), details: `${fullName} (${email})` });
 });
 
@@ -52,6 +54,7 @@ const deleteAdmin = asyncHandler(async (req, res) => {
   const count = await User.countDocuments({ role: 'admin' });
   if (count <= 1) throw new ApiError(400, 'لا يمكن حذف آخر أدمن — أنشئ بديلاً أولاً');
   await User.findByIdAndDelete(id);
+  invalidateAdminIds();
   logAdmin(req, 'admin.delete', { targetType: 'admin', targetId: String(id), details: `${target.fullName} (${target.email})` });
   ResponseHelper.success(res, { id }, 'تم حذف حساب الأدمن');
 });
@@ -64,6 +67,7 @@ const toggleAdminStatus = asyncHandler(async (req, res) => {
   if (!target) throw new ApiError(404, 'Admin not found');
   target.isActive = !target.isActive;
   await target.save();
+  invalidateAdminIds();
   logAdmin(req, 'admin.toggle', { targetType: 'admin', targetId: String(id), details: `${target.fullName} -> isActive=${target.isActive}` });
   ResponseHelper.success(res, { id, isActive: target.isActive }, target.isActive ? 'تم تفعيل الأدمن' : 'تم تعطيل الأدمن');
 });

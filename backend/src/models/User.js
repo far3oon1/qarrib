@@ -230,8 +230,22 @@ const userSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Only compound index - unique fields already have indexes
+// Only compound indexes - unique fields already have indexes
 userSchema.index({ role: 1, status: 1 });
+
+// The nurse-discovery queries all filter role+status+isActive and then split on
+// isOnline, so isActive has to be part of the key or it is a residual filter
+// evaluated after the index scan:
+//   User.find({ role:'nurse', status:'approved', isActive:true })          nurses list
+//   User.find({ ...same, isOnline:true })                                  nearest nurses
+//   User.find({ role:{ $in:['patient','nurse'] }, isActive:true })        device list
+userSchema.index({ role: 1, status: 1, isActive: 1, isOnline: 1 });
+
+// Contact pickers filter on role + isActive and sort by name.
+userSchema.index({ role: 1, isActive: 1, fullName: 1 });
+
+// Live location updates (POST /nurses/location) and the shareLiveLocation gate.
+userSchema.index({ 'location.coordinates.lat': 1, 'location.coordinates.lng': 1 });
 
 userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) {

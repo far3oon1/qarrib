@@ -6,6 +6,7 @@ const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
 
 const { emitToUser } = require('../sockets');
+const { getAdminIds } = require('../utils/adminIds');
 
 const getWallet = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id);
@@ -83,7 +84,7 @@ const requestWithdrawal = asyncHandler(async (req, res) => {
     balanceAfter: user.walletBalance
   });
   // Notify all admins with nurse payout info
-  const admins = await User.find({ role: 'admin' }).select('_id');
+  const admins = await getAdminIds();
   for (const a of admins) {
     await Notification.create({
       recipient: a._id,
@@ -119,7 +120,7 @@ const topupRequest = asyncHandler(async (req, res) => {
     balanceAfter: user.walletBalance || 0
   });
   // Notify admins to review + add balance (owner InstaPay / VF Cash number flow)
-  const admins = await User.find({ role: 'admin' }).select('_id');
+  const admins = await getAdminIds();
   for (const a of admins) {
     await Notification.create({
       recipient: a._id,

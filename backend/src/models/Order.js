@@ -281,10 +281,17 @@ const orderSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Compound indexes only - orderNumber already has unique index
-orderSchema.index({ patient: 1 });
-orderSchema.index({ status: 1 });
-orderSchema.index({ 'offers.nurse': 1 });
-orderSchema.index({ assignedNurse: 1 });
+//
+// Every read path below is "filter by owner, newest first", so the leading
+// field plus a descending createdAt lets Mongo satisfy both the filter and
+// the sort from one index instead of an in-memory sort.
+//   Order.find({ patient }).sort({ createdAt: -1 })        patient/dashboard
+//   Order.find({ assignedNurse }).sort({ createdAt: -1 })  nurse dashboard, my-orders
+//   Order.find({ patient, status: { $ne: 'open' } })      patient/orders
+orderSchema.index({ patient: 1, createdAt: -1 });
+orderSchema.index({ assignedNurse: 1, createdAt: -1 });
+orderSchema.index({ status: 1, createdAt: -1 });
+orderSchema.index({ 'offers.nurse': 1, createdAt: -1 });
 orderSchema.index({ createdAt: -1 });
 
 orderSchema.pre('validate', async function(next) {
