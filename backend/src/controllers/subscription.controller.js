@@ -5,6 +5,7 @@ const Notification = require('../models/Notification');
 const ResponseHelper = require('../utils/response');
 const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
+const { getAdminIds } = require('../utils/adminIds');
 
 // Plans: free / pro (250 EGP/month) / vip (500 EGP/month) / nurse_vip (500 EGP/month).
 // Perks grow with price: Free = try the app, Pro = regulars (matched first + 5%
@@ -214,7 +215,7 @@ const subscribe = asyncHandler(async (req, res) => {
       ? 'Your VIP NURSE plan is active for 30 days — patients now see you as ✅ TRUSTED and you rank first.'
       : `Your ${plan.toUpperCase()} plan is active for 30 days — enjoy ${plan === 'vip' ? 'all features + 24/7 admin hotline' : 'priority matching, unlimited calls & priority support'}.`;
     await Notification.create({ recipient: me._id, title: `Welcome to ${plan.toUpperCase()} 🎉`, message: welcomeMsg, type: 'payment', data: { subscriptionId: sub._id, plan } });
-    const admins = await User.find({ role: 'admin' }).select('_id');
+    const admins = await getAdminIds();
     for (const a of admins) {
       await Notification.create({ recipient: a._id, title: 'New subscription', message: `${me.fullName} subscribed to ${plan.toUpperCase()} (${price} EGP via wallet)`, type: 'payment', data: { subscriptionId: sub._id, userId: me._id, plan } });
     }
@@ -235,7 +236,7 @@ const subscribe = asyncHandler(async (req, res) => {
   me.subscription = { plan: me.subscription?.plan || 'free', status: me.subscription?.plan && me.subscription.plan !== 'free' ? me.subscription.status : 'active', startedAt: me.subscription?.startedAt || null, expiresAt: me.subscription?.expiresAt || null };
   await me.save();
   await Notification.create({ recipient: me._id, title: 'Subscription request received', message: `We received your ${plan.toUpperCase()} request (${price} EGP via ${methodLabel}) — admin will activate it after verifying the transfer.`, type: 'payment', data: { subscriptionId: sub._id, plan } });
-  const admins = await User.find({ role: 'admin' }).select('_id');
+  const admins = await getAdminIds();
   for (const a of admins) {
     await Notification.create({ recipient: a._id, title: 'New subscription to review', message: `${me.fullName} requested ${plan.toUpperCase()} (${price} EGP, ${methodLabel} ref: ${(reference || '').trim() || '—'})`, type: 'payment', data: { subscriptionId: sub._id, userId: me._id, plan } });
   }

@@ -1,27 +1,36 @@
-﻿/* Qarrib app-shell renderer.
-   Layout ported from files(1) (header / wallet card / emergency card /
-   priced service tiles / nurse rail / icon tab bar) onto the teal design
-   tokens in css/qarrib-design.css.
+/* Qarrib — patient panel renderer.
+   Builds the mobile home shown in
+   files(1)/WhatsApp Image 2026-10-02 at 16.13.26.jpeg out of LIVE API data.
 
-   Everything is built with textContent + createElement, so values coming
-   from the API can never inject markup. All text is plain English and is
-   translated to Arabic by js/language.js when the user switches language.
+   Notes
+   - Every node is created with createElement + textContent, so nothing coming
+     back from the API can inject markup.
+   - Strings are written in English on purpose: js/language.js translates the
+     whole tree (and flips <html dir>) when the app runs in Arabic, and its
+     MutationObserver translates nodes we add later too. So never hardcode
+     Arabic here.
+   - Icons come from assets/icons.svg as an external <use> sprite.
 
-   Requires: js/api.js (global `api`), js/auth.js, assets/icons.svg sprite. */
+   Depends on the global `api` from js/api.js. */
 (function () {
     'use strict';
 
     var SVG_NS = 'http://www.w3.org/2000/svg';
     var XLINK_NS = 'http://www.w3.org/1999/xlink';
 
-    /* The sprite lives in /assets, so resolve it against the document root
-       rather than the current folder — this file is loaded from pages at
-       three different depths (/patient/, /nurse/, /admin/ and the root). */
-    var SPRITE = (function () {
-        var base = document.querySelector('base');
-        if (base && base.getAttribute('href')) return base.getAttribute('href');
-        var path = String(window.location.pathname || '');
-        return path.slice(0, path.lastIndexOf('/') + 1) || '/';
+    /* This script is loaded as "js/qarrib.js" or "../js/qarrib.js" depending
+       on page depth, so derive the sprite root from the script's own URL
+       instead of the document (which would give /patient/assets/... -> 404). */
+    var ROOT = (function () {
+        var scripts = document.getElementsByTagName('script');
+        for (var i = scripts.length - 1; i >= 0; i -= 1) {
+            var src = scripts[i].getAttribute('src') || '';
+            if (/(^|\/)js\/qarrib\.js(\?|$)/.test(src)) {
+                var base = src.split('?')[0].split('#')[0];
+                return base.slice(0, base.lastIndexOf('/') + 1).replace(/js\/$/, '');
+            }
+        }
+        return '/';
     })();
 
     function el(tag, attrs, children) {
@@ -38,12 +47,13 @@
 
     function icon(id, className) {
         var svg = document.createElementNS(SVG_NS, 'svg');
-        svg.setAttribute('class', className ? 'q-ico ' + className : 'q-ico');
+        svg.setAttribute('class', className ? 'p-ico ' + className : 'p-ico');
         svg.setAttribute('aria-hidden', 'true');
         svg.setAttribute('focusable', 'false');
         var use = document.createElementNS(SVG_NS, 'use');
-        use.setAttribute('href', SPRITE + 'assets/icons.svg#' + id);
-        use.setAttributeNS(XLINK_NS, 'xlink:href', SPRITE + 'assets/icons.svg#' + id);
+        var href = ROOT + 'assets/icons.svg#' + id;
+        use.setAttribute('href', href);
+        use.setAttributeNS(XLINK_NS, 'xlink:href', href);
         svg.appendChild(use);
         return svg;
     }
@@ -55,29 +65,26 @@
         if (node) node.textContent = value == null ? '' : String(value);
     }
 
-    function clear(node) {
+    function empty(node) {
         while (node && node.firstChild) node.removeChild(node.firstChild);
-    }
-
-    function avatarNode(name, size) {
-        var initial = String(name || '?').trim().charAt(0).toUpperCase() || '?';
-        var avatar = el('span', { class: 'q-avatar', 'aria-hidden': 'true', text: initial });
-        avatar.style.width = (size || 40) + 'px';
-        avatar.style.height = (size || 40) + 'px';
-        avatar.style.fontSize = Math.round((size || 40) * 0.42) + 'px';
-        return avatar;
     }
 
     function money(amount) {
         var value = Number(amount);
         if (!isFinite(value)) value = 0;
         var formatted;
-        try {
-            formatted = value.toLocaleString('en-US');
-        } catch (e) {
-            formatted = String(value);
-        }
+        try { formatted = value.toLocaleString('en-US'); } catch (e) { formatted = String(value); }
         return formatted + ' EGP';
+    }
+
+    function isArabic() {
+        return typeof window.getQarribLanguage === 'function'
+            && window.getQarribLanguage() === 'ar';
+    }
+
+    function avatarNode(name, className) {
+        var initial = String(name || '?').trim().charAt(0).toUpperCase() || '?';
+        return el('span', { class: 'p-avatar ' + (className || ''), 'aria-hidden': 'true', text: initial });
     }
 
     /* ---------- header ---------- */
@@ -85,10 +92,11 @@
         var user = data.user || {};
         setText('userName', user.name || '');
         setText('userGreeting', user.greeting || '');
+        setText('userGreetingName', user.greetingName || '');
         var slot = byId('userAvatar');
         if (slot) {
-            clear(slot);
-            slot.appendChild(avatarNode(user.name, 40));
+            empty(slot);
+            slot.appendChild(avatarNode(user.name, 'p-top-avatar'));
         }
         var dot = byId('bellDot');
         if (dot) dot.hidden = !data.unreadNotifications;
@@ -98,82 +106,116 @@
     function renderWallet(data) {
         setText('balance', money((data.wallet || {}).balance));
         var emergency = data.emergency || {};
-        setText('sosEta', emergency.etaMinutes == null ? '' : emergency.etaMinutes);
-        setText('sosFee', emergency.feePercent == null ? '' : emergency.feePercent);
+        // Only the numbers: the surrounding words are static text nodes in the
+        // markup, which is what language.js can actually translate.
+        setText('sosEta', emergency.etaMinutes == null ? '45' : emergency.etaMinutes);
+        setText('sosFee', emergency.feePercent == null ? '25' : emergency.feePercent);
     }
 
-    /* ---------- priced service tiles ---------- */
+    /* Maps GET /api/services documents onto the booking keys used by
+       patient/request-service.html (data-value), mirroring
+       backend/src/utils/serviceCatalog.js. */
+    var SERVICE_KEYS = {
+        injection: 'injection',
+        wound_care: 'wound',
+        checkup: 'checkup',
+        vital_signs: 'checkup',
+        elderly_care: 'elderly',
+        iv_therapy: 'iv',
+        physiotherapy: 'physio',
+        other: 'other'
+    };
     var SERVICE_ICONS = {
         injection: 'i-syringe',
-        injections: 'i-syringe',
-        iv: 'i-syringe',
         wound: 'i-bandage',
-        dressing: 'i-bandage',
         checkup: 'i-steth',
-        vitals: 'i-steth',
         elderly: 'i-user',
-        surgery: 'i-bandage'
+        iv: 'i-syringe',
+        physio: 'i-plus',
+        other: 'i-headset'
     };
 
-    function serviceIcon(name) {
-        var key = String(name || '').toLowerCase();
-        var keys = Object.keys(SERVICE_ICONS);
-        for (var i = 0; i < keys.length; i += 1) {
-            if (key.indexOf(keys[i]) !== -1) return SERVICE_ICONS[keys[i]];
-        }
-        return 'i-steth';
-    }
-
-    function renderServices(data) {
-        var grid = byId('services');
-        if (!grid) return;
-        clear(grid);
-        (data.services || []).forEach(function (service) {
-            var link = el('a', {
-                class: 'q-service',
-                href: 'request-service.html?service=' + encodeURIComponent(service.id || service.name || '')
-            });
-            link.appendChild(el('div', { class: 'q-service-top' }, [
-                icon(service.icon || serviceIcon(service.name))
-            ]));
-            link.appendChild(el('div', { text: service.name || '' }));
-            if (service.price != null) {
-                link.appendChild(el('div', {
-                    class: 'q-service-price',
-                    text: typeof service.price === 'number' ? money(service.price) : service.price
-                }));
-            }
-            if (service.note) {
-                link.appendChild(el('div', { class: 'q-service-note', text: service.note }));
-            }
-            grid.appendChild(link);
+    function normalizeServices(raw) {
+        var list = Array.isArray(raw) ? raw : (raw && raw.services) || [];
+        return list.map(function (service) {
+            var key = SERVICE_KEYS[service.category] || SERVICE_KEYS[service.name] || 'other';
+            return {
+                id: key,
+                icon: service.icon || SERVICE_ICONS[key] || 'i-steth',
+                name: (isArabic() && service.nameAr) ? service.nameAr : (service.name || ''),
+                price: service.basePrice,
+                note: service.description || ''
+            };
         });
     }
 
-    /* ---------- nurse rail ---------- */
+    /* ---------- services carousel ---------- */
+    function renderServices(data) {
+        var rail = byId('services');
+        if (!rail) return;
+        empty(rail);
+        var list = data.services || [];
+        if (!list.length) {
+            rail.appendChild(el('div', { class: 'p-empty', text: 'No services available right now.' }));
+            return;
+        }
+        list.forEach(function (service, index) {
+            var card = el('a', {
+                class: 'p-card',
+                href: 'request-service.html?service=' + encodeURIComponent(service.id)
+            });
+            card.appendChild(el('span', { class: 'p-card-num', text: String(index + 1) }));
+            card.appendChild(icon(service.icon || SERVICE_ICONS[service.id] || 'i-steth'));
+            card.appendChild(el('h3', { text: service.name }));
+            if (service.price != null) {
+                card.appendChild(el('div', {
+                    class: 'p-price',
+                    text: typeof service.price === 'number' ? money(service.price) : service.price
+                }));
+            }
+            if (service.note) card.appendChild(el('div', { class: 'p-note', text: service.note }));
+            rail.appendChild(card);
+        });
+    }
+
+    /* ---------- nurses rail ---------- */
     function renderNurses(data) {
-        var list = byId('nurses');
-        if (!list) return;
-        clear(list);
-        (data.nurses || []).forEach(function (nurse) {
-            var name = nurse.name || '';
-            var rating = el('span', { class: 'q-rating' }, [
+        var rail = byId('nurses');
+        if (!rail) return;
+        empty(rail);
+        var list = data.nurses || [];
+        if (!list.length) {
+            rail.appendChild(el('div', { class: 'p-empty', text: 'No nurses available right now.' }));
+            return;
+        }
+        list.forEach(function (nurse) {
+            var rating = el('span', { class: 'p-rating' }, [
                 icon('i-star'),
                 el('span', { text: nurse.rating == null ? 'New' : Number(nurse.rating).toFixed(1) })
             ]);
             var book = el('a', {
-                class: 'q-btn-onbrand',
+                class: 'p-btn-outline',
                 href: 'request-service.html?nurse=' + encodeURIComponent(nurse.id || ''),
                 text: 'Book now'
             });
-            list.appendChild(el('div', { class: 'q-nurse' }, [
-                avatarNode(name, 44),
-                el('div', { style: 'flex:1;min-width:0' }, [
-                    el('div', { class: 'q-nurse-name', text: name }),
-                    rating
-                ]),
+            rail.appendChild(el('div', { class: 'p-nurse' }, [
+                avatarNode(nurse.name),
+                el('div', { class: 'p-nurse-name', text: nurse.name || '' }),
+                rating,
                 book
             ]));
+        });
+    }
+
+    /* ---------- skeletons while loading ---------- */
+    function showSkeletons() {
+        [['services', 3, ''], ['nurses', 4, 'round']].forEach(function (spec) {
+            var rail = byId(spec[0]);
+            if (!rail) return;
+            empty(rail);
+            for (var i = 0; i < spec[1]; i += 1) {
+                rail.appendChild(el('div', { class: 'p-skeleton ' + spec[2] }));
+            }
         });
     }
 
@@ -181,15 +223,15 @@
     function renderTabbar(items) {
         var bar = byId('tabbar');
         if (!bar) return;
-        clear(bar);
+        empty(bar);
         (items || []).forEach(function (item) {
             var link = el('a', { href: item.href });
-            if (item.icon) link.appendChild(icon(item.icon));
-            link.appendChild(el('span', { text: item.label }));
             if (item.active) {
                 link.className = 'active';
                 link.setAttribute('aria-current', 'page');
             }
+            link.appendChild(icon(item.icon));
+            link.appendChild(el('span', { text: item.label }));
             bar.appendChild(link);
         });
     }
@@ -205,7 +247,12 @@
     window.Qarrib = {
         render: render,
         renderHeader: renderHeader,
+        renderWallet: renderWallet,
+        renderServices: renderServices,
+        renderNurses: renderNurses,
         renderTabbar: renderTabbar,
+        normalizeServices: normalizeServices,
+        showSkeletons: showSkeletons,
         icon: icon,
         avatarNode: avatarNode,
         money: money

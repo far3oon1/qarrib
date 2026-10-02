@@ -422,7 +422,8 @@ API.prototype.getPrices = function () {
     return this.request('GET', '/admin/prices');
 };
 API.prototype.getServicePrices = function () {
-    return this.request('GET', '/api/services');
+    // baseURL already ends in /api, so the path must not repeat it
+    return this.request('GET', '/services');
 };
 API.prototype.setPrice = function (data) {
     return this.request('POST', '/admin/set-price', {

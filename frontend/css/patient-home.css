@@ -1,0 +1,270 @@
+/* Qarrib — patient panel (mobile home)
+   Implements the mockup in files(1)/WhatsApp Image 2026-10-02 at 16.13.26.jpeg
+   ONLY inside the patient panel.
+
+   Deliberately scoped to .p-* class names and loaded only by patient pages,
+   so the rest of the app keeps the cream/teal design system from
+   qarrib-design.css (files/qarrib-design-spec.md) untouched.
+
+   Every directional property is logical (inline-start/end) because
+   js/language.js flips <html dir> between "rtl" and "en" automatically. */
+
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
+
+.p-shell {
+  --p-brand: #1E4E8C;
+  --p-wallet: #2F63AE;
+  --p-alert: #D92D20;
+  --p-gold: #E3B04B;
+  --p-bg: #F4F6FA;
+  --p-card: #FFFFFF;
+  --p-line: #E1E7F0;
+  --p-ink: #14233A;
+  --p-muted: #5B6B82;
+  --p-tab-h: 72px;
+  --p-r-lg: 18px;
+  --p-r-md: 12px;
+
+  width: 100%;
+  max-width: 520px;
+  margin-inline: auto;
+  padding: 14px 16px calc(var(--p-tab-h) + 24px);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  font-family: 'Cairo', 'Segoe UI', Tahoma, system-ui, sans-serif;
+  color: var(--p-ink);
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+.p-shell *, .p-shell *::before, .p-shell *::after { box-sizing: border-box; }
+
+.p-ico {
+  width: 24px; height: 24px; flex-shrink: 0;
+  fill: none; stroke: currentColor; stroke-width: 1.8;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+
+/* ---------------- header ---------------- */
+.p-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+.p-top-user { display: flex; align-items: center; gap: 10px; justify-self: start; min-width: 0; }
+.p-top-user .p-avatar { width: 40px; height: 40px; font-size: 17px; }
+.p-top-user-text { min-width: 0; }
+.p-top-user-text strong {
+  display: block; font-size: 15px; font-weight: 700; line-height: 1.25;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.p-top-user-text small {
+  display: block; font-size: 12.5px; line-height: 1.3; color: var(--p-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.p-logo {
+  display: flex; align-items: center; gap: 2px;
+  font-size: 28px; font-weight: 800; line-height: 1;
+  color: var(--p-brand);
+}
+.p-logo .p-ico { width: 26px; height: 26px; stroke-width: 3; }
+
+.p-bell {
+  justify-self: end; position: relative;
+  width: 44px; height: 44px; padding: 0; border: 0;
+  background: transparent; color: var(--p-ink);
+  cursor: pointer; border-radius: 50%;
+  display: grid; place-items: center;
+  text-decoration: none;
+}
+.p-bell:hover { background: #E9EEF6; }
+.p-bell i {
+  position: absolute; top: 9px; inset-inline-end: 10px;
+  width: 9px; height: 9px; border-radius: 50%; background: var(--p-alert);
+}
+
+/* ---------------- wallet ---------------- */
+.p-wallet {
+  background: var(--p-wallet);
+  color: #fff;
+  border-radius: var(--p-r-lg);
+  padding: 18px;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.p-wallet h2 { margin: 0; font-size: 18px; font-weight: 700; }
+/* "350 EGP" must stay in that order — inside an RTL paragraph the number and
+   the unit would otherwise swap around the colon. */
+.p-wallet p { margin: 0; font-size: 15px; opacity: .95; }
+.p-wallet p .p-amount { direction: ltr; unicode-bidi: isolate; }
+.p-wallet-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+.p-btn-white {
+  min-height: 46px; padding: 0 12px; border: 0;
+  border-radius: 10px; background: #fff; color: var(--p-ink);
+  font-family: inherit; font-size: 15px; font-weight: 700;
+  cursor: pointer; text-decoration: none;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.p-btn-white:hover { background: #E9EEF6; }
+
+/* ---------------- emergency ---------------- */
+.p-sos {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px; border-radius: var(--p-r-lg);
+  background: var(--p-alert); color: #fff; text-decoration: none;
+}
+.p-sos .p-ico { width: 30px; height: 30px; }
+.p-sos-text { min-width: 0; }
+.p-sos strong { display: block; font-size: 15.5px; font-weight: 700; line-height: 1.35; }
+.p-sos span { display: block; font-size: 13.5px; opacity: .96; }
+
+/* ---------------- sections ---------------- */
+.p-sec { display: flex; flex-direction: column; }
+.p-sec-title {
+  margin: 0 0 10px; font-size: 17px; font-weight: 700; text-align: start;
+}
+.p-viewall {
+  align-self: flex-start;
+  display: inline-flex; align-items: center; gap: 3px;
+  margin-top: 10px; padding: 0;
+  background: none; border: 0; font-family: inherit;
+  color: var(--p-brand); font-size: 14px; font-weight: 600;
+  cursor: pointer; text-decoration: none;
+}
+.p-viewall .p-ico { width: 16px; height: 16px; }
+
+/* ---------------- services carousel ---------------- */
+.p-rail {
+  display: flex; gap: 12px;
+  overflow-x: auto; overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+.p-rail::-webkit-scrollbar { height: 4px; }
+.p-rail::-webkit-scrollbar-thumb { background: #C9D3E2; border-radius: 2px; }
+
+.p-card {
+  position: relative;
+  flex: 0 0 158px; width: 158px;
+  scroll-snap-align: start;
+  background: var(--p-card);
+  border: 1px solid var(--p-line);
+  border-radius: var(--p-r-lg);
+  padding: 14px;
+  display: flex; flex-direction: column; gap: 4px;
+  text-decoration: none; color: inherit;
+  font-family: inherit; text-align: start;
+}
+.p-card-num {
+  position: absolute; top: 12px; inset-inline-start: 14px;
+  font-size: 12px; font-weight: 600; color: var(--p-muted);
+}
+.p-card .p-ico { align-self: flex-end; width: 26px; height: 26px; color: var(--p-brand); }
+.p-card h3 { margin: 14px 0 0; font-size: 14.5px; font-weight: 700; line-height: 1.3; }
+.p-card .p-price { font-size: 12.5px; font-weight: 600; color: var(--p-ink); margin-top: 2px; direction: ltr; text-align: start; }
+.p-card .p-note { font-size: 12px; color: var(--p-muted); line-height: 1.35; }
+
+/* ---------------- nurses rail ---------------- */
+.p-nurse {
+  flex: 0 0 132px; width: 132px;
+  scroll-snap-align: start;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  text-align: center;
+}
+.p-avatar {
+  width: 56px; height: 56px; border-radius: 50%;
+  border: 2px solid var(--p-gold);
+  background: #DCE6F5; color: var(--p-brand);
+  font-weight: 700; font-size: 22px;
+  display: grid; place-items: center;
+  flex-shrink: 0;
+}
+.p-nurse-name { font-size: 13.5px; font-weight: 700; }
+.p-rating { display: inline-flex; align-items: center; gap: 3px; font-size: 12.5px; font-weight: 600; color: var(--p-ink); direction: ltr; }
+.p-rating .p-ico { width: 14px; height: 14px; color: var(--p-gold); fill: var(--p-gold); }
+.p-btn-outline {
+  margin-top: 2px; min-height: 38px; padding: 0 10px;
+  border: 1px solid var(--p-brand); border-radius: 9px;
+  background: #fff; color: var(--p-brand);
+  font-family: inherit; font-size: 12.5px; font-weight: 600;
+  cursor: pointer; text-decoration: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  white-space: nowrap;
+}
+.p-btn-outline:hover { background: #E9EEF6; }
+
+/* ---------------- empty / loading states ---------------- */
+.p-empty { font-size: 14px; color: var(--p-muted); padding: 10px 0; }
+.p-skeleton {
+  flex: 0 0 158px; height: 150px; border-radius: var(--p-r-lg);
+  background: linear-gradient(90deg, #EDF1F7, #E2E8F2, #EDF1F7);
+  background-size: 200% 100%; animation: p-shimmer 1.3s linear infinite;
+}
+.p-skeleton.round { flex-basis: 132px; width: 132px; height: 170px; border-radius: var(--p-r-lg); }
+@keyframes p-shimmer { to { background-position: -200% 0; } }
+
+/* ---------------- tab bar ---------------- */
+.p-tabbar {
+  position: fixed; z-index: 40; inset-inline: 0; bottom: 0;
+  height: var(--p-tab-h);
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--p-card);
+  border-top: 1px solid var(--p-line);
+  display: flex; align-items: stretch;
+  font-family: 'Cairo', 'Segoe UI', Tahoma, system-ui, sans-serif;
+}
+.p-tabbar a {
+  flex: 1; min-height: 44px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 3px;
+  font-size: 11px; font-weight: 600;
+  color: var(--p-muted); text-decoration: none;
+}
+.p-tabbar a .p-ico { width: 22px; height: 22px; }
+.p-tabbar a.active { color: var(--p-brand); }
+.p-tabbar a:hover { color: var(--p-brand); }
+
+/* ---------------- desktop: keep the web dashboard from files/ ---------------- */
+@media (min-width: 900px) {
+  .p-tabbar { display: none; }
+}
+
+/* qarrib-design.css force-sets Fraunces on every h1/h2/h3 and the cream ground
+   on <body> with !important (it themes the older screens). Those have to be
+   undone for the panel only — scoped to the mobile breakpoint so the web
+   dashboard on the same page keeps the files/ look. */
+@media (max-width: 900px) {
+  body { background: #F4F6FA !important; }
+  .p-shell h1,
+  .p-shell h2,
+  .p-shell h3 {
+    font-family: 'Cairo', 'Segoe UI', Tahoma, system-ui, sans-serif !important;
+    letter-spacing: 0 !important;
+  }
+  .p-shell h2 { font-weight: 700; }
+  .p-shell h3 { font-weight: 700; }
+}
+
+/* js/language.js injects this floating toggle at top:16px/right:16px, which
+   lands right on the panel's user block. Move it into the empty corner above
+   the tab bar so it never covers the header. This stylesheet is only loaded
+   by patient pages, so targeting the id directly stays contained. */
+#qarrib-language-toggle {
+  top: auto !important;
+  bottom: calc(72px + 14px) !important;
+  inset-inline-start: 16px !important;
+  inset-inline-end: auto !important;
+  right: auto !important;
+  background: #1E4E8C !important;
+  font-family: 'Cairo', 'Segoe UI', Tahoma, system-ui, sans-serif !important;
+  font-size: 11px !important;
+  padding: 6px 12px !important;
+  opacity: .82 !important;
+  z-index: 45 !important;
+}
+#qarrib-language-toggle:hover { opacity: 1 !important; }
+@media (min-width: 900px) {
+  #qarrib-language-toggle { bottom: 16px !important; }
+}

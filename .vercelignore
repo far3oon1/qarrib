@@ -1,0 +1,28 @@
+node_modules
+android
+ios
+desktop
+dist
+web-build
+legacy-backend
+logs
+download
+delete
+files.zip
+files
+files(1)
+Qarrab Healthcare
+mobile-src
+docs
+.github
+*.zip
+*.jpg
+*.png
+!.github
+backend/node_modules
+backend/.env
+backend/logs
+# agent tooling is local-only, never part of a deployment
+.agents
+skills-lock.json
+render.yaml

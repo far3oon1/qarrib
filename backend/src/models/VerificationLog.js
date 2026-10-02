@@ -36,4 +36,8 @@ const verificationLogSchema = new mongoose.Schema({
 
 }, { timestamps: true });
 
+// The only read path is `find({ nurse }).populate().sort({ createdAt: -1 })`,
+// so the nurse + createdAt compound key serves the filter and the sort together.
+verificationLogSchema.index({ nurse: 1, createdAt: -1 });
+
 module.exports = mongoose.model('VerificationLog', verificationLogSchema);

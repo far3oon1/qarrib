@@ -9,6 +9,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const { shapeOrder } = require('../utils/orderShape');
 const { assertAdminPriced } = require('../utils/adminPricing');
 const { findNearestNurses } = require('../utils/nearestNurses');
+const { getAdminIds } = require('../utils/adminIds');
 
 const COMMISSION_RATE = 10;
 
@@ -126,7 +127,7 @@ const createSimple = asyncHandler(async (req, res) => {
     } catch (_) { /* sockets optional */ }
   } else {
     // Waiting for admin approval: hidden from nurses until approved
-    const admins = await User.find({ role: 'admin' }).select('_id').limit(20);
+    const admins = await getAdminIds({ limit: 20 });
     for (const a of admins) {
       await Notification.create({
         recipient: a._id, title: 'طلب جديد يحتاج موافقة الإدارة',
@@ -172,7 +173,7 @@ const acceptOrder = asyncHandler(async (req, res) => {
   } catch (_) { /* release is best-effort here */ }
   const nurseName = req.user.fullName || 'The nurse';
   await Notification.create({ recipient: order.patient, title: 'تم قبول طلبك', message: `${nurseName} قبل طلبك #${order.orderNumber} — تتبع وصوله لحظة بلحظة`, type: 'order', data: { orderId: order._id, nurseId: req.user.id } });
-  const acceptAdmins = await User.find({ role: 'admin' }).select('_id');
+  const acceptAdmins = await getAdminIds();
   for (const a of acceptAdmins) {
     await Notification.create({ recipient: a._id, title: 'ممرض قبل طلباً', message: `${nurseName} قبل الطلب #${order.orderNumber}`, type: 'order', data: { orderId: order._id, nurseId: req.user.id } });
   }
@@ -201,7 +202,7 @@ const startService = asyncHandler(async (req, res) => {
   order.statusHistory.push({ status: 'in_progress', changedBy: req.user.id, notes: 'Service started' });
   await order.save();
   await Notification.create({ recipient: order.patient, title: 'بدأت الخدمة', message: 'الممرض بدأ تنفيذ طلبك', type: 'order', data: { orderId: order._id } });
-  const startAdmins = await User.find({ role: 'admin' }).select('_id');
+  const startAdmins = await getAdminIds();
   for (const a of startAdmins) {
     await Notification.create({ recipient: a._id, title: 'بدأت خدمة', message: `بدأت خدمة الطلب #${order.orderNumber}`, type: 'order', data: { orderId: order._id } });
   }
@@ -252,13 +253,13 @@ if (order.status !== 'completed') {
       type: 'order', data: { orderId: order._id }
     });
   }
-  const doneAdmins = await User.find({ role: 'admin' }).select('_id');
+  const doneAdmins = await getAdminIds();
   for (const a of doneAdmins) {
     await Notification.create({ recipient: a._id, title: 'خدمة مكتملة بانتظار المراجعة', message: `${endedBy === 'patient' ? 'المريض' : 'الممرض'} أنهى الطلب #${order.orderNumber} — راجع الإنجاز واعتمده`, type: 'order', data: { orderId: order._id } });
   }
 
   if (order.patientConfirmed && order.nurseConfirmed && order.escrowStatus === 'held') {
-    const admins = await User.find({ role: 'admin' }).select('_id');
+    const admins = await getAdminIds();
     for (const a of admins) {
       await Notification.create({ recipient: a._id, title: 'طلب مراجعة إنجاز', message: `الطلب #${order.orderNumber} جاهز — أكّد الإنجاز لتحويل المبلغ للممرض`, type: 'order', data: { orderId: order._id } });
     }
@@ -312,7 +313,7 @@ const submitVisitReport = asyncHandler(async (req, res) => {
   order.visitReport = { summary, createdAt: new Date(), by: req.user.id };
   await order.save();
 
-  const reportAdmins = await User.find({ role: 'admin' }).select('_id');
+  const reportAdmins = await getAdminIds();
   for (const a of reportAdmins) {
     await Notification.create({ recipient: a._id, title: 'تقرير زيارة جديد 📋', message: `الممرض أرسل تقرير الزيارة للطلب #${order.orderNumber}: ${summary.slice(0, 120)}`, type: 'order', data: { orderId: order._id } });
   }
@@ -442,7 +443,7 @@ const cancelOrder = asyncHandler(async (req, res) => {
     await Notification.create({ recipient: t, title: 'تم إلغاء الطلب', message: `${cancelledBy} ألغى الطلب #${order.orderNumber}`, type: 'order', data: { orderId: order._id } });
   }
   if (req.user.role !== 'admin') {
-    const cancelAdmins = await User.find({ role: 'admin' }).select('_id');
+    const cancelAdmins = await getAdminIds();
     for (const a of cancelAdmins) {
       await Notification.create({ recipient: a._id, title: 'طلب ملغي', message: `${cancelledBy} ألغى الطلب #${order.orderNumber}`, type: 'order', data: { orderId: order._id } });
     }
@@ -538,7 +539,7 @@ const rateOrder = asyncHandler(async (req, res) => {
   }
   // Patient feedback is also sent to the admin panel + back to the nurse
   if (req.user.role === 'patient') {
-    const fbAdmins = await User.find({ role: 'admin' }).select('_id');
+    const fbAdmins = await getAdminIds();
     for (const a of fbAdmins) {
       await Notification.create({ recipient: a._id, title: 'تقييم جديد من مريض', message: `المريض قيّم الطلب #${order.orderNumber} بـ ${rating}/5${review ? ' — ' + String(review).slice(0, 120) : ''}`, type: 'general', data: { orderId: order._id, rating, review: review || null } });
     }
@@ -600,7 +601,7 @@ const approveOffer = asyncHandler(async (req, res) => {
   // When admin accepts the nurse price, patient must be told to PAY now
   await Notification.create({ recipient: order.patient, title: 'تم قبول السعر — ادفع الآن', message: `الإدارة قبلت سعر ${offer.price} ج.م لطلبك #${order.orderNumber} — ادفع من المحفظة أو InstaPay أو فودافون كاش ليبدأ الممرض`, type: 'order', data: { orderId: order._id, finalPrice: offer.price } });
   if (req.user.role !== 'admin') {
-    const offerAdmins = await User.find({ role: 'admin' }).select('_id');
+    const offerAdmins = await getAdminIds();
     for (const a of offerAdmins) {
       await Notification.create({ recipient: a._id, title: 'المريض قبل سعراً', message: `المريض قبل سعر ${offer.price} ج.م للطلب #${order.orderNumber} وعيّن الممرض`, type: 'order', data: { orderId: order._id, finalPrice: offer.price } });
     }
@@ -657,7 +658,7 @@ const payManual = asyncHandler(async (req, res) => {
       description: vfCash ? `Vodafone Cash transfer to owner for order ${order.orderNumber}` : `InstaPay transfer to owner for order ${order.orderNumber}`,
       balanceAfter: patient.walletBalance || 0
     });
-    const payAdmins = await User.find({ role: 'admin' }).select('_id');
+    const payAdmins = await getAdminIds();
     for (const a of payAdmins) {
       await Notification.create({ recipient: a._id, title: 'تحويل طلب بانتظار القبول 💰', message: `${patient.fullName} حوّل ${order.finalPrice} ج.م للطلب #${order.orderNumber} (${vfCash ? 'فودافون كاش' : 'InstaPay'}، مرجع: ${(reference || '').trim() || '—'}) — اقبل التحويل لتفعيل الطلب`, type: 'payment', data: { orderId: order._id, paymentId: tx._id } });
     }
@@ -682,7 +683,7 @@ const payManual = asyncHandler(async (req, res) => {
   if (order.assignedNurse && !released.released) {
     await Notification.create({ recipient: order.assignedNurse, title: 'تم الدفع', message: `تم دفع طلبك #${order.orderNumber}`, type: 'order', data: { orderId: order._id } });
   }
-  const orderAdmins = await User.find({ role: 'admin' }).select('_id');
+  const orderAdmins = await getAdminIds();
   for (const a of orderAdmins) {
     await Notification.create({ recipient: a._id, title: 'تم دفع طلب', message: `المريض دفع ${order.finalPrice} ج.م للطلب #${order.orderNumber} (${method})${released.released ? ' — تحوّل مباشرة لرصيد الممرض' : ''}`, type: 'payment', data: { orderId: order._id } });
   }
@@ -721,7 +722,7 @@ const submitOffer = asyncHandler(async (req, res) => {
 
   const nurseName = req.user.fullName || 'A nurse';
   await Notification.create({ recipient: order.patient, title: 'عرض سعر جديد', message: `${nurseName} اقترح ${price} ج.م لطلبك #${order.orderNumber} — راجع العروض واقبل السعر المناسب`, type: 'order', data: { orderId: order._id, price } });
-  const admins = await User.find({ role: 'admin' }).select('_id');
+  const admins = await getAdminIds();
   for (const a of admins) {
     await Notification.create({ recipient: a._id, title: 'عرض سعر جديد من ممرض', message: `${nurseName} اقترح ${price} ج.م للطلب #${order.orderNumber} — يمكنك قبوله أو اقتراح سعر`, type: 'order', data: { orderId: order._id, price } });
   }
@@ -750,7 +751,7 @@ const acceptSuggestedPrice = asyncHandler(async (req, res) => {
   const serviceDoc = await Service.findById(order.service);
   const gov = (order.location && order.location.governorate) || 'Cairo';
   const { nurses } = await notifyNewOrder({ order, serviceDoc, gov, amount: order.finalPrice, skipAdmins: true });
-  const admins = await User.find({ role: 'admin' }).select('_id');
+  const admins = await getAdminIds();
   for (const a of admins) {
     await Notification.create({ recipient: a._id, title: 'المريض قبل السعر المقترح', message: `المريض قبل سعر ${order.finalPrice} ج.م للطلب #${order.orderNumber} — ظهر للممرضين`, type: 'order', data: { orderId: order._id } });
   }
@@ -788,7 +789,7 @@ const respondToAssignment = asyncHandler(async (req, res) => {
       await releaseEscrowToNurse(order);
     } catch (_) { /* best-effort */ }
     await Notification.create({ recipient: order.patient, title: 'الممرض وافق على طلبك', message: `${nurseName} وافق على تنفيذ طلبك #${order.orderNumber} بسعر ${order.finalPrice} ج.م — تتبعه لحظة بلحظة`, type: 'order', data: { orderId: order._id, nurseId: req.user.id } });
-    const admins = await User.find({ role: 'admin' }).select('_id');
+    const admins = await getAdminIds();
     for (const a of admins) {
       await Notification.create({ recipient: a._id, title: 'الممرض قبل الخدمة', message: `${nurseName} وافق على الطلب #${order.orderNumber}`, type: 'order', data: { orderId: order._id } });
     }
@@ -812,7 +813,7 @@ const respondToAssignment = asyncHandler(async (req, res) => {
   order.statusHistory.push({ status: order.status, changedBy: req.user.id, notes: 'Nurse declined the service' });
   await order.save();
   await Notification.create({ recipient: order.patient, title: 'الممرض اعتذر عن طلبك', message: `${nurseName} اعتذر عن الطلب #${order.orderNumber} — نعرضه الآن على ممرضين آخرين`, type: 'order', data: { orderId: order._id } });
-  const admins = await User.find({ role: 'admin' }).select('_id');
+  const admins = await getAdminIds();
   for (const a of admins) {
     await Notification.create({ recipient: a._id, title: 'ممرض رفض خدمة', message: `${nurseName} رفض الطلب #${order.orderNumber} — عاد للممرضين`, type: 'order', data: { orderId: order._id } });
   }
@@ -856,7 +857,7 @@ const completeCash = asyncHandler(async (req, res) => {
       message: `الممرض أنهى الزيارة واستلم ${cashAmount} ج.م نقداً للطلب #${order.orderNumber} — قيّمه بالنجوم`, type: 'order', data: { orderId: order._id, cashAmount }
     });
   }
-  const doneAdmins = await User.find({ role: 'admin' }).select('_id');
+  const doneAdmins = await getAdminIds();
   for (const a of doneAdmins) {
     await Notification.create({ recipient: a._id, title: 'خدمة مكتملة نقداً', message: `الممرض استلم ${cashAmount} ج.م نقداً وأنهى الطلب #${order.orderNumber}`, type: 'order', data: { orderId: order._id, cashAmount } });
   }

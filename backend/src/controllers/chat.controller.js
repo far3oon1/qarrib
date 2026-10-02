@@ -5,6 +5,7 @@ const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
 const Notification = require('../models/Notification');
 const User = require('../models/User');
+const { getAdminIds } = require('../utils/adminIds');
 
 const isParticipant = (order, uid, role) => {
   if (role === 'admin') return true; // admins can join any order chat (nurse<->admin discussion)
@@ -76,7 +77,7 @@ const sendMessage = asyncHandler(async (req, res) => {
     if (String(order.patient) !== String(req.user.id)) targets.push(String(order.patient));
     if (order.assignedNurse && String(order.assignedNurse) !== String(req.user.id)) targets.push(String(order.assignedNurse));
     if (req.user.role !== 'admin') {
-      const admins = await User.find({ role: 'admin' }).select('_id');
+      const admins = await getAdminIds();
       admins.forEach((a) => { if (String(a._id) !== String(req.user.id)) targets.push(String(a._id)); });
     }
     for (const t of [...new Set(targets)]) {
