@@ -64,11 +64,11 @@ const createSimple = asyncHandler(async (req, res) => {
   if (!serviceDoc) throw new ApiError(400, 'This service is not configured by the admin');
 
   const finalAmount = Number(serviceDoc.basePrice);
-  // Admin approval comes first: requests wait in review until the admin
-  // approves the service (or sets the price) — unless the service is
-  // explicitly marked as not requiring approval.
+  // Patient-final rule: a priced service the patient accepts (fixed system
+  // price + optional boost, paid upfront) opens at once — NO admin accept
+  // needed. Only unpriced services wait for admin pricing.
   const priced = Number.isFinite(finalAmount) && finalAmount > 0;
-  const needsApproval = !priced || serviceDoc.requireApproval !== false;
+  const needsApproval = !priced;
 
   // Patient's own bid: starts from the fixed price, may raise it to get
   // accepted faster — NEVER below the admin fixed price.
