@@ -43,7 +43,7 @@
         </div>
         <h1>اختر ممرضك 🚑</h1>
         <div class="order-bar" id="orderBar">جاري تحميل طلبك...</div>
-        <div class="note">✅ كل الأسعار الظاهرة راجعتها الإدارة أولاً (أو دُفع مقدماً) — قارن التقييم وآراء المرضى ثم <b>اقبل ✅ أو ارفض ❌</b>. الممرض يؤكد الحضور بعد اختيارك.</div>
+        <div class="note">✅ الأسعار تظهر لك مباشرة وتقبلها بدون انتظار الإدارة — قارن التقييم وآراء المرضى ثم <b>اقبل ✅ أو ارفض ❌</b>. الممرض يؤكد الحضور بعد اختيارك.</div>
         <div id="matchesBox" style="display:flex;flex-direction:column;gap:14px;">
             <div class="loading"><div class="spinner"></div></div>
         </div>
@@ -77,8 +77,6 @@
         var priceBlock;
         if (m.offerPrice != null) {
             priceBlock = '<div class="price-big">' + m.offerPrice + ' ج.م</div>';
-        } else if (m.waitingAdminReview) {
-            priceBlock = '<div class="price-wait">🔍 سعره قيد مراجعة الإدارة...</div>';
         } else {
             priceBlock = '<div class="price-big">' + (basePrice != null ? basePrice + ' ج.م' : 'السعر الأساسي') + '</div><div style="font-size:11px;color:#64748b;">السعر الأساسي (لم يقترح سعراً بعد)</div>';
         }
@@ -90,7 +88,7 @@
         } else {
             revs = '<div class="meta">لا توجد تقييمات بعد — كن أول من يقيّمه!</div>';
         }
-        var canChoose = !m.waitingAdminReview;
+        // Patient-first: every visible price is acceptable — never disabled.
         var hasOffer = m.offerPrice != null && m.offerId;
         return '<div class="nurse-card shortlisted">' +
             '<div class="n-top"><div class="avatar">' + esc((m.name || 'م').charAt(0)) +
@@ -102,9 +100,7 @@
             (m.bio ? '<div class="bio">' + esc(m.bio) + '</div>' : '') +
             revs +
             '<div class="btn-row">' +
-            (canChoose
-                ? '<button class="q-btn" style="flex:1;" onclick="chooseNurse(\'' + m.nurseId + '\',\'' + esc(m.name).replace(/'/g, "\\'") + '\')">اختيار هذا الممرض ✅</button>'
-                : '<button class="q-btn" style="flex:1;opacity:.55;" disabled>بانتظار مراجعة سعره...</button>') +
+            '<button class="q-btn" style="flex:1;" onclick="chooseNurse(\'' + m.nurseId + '\',\'' + esc(m.name).replace(/'/g, "\\'") + '\')">اختيار هذا الممرض ✅</button>' +
             (hasOffer ? '<button class="q-btn q-btn-secondary" style="flex:1;" onclick="rejectOffer(\'' + m.offerId + '\',\'' + esc(m.name).replace(/'/g, "\\'") + '\')">رفض السعر ❌</button>' : '') +
             '</div></div>';
     }

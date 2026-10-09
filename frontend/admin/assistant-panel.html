@@ -62,10 +62,10 @@
 
     <div class="card" id="panel-offers" style="display:none;">
         <h3 style="margin:0 0 6px;">💰 أسعار الممرضين (مراجعة مخفية)</h3>
-        <div style="font-size:12px;color:#4A605E;margin-bottom:10px;">عند غياب الأدمن: مرّر السعر المناسب للمريض ➡️ أو ارفضه ❌ — المريض لا يرى أي سعر قبل تمريره.</div>
+        <div style="font-size:12px;color:#4A605E;margin-bottom:10px;">الأسعار تظهر للمريض مباشرة — تدخّل فقط بالرفض ❌ أو التمرير ➡️ للقديم، لو المريض لم يتصرف.</div>
         <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
-            <button class="q-btn q-btn-sm" onclick="loadOffers('')">بانتظار المراجعة</button>
-            <button class="q-btn q-btn-sm" onclick="loadOffers('?status=pending_review')">عند المريض</button>
+            <button class="q-btn q-btn-sm" onclick="loadOffers('')">أسعار ظاهرة للمريض 🟢</button>
+            <button class="q-btn q-btn-sm" onclick="loadOffers('?status=pending_admin')">قديمة بانتظار المراجعة</button>
             <button class="q-btn q-btn-sm" onclick="loadOffers('?status=all')">الكل</button>
         </div>
         <div id="offersList"><div class="q-muted">…</div></div>

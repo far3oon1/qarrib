@@ -650,7 +650,8 @@ const approveOffer = asyncHandler(async (req, res) => {
 
   const offer = order.offers.id(offerId);
   if (!offer) throw new ApiError(404, 'Offer not found');
-  if (offer.status !== 'pending_review') throw new ApiError(400, 'Offer is not available');
+  // Patient-first: any live price is acceptable, no admin wait.
+  if (!['pending_review', 'pending_admin'].includes(offer.status)) throw new ApiError(400, 'Offer is not available');
 
   // Assigning a nurse requires an admin-set service price first
   const offerService = await Service.findById(order.service);
@@ -787,9 +788,9 @@ const payManual = asyncHandler(async (req, res) => {
 });
 
 // POST /api/orders/:orderId/offer {price, notes?} (nurse suggests a price)
-// ADMIN-FIRST flow: the price goes to the admin (or assistant when no admin
-// is around) for review FIRST — the patient only sees it after it is passed
-// to them (status pending_review). Direct patient notification is suppressed.
+// PATIENT-FIRST flow: the price goes STRAIGHT to the patient, who accepts
+// or rejects with no admin wait. Admin/assistant see every offer and may
+// reject a bad one or assign if the patient does not act.
 const submitOffer = asyncHandler(async (req, res) => {
   const orderId = req.params.orderId || req.params.id;
   const price = Number(req.body.price);
@@ -1016,10 +1017,12 @@ const getMatches = asyncHandler(async (req, res) => {
 
   const buildCard = async (n, extra) => {
     const nid = String((n && n._id) || (extra && extra.nurseId) || '');
-    // Latest price offer from this nurse (patient sees it ONLY when passed)
+    // Patient-first: EVERY price is visible with its price — no offer ever
+    // waits for admin before the patient sees it (legacy pending_admin rows
+    // included, so nothing can get stuck "under review" again).
     const nurseOffers = (order.offers || []).filter((o) => String(o.nurse) === nid);
-    const passed = nurseOffers.filter((o) => o.status === 'pending_review').slice(-1)[0] || null;
-    const waiting = nurseOffers.filter((o) => o.status === 'pending_admin').slice(-1)[0] || null;
+    const passed = nurseOffers.filter((o) => ['pending_review', 'pending_admin'].includes(o.status)).slice(-1)[0] || null;
+    const waiting = null;
     // Recent patient feedback about this nurse (last 5 completed visits)
     let reviews = [];
     try {
@@ -1053,8 +1056,8 @@ const getMatches = asyncHandler(async (req, res) => {
       shortlisted: !!(extra && extra.shortlisted),
       offerId: passed ? String(passed._id) : null,
       offerPrice: passed ? passed.price : null,
-      offerStatus: passed ? 'pending_review' : (waiting ? 'pending_admin' : null),
-      waitingAdminReview: !!waiting && !passed,
+      offerStatus: passed ? passed.status : null,
+      waitingAdminReview: false,
       offerNotes: passed ? (passed.notes || null) : null,
       reviews
     };
@@ -1068,9 +1071,9 @@ const getMatches = asyncHandler(async (req, res) => {
     seen.add(nid);
     matches.push(await buildCard(m.nurse, { distanceKm: m.distanceKm ?? null, matchStatus: m.status, shortlisted: true }));
   }
-  // Extra nurses (beyond the shortlist) that sent a passed price
+  // Extra nurses (beyond the shortlist) that sent any live price
   const extraIds = [...new Set((order.offers || [])
-    .filter((o) => o.status === 'pending_review')
+    .filter((o) => ['pending_review', 'pending_admin'].includes(o.status))
     .map((o) => String(o.nurse)))].filter((id) => !seen.has(id));
   if (extraIds.length) {
     const extras = await User.find({ _id: { $in: extraIds } })
@@ -1142,10 +1145,9 @@ const chooseNurse = asyncHandler(async (req, res) => {
 
   const matchedIds = (order.matchedNurses || []).map((m) => String(m.nurse));
   const nurseOffers = (order.offers || []).filter((o) => String(o.nurse) === String(nurseId));
-  const passed = nurseOffers.filter((o) => o.status === 'pending_review').slice(-1)[0] || null;
-  const waiting = nurseOffers.filter((o) => o.status === 'pending_admin').slice(-1)[0] || null;
-  if (!matchedIds.includes(String(nurseId)) && !passed && !waiting) throw new ApiError(404, 'This nurse is not among your matched nurses');
-  if (waiting && !passed) throw new ApiError(400, 'سعر هذا الممرض ما زال قيد مراجعة الإدارة — اختر ممرضاً آخر أو انتظر قليلاً');
+  // Patient-first: any live price can be chosen — nothing waits for admin.
+  const passed = nurseOffers.filter((o) => ['pending_review', 'pending_admin'].includes(o.status)).slice(-1)[0] || null;
+  if (!matchedIds.includes(String(nurseId)) && !passed) throw new ApiError(404, 'This nurse is not among your matched nurses');
 
   const offerService = await Service.findById(order.service);
   assertAdminPriced(offerService);

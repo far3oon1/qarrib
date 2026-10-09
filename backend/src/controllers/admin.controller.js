@@ -968,10 +968,12 @@ const rejectNurseOffer = asyncHandler(async (req, res) => {
   ResponseHelper.success(res, { orderId, offerId, status: offer.status }, 'تم رفض العرض وإشعار الممرض');
 });
 
-// GET /admin/offers — every nurse price (any service) awaiting review, newest first
+// GET /admin/offers — every nurse price (any service), newest first.
+// Default queue is the LIVE prices patients see (patient-first: offers go
+// straight to the patient; admin/assistant step in only by reject/assign).
 const getAllOffers = asyncHandler(async (req, res) => {
-  const { status } = req.query; // pending_admin (default) | pending_review | approved | rejected | all
-  const wanted = status || 'pending_admin';
+  const { status } = req.query; // pending_review (default) | pending_admin (legacy) | approved | rejected | all
+  const wanted = status || 'pending_review';
   const orders = await Order.aggregate([
     { $match: { offers: { $exists: true, $not: { $size: 0 } } } },
     { $unwind: '$offers' },
