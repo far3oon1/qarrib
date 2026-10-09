@@ -100,10 +100,6 @@
                             <div class="service-type-icon">🩹</div>
                             <div class="service-type-name">تغيير جروح</div>
                         </div>
-                        <div class="service-type" data-value="checkup">
-                            <div class="service-type-icon">🩺</div>
-                            <div class="service-type-name">فحص طبي</div>
-                        </div>
                         <div class="service-type" data-value="elderly">
                             <div class="service-type-icon">👴</div>
                             <div class="service-type-name">رعاية مسنين</div>
@@ -240,7 +236,7 @@
                 var q = new URLSearchParams(window.location.search).get('service') || '';
                 if (!q) return;
                 q = q.toLowerCase();
-                var map = { 'injection': 'injection', 'iv': 'iv', 'wound': 'wound', 'elderly': 'elderly', 'vital': 'checkup', 'checkup': 'checkup', 'post': 'other', 'surgery': 'other' };
+                var map = { 'injection': 'injection', 'iv': 'iv', 'wound': 'wound', 'elderly': 'elderly', 'post': 'other', 'surgery': 'other' };
                 var key = null;
                 Object.keys(map).forEach(function(k){ if (q.indexOf(k) !== -1 && !key) key = map[k]; });
                 if (key) {
@@ -251,7 +247,7 @@
         })();
 
         // Show the admin-set price under each service card (per service type)
-        var SERVICE_KEYS = { injection: 'injection', wound: 'wound_care', checkup: 'checkup', elderly: 'elderly_care', iv: 'iv_therapy', other: 'other' };
+        var SERVICE_KEYS = { injection: 'injection', wound: 'wound_care', elderly: 'elderly_care', iv: 'iv_therapy', other: 'other' };
         var SERVICE_PRICES = {};
         function currentBasePrice() {
             var key = document.getElementById('serviceType').value;
