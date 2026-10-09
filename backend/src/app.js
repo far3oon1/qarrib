@@ -86,6 +86,16 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+// Deploy marker: proves which commit is actually live (Vercel injects the
+// git sha at build time; falls back to 'local' for other hosts).
+app.get('/api/version', (req, res) => {
+  res.status(200).json({
+    success: true,
+    version: VERSION,
+    commit: process.env.VERCEL_GIT_COMMIT_SHA || process.env.RENDER_GIT_COMMIT || 'local',
+    timestamp: new Date().toISOString()
+  });
+});
 
 // API Routes
 app.use('/api/auth', authRoutes);
