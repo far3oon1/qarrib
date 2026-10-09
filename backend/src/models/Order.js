@@ -21,8 +21,10 @@ const offerSchema = new mongoose.Schema({
 
   status: {
     type: String,
-    enum: ['pending_review', 'approved', 'rejected'],
-    default: 'pending_review'
+    // pending_admin = nurse suggested, waiting for ADMIN review (hidden from patient).
+    // pending_review = admin passed it to the patient (visible on choose/offers pages).
+    enum: ['pending_admin', 'pending_review', 'approved', 'rejected'],
+    default: 'pending_admin'
   },
 
   adminNotes: {
@@ -100,6 +102,44 @@ const orderSchema = new mongoose.Schema({
 
   offers: [offerSchema],
 
+  // --- Uber/inDrive shortlist: system picks 3-4 nearest nurses per request ---
+  // Patient sees ONLY these candidates on the choose page (with their own
+  // price offers + ratings + patient feedback) and picks one.
+  matchedNurses: [{
+    nurse: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    distanceKm: {
+      type: Number,
+      default: null
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'offered', 'chosen', 'declined', 'replaced'],
+      default: 'pending'
+    },
+    invitedAt: {
+      type: Date,
+      default: Date.now
+    },
+    respondedAt: {
+      type: Date,
+      default: null
+    }
+  }],
+
+  matchRound: {
+    type: Number,
+    default: 0
+  },
+
+  matchExpiresAt: {
+    type: Date,
+    default: null
+  },
+
   selectedOffer: {
     type: mongoose.Schema.Types.ObjectId,
     default: null
@@ -108,6 +148,23 @@ const orderSchema = new mongoose.Schema({
   finalPrice: {
     type: Number,
     default: null
+  },
+
+  // --- inDrive-style patient bidding ---
+  // Patient suggests their own price at request time (never below the admin
+  // fixed service price). Nurses see it and counter with their own prices.
+  patientOfferedPrice: {
+    type: Number,
+    default: null,
+    min: 0
+  },
+
+  // Money actually secured for this order (wallet holds + approved manual
+  // transfers). On accept, only the DIFFERENCE vs the accepted price moves.
+  amountHeld: {
+    type: Number,
+    default: 0,
+    min: 0
   },
 
   commission: {

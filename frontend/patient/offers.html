@@ -54,7 +54,8 @@
             container.innerHTML = orders.map(function(order){
                 var offers = (order.offers || []).filter(function(o){ return o.status === 'pending_review'; });
                 var isAssigned = order.status === 'assigned';
-                var bar = '<div class="req-bar">' + (order.serviceType||'Service') + ' · ' + formatDate(order.createdAt) + ' · ' + (order.address||'Area') + '</div>';
+                var bar = '<div class="req-bar">' + (order.serviceType||'Service') + ' · ' + formatDate(order.createdAt) + ' · ' + (order.address||'Area') + '</div>' +
+                    '<a href="choose-nurse.html?order=' + order.id + '" class="q-btn q-btn-sm" style="text-decoration:none;text-align:center;">🚑 قارن الممرضين المرشحين واختر (تقييم + آراء المرضى)</a>';
                 var cards = offers.length ? offers.map(function(o){
                     var nm = o.nurse ? o.nurse.name : 'Nurse';
                     var trusted = o.nurse && o.nurse.isTrusted ? ' · ✅ Trusted' : '';

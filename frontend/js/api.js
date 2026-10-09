@@ -240,6 +240,13 @@ API.prototype.getAdminContact = function () {
 API.prototype.uploadDocuments = function (formData) {
     return this.request('POST', '/auth/upload-documents', formData, true);
 };
+// Liability waiver (bilingual helper-only terms): public text + acceptance
+API.prototype.getTerms = function () {
+    return this.request('GET', '/auth/terms');
+};
+API.prototype.acceptTerms = function () {
+    return this.request('POST', '/auth/accept-terms', { accept: true });
+};
 
 // Patient
 API.prototype.getPatientDashboard = function () {
@@ -319,6 +326,19 @@ API.prototype.submitOffer = function (orderId, price, notes) {
 };
 API.prototype.approveOffer = function (orderId, offerId) {
     return this.request('POST', '/orders/' + orderId + '/approve-offer', { offerId: offerId });
+};
+API.prototype.rejectOffer = function (orderId, offerId) {
+    return this.request('POST', '/orders/' + orderId + '/reject-offer', { offerId: offerId });
+};
+// Uber/inDrive shortlist: 3-4 matched nurses with ratings + feedback + prices
+API.prototype.getMatches = function (orderId) {
+    return this.request('GET', '/orders/' + orderId + '/matches');
+};
+API.prototype.refreshMatches = function (orderId) {
+    return this.request('POST', '/orders/' + orderId + '/matches/refresh', {});
+};
+API.prototype.chooseNurse = function (orderId, nurseId) {
+    return this.request('POST', '/orders/' + orderId + '/choose', { nurseId: nurseId });
 };
 API.prototype.acceptSuggestedPrice = function (orderId) {
     return this.request('POST', '/orders/' + orderId + '/accept-price');
@@ -456,6 +476,10 @@ API.prototype.reviewWithdrawal = function (id, action) {
 API.prototype.adminApproveOffer = function (orderId, offerId) {
     return this.request('POST', '/admin/orders/' + orderId + '/approve-offer', { offerId: offerId });
 };
+// Admin passes a nurse price to the patient (without assigning) — patient then picks
+API.prototype.passOfferToPatient = function (orderId, offerId) {
+    return this.request('POST', '/admin/orders/' + orderId + '/pass-offer', { offerId: offerId });
+};
 API.prototype.getAdminEarnings = function () {
     return this.request('GET', '/admin/earnings');
 };
@@ -552,6 +576,24 @@ API.prototype.getAssistantMessages = function (userId) {
 };
 API.prototype.sendAssistantMessage = function (userId, content) {
     return this.request('POST', '/assistant/chats/' + userId + '/send', { content: content });
+};
+// Assistant price-review queue (masked) — backup when no admin is around
+API.prototype.getAssistantOffers = function (query) {
+    if (query === undefined) query = '';
+    return this.request('GET', '/assistant/offers' + query);
+};
+API.prototype.assistantPassOffer = function (orderId, offerId) {
+    return this.request('POST', '/assistant/offers/' + orderId + '/pass', { offerId: offerId });
+};
+API.prototype.assistantRejectOffer = function (orderId, offerId, notes) {
+    return this.request('POST', '/assistant/offers/' + orderId + '/reject', { offerId: offerId, notes: notes });
+};
+// Assistant transfer queue (masked) — approve upfront payments when no admin is around
+API.prototype.getAssistantOrderPayments = function () {
+    return this.request('GET', '/assistant/order-payments');
+};
+API.prototype.reviewAssistantOrderPayment = function (paymentId, action) {
+    return this.request('POST', '/assistant/order-payments/' + paymentId, { action: action });
 };
 API.prototype.getPendingVerifications = function () {
     return this.request('GET', '/admin/verifications');

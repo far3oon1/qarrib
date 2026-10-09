@@ -5,32 +5,39 @@ const User = require('../models/User');
 const Notification = require('../models/Notification');
 const { findNearestNurses } = require('./nearestNurses');
 
-async function notifyNewOrder({ order, serviceDoc, gov, amount, skipAdmins = false }) {
+async function notifyNewOrder({ order, serviceDoc, gov, amount, skipAdmins = false, excludeIds = [] }) {
   const serviceName = (serviceDoc && (serviceDoc.nameAr || serviceDoc.name)) || 'خدمة تمريض';
   const coords = order && order.location && order.location.coordinates ? order.location.coordinates : {};
+  // Nurses already pinged (e.g. the ⭐ shortlist) are skipped so nobody
+  // gets the same request twice.
+  const excluded = new Set((excludeIds || []).map((x) => String(x)));
+  const bid = order && order.patientOfferedPrice != null ? order.patientOfferedPrice : amount;
 
-  const nearest = await findNearestNurses({ lat: coords.lat, lng: coords.lng, limit: 10 });
-  const nearestIds = nearest.map((x) => x.nurse._id);
+  const nearest = await findNearestNurses({ lat: coords.lat, lng: coords.lng, limit: 10 + excluded.size });
+  const nearestIds = [];
   for (const { nurse, distanceKm } of nearest) {
+    if (excluded.has(String(nurse._id))) continue;
+    if (nearestIds.length >= 10) break;
+    nearestIds.push(nurse._id);
     await Notification.create({
       recipient: nurse._id,
       title: 'طلب جديد قريب منك 📍',
-      message: `طلب جديد: ${serviceName} في ${gov} — على بعد ${distanceKm.toFixed(1)} كم منك (السعر: ${amount} ج.م)`,
+      message: `طلب جديد: ${serviceName} في ${gov} — على بعد ${distanceKm.toFixed(1)} كم منك — المريض عارض ${bid} ج.م (الثابت ${amount} ج.م) — اقترح سعرك`,
       type: 'order',
-      data: { orderId: order._id, distanceKm: Math.round(distanceKm * 10) / 10 }
+      data: { orderId: order._id, distanceKm: Math.round(distanceKm * 10) / 10, patientBid: bid, basePrice: amount }
     });
   }
 
   const others = await User.find({
-    role: 'nurse', status: 'approved', isActive: true, _id: { $nin: nearestIds }
+    role: 'nurse', status: 'approved', isActive: true, _id: { $nin: nearestIds.concat([...excluded]) }
   }).select('_id').limit(50);
   for (const n of others) {
     await Notification.create({
       recipient: n._id,
       title: 'طلب جديد متاح',
-      message: `طلب جديد: ${serviceName} في ${gov} (السعر: ${amount} ج.م)`,
+      message: `طلب جديد: ${serviceName} في ${gov} — المريض عارض ${bid} ج.م (الثابت ${amount} ج.م) — اقترح سعرك`,
       type: 'order',
-      data: { orderId: order._id }
+      data: { orderId: order._id, patientBid: bid, basePrice: amount }
     });
   }
   const nurses = nearest.map((x) => x.nurse).concat(others);

@@ -149,24 +149,40 @@
                 </div>
 
                 <div class="form-group" style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 12px;">
-                    <div style="font-size: 14px; color: #166534;">💰 السعر تحدده الإدارة — يظهر لك قبل الدفع.</div>
+                    <label class="form-label">💰 عرضك للسعر (مثل inDrive)</label>
+                    <div style="font-size: 13px; color: #166534; margin-bottom: 8px;" id="basePriceHint">السعر الثابت يظهر بعد اختيار الخدمة — عرضك يساويه أو يزيد عنه فقط (لا يمكن الإنقاص).</div>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <input type="number" min="1" class="form-input" id="suggestedPrice" placeholder="عرضك بالجنيه" style="flex:1;">
+                        <button type="button" class="btn btn-sm btn-outline" style="width:auto;white-space:nowrap;" onclick="resetBid()">السعر الثابت</button>
+                    </div>
+                    <div style="font-size: 12px; color: #166534; margin-top:6px;">💡 زيادة عرضك تجعل الممرضين يقبلون أسرع — يُخصم من محفظتك فوراً أو يبقى معلقاً حتى قبول تحويلك.</div>
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label">طريقة الدفع</label>
+                    <label class="form-label">طريقة الدفع المقدم</label>
                     <div style="display:flex;gap:8px;">
                         <label style="flex:1;background:white;border:2px solid #e2e8f0;border-radius:12px;padding:12px;text-align:center;cursor:pointer;">
                             <input type="radio" name="payMethod" value="instapay" checked>
                             <div style="font-size:20px;">📲</div>
                             <div style="font-weight:700;">انستا باي</div>
-                            <div style="font-size:12px;color:#64748b;">ادفع لاحقاً بعد قبول الممرض</div>
+                            <div style="font-size:12px;color:#64748b;">تحويل مقدم + مرجع — يُفتح الطلب بعد القبول</div>
+                        </label>
+                        <label style="flex:1;background:white;border:2px solid #e2e8f0;border-radius:12px;padding:12px;text-align:center;cursor:pointer;">
+                            <input type="radio" name="payMethod" value="vodafone_cash">
+                            <div style="font-size:20px;">📱</div>
+                            <div style="font-weight:700;">فودافون كاش</div>
+                            <div style="font-size:12px;color:#64748b;">تحويل مقدم + مرجع — يُفتح الطلب بعد القبول</div>
                         </label>
                         <label style="flex:1;background:white;border:2px solid #e2e8f0;border-radius:12px;padding:12px;text-align:center;cursor:pointer;">
                             <input type="radio" name="payMethod" value="wallet">
                             <div style="font-size:20px;">💳</div>
                             <div style="font-weight:700;">المحفظة</div>
-                            <div style="font-size:12px;color:#64748b;">رصيدك: <span id="walletBalance">0</span> ج.م</div>
+                            <div style="font-size:12px;color:#64748b;">خصم فوري: <span id="walletBalance">0</span> ج.م</div>
                         </label>
+                    </div>
+                    <div id="refBox" style="margin-top:8px;">
+                        <label class="form-label">مرجع التحويل (رقم العملية) — مطلوب للتحويلات</label>
+                        <input type="text" class="form-input" id="payReference" placeholder="مثال: 123456789">
                     </div>
                 </div>
 
@@ -212,6 +228,7 @@
                 document.querySelectorAll('.service-type').forEach(t => t.classList.remove('selected'));
                 type.classList.add('selected');
                 document.getElementById('serviceType').value = type.dataset.value;
+                try { refreshBidHint(); } catch (e) {}
             });
         });
         // Preselect from dashboard service grid (?service=Injections & IV etc.)
@@ -232,12 +249,44 @@
 
         // Show the admin-set price under each service card (per service type)
         var SERVICE_KEYS = { injection: 'injection', wound: 'wound_care', checkup: 'checkup', elderly: 'elderly_care', iv: 'iv_therapy', other: 'other' };
+        var SERVICE_PRICES = {};
+        function currentBasePrice() {
+            var key = document.getElementById('serviceType').value;
+            var s = SERVICE_PRICES[SERVICE_KEYS[key]];
+            return (s && s.basePrice > 0) ? s.basePrice : null;
+        }
+        function refreshBidHint() {
+            var base = currentBasePrice();
+            var hint = document.getElementById('basePriceHint');
+            var inp = document.getElementById('suggestedPrice');
+            if (base != null) {
+                hint.textContent = 'السعر الثابت لهذه الخدمة: ' + base + ' ج.م — عرضك يساويه أو يزيد عنه فقط.';
+                inp.min = base;
+                inp.placeholder = 'عرضك (من ' + base + ' ج.م)';
+                if (!inp.value) inp.value = base;
+            } else {
+                hint.textContent = 'هذه الخدمة بانتظار تسعير الإدارة — سيُحدد السعر قبل فتح طلبك.';
+                inp.min = 1;
+            }
+        }
+        function resetBid() {
+            var base = currentBasePrice();
+            if (base != null) document.getElementById('suggestedPrice').value = base;
+        }
+        // Show/hide transfer reference depending on method
+        document.querySelectorAll('input[name="payMethod"]').forEach(function(r){
+            r.addEventListener('change', function(){
+                var v = (document.querySelector('input[name="payMethod"]:checked') || {}).value;
+                document.getElementById('refBox').style.display = (v === 'wallet') ? 'none' : 'block';
+            });
+        });
         async function loadServicePrices() {
             try {
                 const r = await api.getServicePrices();
                 const list = r.success ? (r.data.services || r.data) : [];
                 const byName = {};
                 list.forEach(function(s) { if (s.name) byName[s.name] = s; });
+                SERVICE_PRICES = byName;
                 document.querySelectorAll('.service-type').forEach(function(card) {
                     const s = byName[SERVICE_KEYS[card.dataset.value]];
                     const el = document.createElement('div');
@@ -245,6 +294,7 @@
                     el.textContent = (s && s.basePrice > 0) ? s.basePrice + ' ج.م' : 'بانتظار التسعير';
                     card.appendChild(el);
                 });
+                refreshBidHint();
             } catch (e) {}
         }
 
@@ -358,12 +408,23 @@
                 return;
             }
 
+            const payMethod = (document.querySelector('input[name="payMethod"]:checked') || {}).value || 'instapay';
+            const suggestedRaw = Number(document.getElementById('suggestedPrice').value);
+            const base = currentBasePrice();
+            if (base != null && (!suggestedRaw || suggestedRaw < base)) {
+                showAlert('عرضك يجب أن يساوي السعر الثابت (' + base + ' ج.م) أو يزيد عنه', 'error');
+                btn.disabled = false;
+                btn.textContent = 'إرسال الطلب';
+                return;
+            }
             const orderData = {
                 serviceType,
                 description: document.getElementById('description').value.trim(),
                 address: document.getElementById('address').value.trim(),
                 location: userLocation,
-                paymentMethod: (document.querySelector('input[name="payMethod"]:checked') || {}).value || 'instapay'
+                paymentMethod: payMethod,
+                suggestedPrice: (base != null && suggestedRaw) ? suggestedRaw : undefined,
+                reference: (document.getElementById('payReference') || {}).value || ''
             };
 
             if (!orderData.address) {
@@ -378,8 +439,17 @@
 
                 if (result.success) {
                     const st = result.data && result.data.status;
-                    showAlert(st === 'under_review' ? 'تم استلام طلبك — قيد مراجعة الإدارة لتحديد السعر' : 'تم إرسال الطلب بنجاح! أقرب الممرضين سيستلمونه الآن.');
-                    setTimeout(() => window.location.href = 'dashboard.html', 1500);
+                    const newId = result.data && (result.data.id || result.data._id);
+                    if (result.data && result.data.pendingTransferApproval) {
+                        showAlert('تم إرسال تحويلك — سيُفتح طلبك لأقرب الممرضين فور قبول فريقنا للتحويل ⏳');
+                        setTimeout(() => window.location.href = 'dashboard.html', 1800);
+                    } else if (st === 'under_review') {
+                        showAlert('تم استلام طلبك — قيد مراجعة الإدارة لتحديد السعر');
+                        setTimeout(() => window.location.href = 'dashboard.html', 1500);
+                    } else {
+                        showAlert('تم إرسال الطلب! اختر ممرضك من الأقرب إليك...');
+                        setTimeout(() => window.location.href = newId ? ('choose-nurse.html?order=' + newId) : 'dashboard.html', 1200);
+                    }
                 }
             } catch (error) {
                 const msg = error.message || 'فشل إرسال الطلب';

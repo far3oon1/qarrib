@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>اختر الممرض - قرّب</title>
+    <link rel="apple-touch-icon" href="../icon-180.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="../manifest.webmanifest">
+    <meta name="description" content="Qarrib Healthcare - nursing care at your door.">
+    <meta name="theme-color" content="#0B5F5A">
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        body { background: #F6F3EC; }
+        .wrap { max-width: 600px; margin: 0 auto; min-height: 100vh; background: #F6F3EC; padding: 20px 16px 110px; display: flex; flex-direction: column; gap: 14px; }
+        .topbar { display: flex; align-items: center; gap: 10px; }
+        .back { font-size: 15px; font-weight: 700; text-decoration: none; color: #0B4A46; }
+        .refresh-btn { margin-inline-start: auto; background: #fff; border: 1px solid #D9D3C5; border-radius: 10px; padding: 8px 14px; cursor: pointer; font-weight: 700; font-size: 13px; color: #0B4A46; }
+        h1 { font-size: 24px; }
+        .order-bar { padding: 12px 14px; border-radius: 12px; background: #DDEBE8; font-size: 13px; color: #0B4A46; }
+        .note { padding: 10px 14px; border-radius: 12px; background: #fefce8; border: 1px solid #fde68a; font-size: 13px; color: #92400e; }
+        .nurse-card { padding: 16px; border: 1px solid #D9D3C5; border-radius: 18px; background: #fff; display: flex; flex-direction: column; gap: 10px; }
+        .nurse-card.shortlisted { border: 2px solid #0B5F5A; }
+        .n-top { display: flex; gap: 12px; align-items: center; }
+        .avatar { width: 52px; height: 52px; border-radius: 50%; background: #0B5F5A; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 800; flex-shrink: 0; position: relative; }
+        .online-dot { position: absolute; bottom: 0; inset-inline-end: 0; width: 14px; height: 14px; border-radius: 50%; border: 2px solid #fff; }
+        .price-big { font-size: 20px; font-weight: 800; color: #0B5F5A; white-space: nowrap; }
+        .price-wait { font-size: 12px; font-weight: 700; color: #b45309; white-space: nowrap; }
+        .meta { font-size: 13px; color: #4A605E; }
+        .bio { font-size: 13px; color: #334155; background: #f8fafc; border-radius: 10px; padding: 8px 10px; }
+        .reviews { border-top: 1px dashed #D9D3C5; padding-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+        .review { font-size: 12px; background: #F6F3EC; border-radius: 10px; padding: 8px 10px; color: #334155; }
+        .btn-row { display: flex; gap: 10px; }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <div class="topbar">
+            <a href="dashboard.html" class="back">← الرئيسية</a>
+            <button class="refresh-btn" id="refreshBtn" onclick="refreshList()">🔄 ممرضون آخرون</button>
+        </div>
+        <h1>اختر ممرضك 🚑</h1>
+        <div class="order-bar" id="orderBar">جاري تحميل طلبك...</div>
+        <div class="note">✅ كل الأسعار الظاهرة راجعتها الإدارة أولاً (أو دُفع مقدماً) — قارن التقييم وآراء المرضى ثم <b>اقبل ✅ أو ارفض ❌</b>. الممرض يؤكد الحضور بعد اختيارك.</div>
+        <div id="matchesBox" style="display:flex;flex-direction:column;gap:14px;">
+            <div class="loading"><div class="spinner"></div></div>
+        </div>
+        <nav class="q-bottomnav" style="position:fixed;bottom:0;left:0;right:0;max-width:600px;margin:0 auto;">
+            <a href="dashboard.html">Home</a>
+            <a href="offers.html">Offers</a>
+            <a href="track-nurse.html">Visits</a>
+            <a href="chat.html">Messages</a>
+        </nav>
+    </div>
+<script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
+<script src="../js/api.js?v=6"></script>
+<script src="../js/auth.js?v=6"></script>
+<script src="../js/notifications.js"></script>
+<script src="../js/notify-popup.js?v=1"></script>
+<script>
+    if (!requireRole('patient')) redirectToLogin();
+    var orderId = new URLSearchParams(window.location.search).get('order') || new URLSearchParams(window.location.search).get('orderId');
+    if (!orderId) { window.location.href = 'dashboard.html'; }
+
+    function esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    function stars(r){
+        r = Number(r) || 0;
+        var full = Math.round(r);
+        var s = '';
+        for (var i = 0; i < 5; i++) s += i < full ? '★' : '☆';
+        return s;
+    }
+
+    function cardHtml(m, basePrice){
+        var priceBlock;
+        if (m.offerPrice != null) {
+            priceBlock = '<div class="price-big">' + m.offerPrice + ' ج.م</div>';
+        } else if (m.waitingAdminReview) {
+            priceBlock = '<div class="price-wait">🔍 سعره قيد مراجعة الإدارة...</div>';
+        } else {
+            priceBlock = '<div class="price-big">' + (basePrice != null ? basePrice + ' ج.م' : 'السعر الأساسي') + '</div><div style="font-size:11px;color:#64748b;">السعر الأساسي (لم يقترح سعراً بعد)</div>';
+        }
+        var revs = '';
+        if (m.reviews && m.reviews.length) {
+            revs = '<div class="reviews"><div style="font-size:13px;font-weight:800;">💬 آراء المرضى (' + m.reviews.length + ')</div>' + m.reviews.map(function(rv){
+                return '<div class="review">⭐ ' + rv.rating + '/5 — ' + esc(rv.comment || 'بدون تعليق') + '<div style="font-size:11px;color:#94a3b8;margin-top:2px;">— ' + esc(rv.patientName || 'مريض') + '</div></div>';
+            }).join('') + '</div>';
+        } else {
+            revs = '<div class="meta">لا توجد تقييمات بعد — كن أول من يقيّمه!</div>';
+        }
+        var canChoose = !m.waitingAdminReview;
+        var hasOffer = m.offerPrice != null && m.offerId;
+        return '<div class="nurse-card shortlisted">' +
+            '<div class="n-top"><div class="avatar">' + esc((m.name || 'م').charAt(0)) +
+                '<span class="online-dot" style="background:' + (m.isOnline ? '#22c55e' : '#94a3b8') + ';" title="' + (m.isOnline ? 'متصل الآن' : 'غير متصل') + '"></span></div>' +
+            '<div style="flex-grow:1"><div style="font-size:17px;font-weight:800;">' + esc(m.name) + (m.isTrusted ? ' ✅ موثّق' : '') + '</div>' +
+            '<div class="meta"><span style="color:#f59e0b;">' + stars(m.rating) + '</span> ' + (m.rating || 'جديد') + ' (' + (m.totalReviews || 0) + ' تقييم)' + (m.isOnline ? ' · 🟢 متصل' : ' · ⚪ غير متصل') + '</div>' +
+            '<div class="meta">' + esc(m.specialization || 'تمريض عام') + ' · خبرة ' + (m.yearsOfExperience || 0) + ' سنوات' + (m.distanceKm != null ? ' · 📏 ' + m.distanceKm + ' كم' : '') + '</div></div>' +
+            priceBlock + '</div>' +
+            (m.bio ? '<div class="bio">' + esc(m.bio) + '</div>' : '') +
+            revs +
+            '<div class="btn-row">' +
+            (canChoose
+                ? '<button class="q-btn" style="flex:1;" onclick="chooseNurse(\'' + m.nurseId + '\',\'' + esc(m.name).replace(/'/g, "\\'") + '\')">اختيار هذا الممرض ✅</button>'
+                : '<button class="q-btn" style="flex:1;opacity:.55;" disabled>بانتظار مراجعة سعره...</button>') +
+            (hasOffer ? '<button class="q-btn q-btn-secondary" style="flex:1;" onclick="rejectOffer(\'' + m.offerId + '\',\'' + esc(m.name).replace(/'/g, "\\'") + '\')">رفض السعر ❌</button>' : '') +
+            '</div></div>';
+    }
+
+    async function loadMatches(silent){
+        try {
+            var r = await api.getMatches(orderId);
+            if (!r.success) throw new Error('load failed');
+            var d = r.data;
+            if (d.status === 'assigned' || d.status === 'in_progress' || d.status === 'paid') {
+                window.location.href = 'track-nurse.html?order=' + orderId;
+                return;
+            }
+            if (d.status !== 'open' && d.status !== 'offers_received') {
+                document.getElementById('matchesBox').innerHTML = '<div class="q-card" style="padding:24px;text-align:center;">هذا الطلب لم يعد مفتوحاً (الحالة: ' + esc(d.status) + '). <a href="dashboard.html">عودة للرئيسية</a></div>';
+                return;
+            }
+            document.getElementById('orderBar').innerHTML = 'طلب #' + esc(d.orderNumber || '') + ' — ' + esc((d.service && d.service.nameAr) || 'خدمة تمريض') + ' · عرضك: <b>' + (d.patientBid != null ? d.patientBid + ' ج.م' : '—') + '</b> · الثابت: ' + (d.adminBasePrice != null ? d.adminBasePrice + ' ج.م' : '—') + (d.amountHeld ? ' · المحجوز: ' + d.amountHeld + ' ج.م ✅' : '');
+            var box = document.getElementById('matchesBox');
+            if (!d.matches || !d.matches.length) {
+                box.innerHTML = '<div class="q-card" style="padding:32px;text-align:center;color:#4A605E;">لم يتم ترشيح ممرضين بعد — اضغط "ممرضون آخرون" للبحث من جديد.</div>';
+                return;
+            }
+            // Offered (priced) first, then online, then rating
+            var sorted = d.matches.slice().sort(function(a, b){
+                var ap = a.offerPrice != null ? 0 : 1, bp = b.offerPrice != null ? 0 : 1;
+                if (ap !== bp) return ap - bp;
+                if (!!b.isOnline !== !!a.isOnline) return b.isOnline ? 1 : -1;
+                return (b.rating || 0) - (a.rating || 0);
+            });
+            box.innerHTML = sorted.map(function(m){ return cardHtml(m, d.adminBasePrice); }).join('');
+        } catch (e) {
+            if (!silent) document.getElementById('matchesBox').innerHTML = '<div class="q-card" style="padding:24px;text-align:center;">تعذر التحميل — <a href="#" onclick="loadMatches();return false;">إعادة المحاولة</a></div>';
+        }
+    }
+
+    async function chooseNurse(nurseId, name){
+        if (!confirm('اختيار ' + name + ' لهذا الطلب؟')) return;
+        try {
+            var r = await api.chooseNurse(orderId, nurseId);
+            if (r.success) {
+                showAlert('تم اختيار الممرض! بانتظار تأكيده...');
+                setTimeout(function(){ window.location.href = 'track-nurse.html?order=' + orderId; }, 1200);
+            }
+        } catch (e) { showAlert(e.message || 'فشل الاختيار', 'error'); }
+    }
+
+    async function rejectOffer(offerId, name){
+        if (!confirm('رفض سعر ' + name + '؟ سيتم إشعاره ويمكنه إرسال سعر جديد.')) return;
+        try {
+            var r = await api.rejectOffer(orderId, offerId);
+            if (r.success) { showAlert('تم رفض السعر'); loadMatches(true); }
+        } catch (e) { showAlert(e.message || 'فشل الرفض', 'error'); }
+    }
+
+    async function refreshList(){
+        var btn = document.getElementById('refreshBtn');
+        btn.disabled = true; btn.textContent = 'جاري البحث...';
+        try {
+            var r = await api.refreshMatches(orderId);
+            if (r.success) { showAlert('تم ترشيح ممرضين جدد'); await loadMatches(true); }
+        } catch (e) { showAlert(e.message || 'لا يوجد ممرضون إضافيون الآن', 'error'); }
+        btn.disabled = false; btn.textContent = '🔄 ممرضون آخرون';
+    }
+
+    loadMatches();
+    setInterval(function(){ loadMatches(true); }, 8000);
+</script>
+</body>
+</html>

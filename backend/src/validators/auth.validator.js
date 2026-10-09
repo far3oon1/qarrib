@@ -11,7 +11,9 @@ const registerPatient = Joi.object({
   nationalId: Joi.string().pattern(nationalIdRegex).required(),
   governorate: Joi.string().min(2).max(50).default('Cairo'),
   city: Joi.string().min(2).max(50).default('Cairo'),
-  address: Joi.string().min(5).max(200).required()
+  address: Joi.string().min(5).max(200).required(),
+  // Liability waiver (multipart arrives as the string 'true')
+  acceptTerms: Joi.any().valid(true, 'true').required()
 });
 
 const registerNurse = Joi.object({
@@ -25,7 +27,9 @@ const registerNurse = Joi.object({
   bio: Joi.string().max(500).allow('').optional(),
   governorate: Joi.string().min(2).max(50).default('Cairo'),
   city: Joi.string().min(2).max(50).default('Cairo'),
-  address: Joi.string().min(5).max(200).required()
+  address: Joi.string().min(5).max(200).required(),
+  // Liability waiver (multipart arrives as the string 'true')
+  acceptTerms: Joi.any().valid(true, 'true').required()
 });
 
 const login = Joi.object({

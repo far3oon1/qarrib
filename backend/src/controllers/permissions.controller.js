@@ -66,6 +66,11 @@ const saveConsent = asyncHandler(async (req, res) => {
   for (const k of keys) {
     if (req.body[k] !== undefined) {
       me.consents[k] = { granted: !!req.body[k], updatedAt: new Date() };
+      // Liability-waiver versioning: granting terms stamps the current text
+      // version so re-published terms can be re-requested later.
+      if (k === 'terms' && !!req.body[k]) {
+        try { me.consents[k].version = require('../utils/terms').TERMS_VERSION; } catch (_) {}
+      }
     }
   }
   // Toggling live sharing from the track pages

@@ -166,6 +166,189 @@ const sendMessage = asyncHandler(async (req, res) => {
   ResponseHelper.success(res, { id: String(msg._id) }, 'Sent', 201);
 });
 
+// GET /api/assistant/offers?status= — MASKED nurse-price review queue.
+// Same queue the admin sees, but phones/addresses are never included, so a
+// helper can pass/reject prices when no admin is available.
+const listOffers = asyncHandler(async (req, res) => {
+  const { status } = req.query; // pending_admin (default) | pending_review | approved | rejected | all
+  const wanted = status || 'pending_admin';
+  const orders = await Order.aggregate([
+    { $match: { offers: { $exists: true, $not: { $size: 0 } } } },
+    { $unwind: '$offers' },
+    ...(wanted === 'all' ? [] : [{ $match: { 'offers.status': wanted } }]),
+    { $sort: { 'offers.createdAt': -1 } },
+    { $limit: 100 },
+    {
+      $lookup: { from: 'users', localField: 'offers.nurse', foreignField: '_id', as: 'nurseDoc' }
+    },
+    {
+      $lookup: { from: 'users', localField: 'patient', foreignField: '_id', as: 'patientDoc' }
+    },
+    {
+      $lookup: { from: 'services', localField: 'service', foreignField: '_id', as: 'serviceDoc' }
+    },
+    {
+      $project: {
+        orderId: '$_id', orderNumber: 1, status: '$status', finalPrice: 1,
+        service: { $arrayElemAt: ['$serviceDoc.nameAr', 0] },
+        // MASKED: first name only, no phone.
+        patient: {
+          $let: {
+            vars: { p: { $arrayElemAt: ['$patientDoc', 0] } },
+            in: { id: '$$p._id', name: '$$p.fullName' }
+          }
+        },
+        offer: {
+          id: '$offers._id', price: '$offers.price', status: '$offers.status',
+          notes: '$offers.notes', createdAt: '$offers.createdAt',
+          nurse: {
+            $let: {
+              vars: { n: { $arrayElemAt: ['$nurseDoc', 0] } },
+              in: { id: '$$n._id', name: '$$n.fullName', rating: '$$n.rating', specialization: '$$n.specialization' }
+            }
+          }
+        }
+      }
+    }
+  ]);
+  ResponseHelper.success(res, orders.map((o) => ({
+    ...o,
+    orderId: String(o.orderId),
+    patient: o.patient && o.patient.id ? { ...o.patient, id: String(o.patient.id) } : null,
+    offer: { ...o.offer, id: String(o.offer.id), nurse: o.offer.nurse && o.offer.nurse.id ? { ...o.offer.nurse, id: String(o.offer.nurse.id) } : null }
+  })), 'Price review queue (masked)');
+});
+
+// POST /api/assistant/offers/:orderId/pass {offerId} — pass price to patient
+const passOffer = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+  const { offerId } = req.body;
+  if (!offerId) throw new ApiError(400, 'offerId is required');
+  const order = await Order.findById(orderId);
+  if (!order) throw new ApiError(404, 'Order not found');
+  if (!['open', 'offers_received'].includes(order.status)) throw new ApiError(400, 'Order is no longer open for pricing');
+  const offer = order.offers.id(offerId);
+  if (!offer) throw new ApiError(404, 'Offer not found');
+  if (offer.status !== 'pending_admin') throw new ApiError(400, 'Offer was already reviewed');
+  offer.status = 'pending_review';
+  offer.reviewedBy = req.user.id;
+  offer.reviewedAt = new Date();
+  if (order.status === 'open') order.status = 'offers_received';
+  order.statusHistory.push({ status: order.status, changedBy: req.user.id, notes: `Price ${offer.price} passed to patient by assistant` });
+  await order.save();
+  const Notification = require('../models/Notification');
+  const nurseUser = await User.findById(offer.nurse).select('fullName');
+  const nurseName = (nurseUser && nurseUser.fullName) || 'ممرض';
+  await Notification.create({ recipient: order.patient, title: 'عرض سعر جديد ✅', message: `${nurseName} اقترح ${offer.price} ج.م لطلبك #${order.orderNumber} (راجعه فريقنا) — افتح صفحة الاختيار وقارن بين الممرضين`, type: 'order', data: { orderId: order._id, price: offer.price, nurseId: offer.nurse } });
+  await Notification.create({ recipient: offer.nurse, title: 'تم تمرير سعرك للمريض', message: `سعرك ${offer.price} ج.م للطلب #${order.orderNumber} أصبح ظاهراً للمريض الآن`, type: 'order', data: { orderId: order._id } });
+  try {
+    const { emitToOrder, emitToUser } = require('../sockets');
+    emitToOrder(String(order._id), 'order_update', { orderId: order._id, status: order.status, newOffer: { price: offer.price, nurseId: offer.nurse } });
+    emitToUser(String(order.patient), 'notification', { title: 'عرض سعر جديد ✅', orderId: order._id, price: offer.price });
+  } catch (_) { /* sockets optional */ }
+  ResponseHelper.success(res, { orderId: order._id, offerId, status: offer.status }, 'تم تمرير السعر للمريض');
+});
+
+// POST /api/assistant/offers/:orderId/reject {offerId, notes?}
+const rejectOffer = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+  const { offerId, notes } = req.body;
+  if (!offerId) throw new ApiError(400, 'offerId is required');
+  const order = await Order.findById(orderId);
+  if (!order) throw new ApiError(404, 'Order not found');
+  const offer = order.offers.id(offerId);
+  if (!offer) throw new ApiError(404, 'Offer not found');
+  if (!['pending_admin', 'pending_review'].includes(offer.status)) throw new ApiError(400, 'Offer is not available');
+  offer.status = 'rejected';
+  offer.reviewedBy = req.user.id;
+  offer.reviewedAt = new Date();
+  offer.adminNotes = notes ? String(notes).slice(0, 500) : null;
+  order.statusHistory.push({ status: order.status, changedBy: req.user.id, notes: `Assistant rejected price ${offer.price}` });
+  await order.save();
+  const Notification = require('../models/Notification');
+  await Notification.create({ recipient: offer.nurse, title: 'تم رفض سعرك', message: `رفض فريق المراجعة سعرك ${offer.price} ج.م للطلب #${order.orderNumber}${notes ? ' — ' + notes : ''}`, type: 'order', data: { orderId: order._id } });
+  ResponseHelper.success(res, { orderId, offerId, status: offer.status }, 'تم رفض العرض وإشعار الممرض');
+});
+
+// GET /api/assistant/order-payments — MASKED manual-transfer queue.
+// Lets helpers approve upfront InstaPay/Vodafone Cash transfers when no
+// admin is around (phones never included).
+const listOrderPayments = asyncHandler(async (req, res) => {
+  const wallets = await require('../models/Wallet').find({ type: 'payment', status: 'pending' })
+    .populate('user', 'fullName')
+    .populate('order', 'orderNumber finalPrice patientOfferedPrice amountHeld status')
+    .sort({ createdAt: -1 })
+    .limit(50)
+    .lean();
+  ResponseHelper.success(res, wallets.map((t) => ({
+    id: String(t._id),
+    amount: t.amount,
+    paymentMethod: t.paymentMethod,
+    reference: t.reference,
+    description: t.description,
+    createdAt: t.createdAt,
+    order: t.order ? {
+      id: String(t.order._id), orderNumber: t.order.orderNumber, finalPrice: t.order.finalPrice,
+      patientBid: t.order.patientOfferedPrice, amountHeld: t.order.amountHeld, status: t.order.status
+    } : null,
+    // MASKED: name only, no phone/email.
+    user: t.user ? { id: String(t.user._id), name: t.user.fullName } : null
+  })), 'Transfer queue (masked)');
+});
+
+// POST /api/assistant/order-payments/:paymentId {action: approve|reject}
+const reviewOrderPayment = asyncHandler(async (req, res) => {
+  const { paymentId } = req.params;
+  const raw = req.body.action || req.body.status;
+  const approve = (raw === 'approve' || raw === 'approved');
+  const Wallet = require('../models/Wallet');
+  const Notification = require('../models/Notification');
+  const tx = await Wallet.findOne({ _id: paymentId, type: 'payment', status: 'pending' });
+  if (!tx) throw new ApiError(404, 'Order payment not found');
+  const order = await Order.findById(tx.order);
+  if (!order) throw new ApiError(404, 'Order not found');
+
+  if (approve) {
+    tx.status = 'completed';
+    await tx.save();
+    order.paymentStatus = 'paid';
+    order.paymentMethod = tx.paymentMethod;
+    order.escrowStatus = 'held';
+    order.amountHeld = (Number(order.amountHeld) || 0) + Number(tx.amount);
+    order.statusHistory.push({ status: order.status, changedBy: req.user.id, notes: `Assistant accepted manual transfer (${tx.paymentMethod}) — escrow held` });
+    await order.save();
+
+    if (order.status === 'under_review') {
+      try {
+        const Service = require('../models/Service');
+        const serviceDoc = await Service.findById(order.service);
+        const { openAndShortlist } = require('../utils/shortlist');
+        const gov = (order.location && order.location.governorate) || 'Cairo';
+        const base = serviceDoc && serviceDoc.basePrice != null ? Number(serviceDoc.basePrice) : Number(tx.amount);
+        await openAndShortlist({ order, serviceDoc, gov, amount: base, actorId: req.user.id, actorNote: 'Assistant approved transfer — request opened' });
+      } catch (_) { /* open is best-effort */ }
+    }
+    try {
+      const { releaseEscrowToNurse } = require('../utils/releaseEscrow');
+      await releaseEscrowToNurse(order);
+    } catch (_) { /* best-effort */ }
+    await Notification.create({ recipient: order.patient, title: 'فريقنا قبل تحويلك ✅', message: `قبل فريق المراجعة تحويلك ${tx.amount} ج.م للطلب #${order.orderNumber} — تم تفعيل الطلب`, type: 'order', data: { orderId: order._id } });
+    try {
+      const { emitToOrder, emitToUser } = require('../sockets');
+      emitToOrder(String(order._id), 'order_update', { orderId: order._id, status: order.status, paymentStatus: 'paid' });
+      emitToUser(String(order.patient), 'notification', { title: 'فريقنا قبل تحويلك ✅', orderId: order._id });
+    } catch (_) {}
+    return ResponseHelper.success(res, { paymentId, status: tx.status }, 'تم القبول وتفعيل الطلب');
+  }
+
+  tx.status = 'failed';
+  await tx.save();
+  await Notification.create({ recipient: order.patient, title: 'تم رفض التحويل ❌', message: `رفض فريق المراجعة تحويلك ${tx.amount} ج.م للطلب #${order.orderNumber} — تحقق من المرجع وحاول مجدداً`, type: 'order', data: { orderId: order._id } });
+  ResponseHelper.success(res, { paymentId, status: tx.status }, 'تم رفض التحويل وإشعار المريض');
+});
+
 module.exports = {
   getMe, listUsers, listOrders, toggleStatus, chatContacts, getMessages, sendMessage,
+  listOffers, passOffer, rejectOffer,
+  listOrderPayments, reviewOrderPayment,
 };
