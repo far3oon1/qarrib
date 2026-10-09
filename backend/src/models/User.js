@@ -167,7 +167,7 @@ const userSchema = new mongoose.Schema({
     gallery: { granted: { type: Boolean, default: false }, updatedAt: { type: Date, default: null } },
     calling: { granted: { type: Boolean, default: false }, updatedAt: { type: Date, default: null } },
     notifications: { granted: { type: Boolean, default: false }, updatedAt: { type: Date, default: null } },
-    terms: { granted: { type: Boolean, default: false }, updatedAt: { type: Date, default: null } }
+    terms: { granted: { type: Boolean, default: false }, updatedAt: { type: Date, default: null }, version: { type: String, default: null } }
   },
 
   // --- Live location sharing control (online permission, per-user) ---

@@ -105,6 +105,14 @@ const getRequests = asyncHandler(async (req, res) => {
       const myOffer = (x.order.offers || []).find((o) => String(o.nurse) === String(req.user.id));
       s.hasMyOffer = !!myOffer;
       s.myOfferPrice = myOffer ? myOffer.price : null;
+      // Admin-first: pending_admin = waiting review, pending_review = with patient
+      s.myOfferStatus = myOffer ? myOffer.status : null;
+      // Uber shortlist: was this nurse picked among the 3-4 candidates?
+      const match = (x.order.matchedNurses || []).find((m) => String(m.nurse) === String(req.user.id));
+      s.isShortlisted = !!match && ['pending', 'offered'].includes(match.status);
+      s.matchDistanceKm = match && match.distanceKm != null ? match.distanceKm : s.distanceKm;
+      // Don't leak the other shortlisted nurses to this nurse
+      delete s.matchedNurses;
       return s;
     });
   ResponseHelper.success(res, sorted, 'Available requests');

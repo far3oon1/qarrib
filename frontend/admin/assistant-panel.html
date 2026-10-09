@@ -60,8 +60,24 @@
         <div id="ordersList"><div class="q-muted">…</div></div>
     </div>
 
-    <div class="card" id="panel-chat" style="display:none;">
-        <h3 style="margin:0 0 10px;">دعم المحادثات</h3>
+    <div class="card" id="panel-offers" style="display:none;">
+        <h3 style="margin:0 0 6px;">💰 أسعار الممرضين (مراجعة مخفية)</h3>
+        <div style="font-size:12px;color:#4A605E;margin-bottom:10px;">عند غياب الأدمن: مرّر السعر المناسب للمريض ➡️ أو ارفضه ❌ — المريض لا يرى أي سعر قبل تمريره.</div>
+        <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
+            <button class="q-btn q-btn-sm" onclick="loadOffers('')">بانتظار المراجعة</button>
+            <button class="q-btn q-btn-sm" onclick="loadOffers('?status=pending_review')">عند المريض</button>
+            <button class="q-btn q-btn-sm" onclick="loadOffers('?status=all')">الكل</button>
+        </div>
+        <div id="offersList"><div class="q-muted">…</div></div>
+    </div>
+
+    <div class="card" id="panel-transfers" style="display:none;">
+        <h3 style="margin:0 0 6px;">💳 تحويلات الطلبات (مراجعة مخفية)</h3>
+        <div style="font-size:12px;color:#4A605E;margin-bottom:10px;">تحويلات انستا باي / فودافون كاش المدفوعة مقدماً — القبول يفعّل الطلب ويفتحه للممرضين 🟢</div>
+        <div id="transfersList"><div class="q-muted">…</div></div>
+    </div>
+
+    <div class="card" id="panel-chat" style="display:none;">        <h3 style="margin:0 0 10px;">دعم المحادثات</h3>
         <div class="chat-box">
             <div class="contacts" id="contacts"><div class="q-muted">…</div></div>
             <div class="thread">
@@ -103,6 +119,8 @@ function buildTabs() {
     const tabs = [];
     if (hasScope('manage_users_basic')) tabs.push(['users', '👥 الحسابات']);
     if (hasScope('manage_orders')) tabs.push(['orders', '📋 الطلبات']);
+    if (hasScope('manage_orders')) tabs.push(['offers', '💰 الأسعار']);
+    if (hasScope('manage_payments_help')) tabs.push(['transfers', '💳 التحويلات']);
     if (hasScope('support_chat')) tabs.push(['chat', '💬 الدعم']);
     const box = document.getElementById('tabs');
     if (!tabs.length) { box.innerHTML = '<div class="q-muted">لا توجد صلاحيات مفعّلة لحسابك بعد.</div>'; return; }
@@ -112,9 +130,11 @@ function buildTabs() {
 
 function showTab(name) {
     document.querySelectorAll('#tabs button').forEach(function(b){ b.classList.toggle('active', b.dataset.tab === name); });
-    ['users','orders','chat'].forEach(function(p){ document.getElementById('panel-' + p).style.display = (p === name) ? 'block' : 'none'; });
+    ['users','orders','offers','transfers','chat'].forEach(function(p){ document.getElementById('panel-' + p).style.display = (p === name) ? 'block' : 'none'; });
     if (name === 'users') loadUsers();
     if (name === 'orders') loadOrders();
+    if (name === 'offers') loadOffers('');
+    if (name === 'transfers') loadTransfers();
     if (name === 'chat') loadContacts();
 }
 
@@ -149,8 +169,62 @@ async function loadOrders() {
     } catch (e) { document.getElementById('ordersList').innerHTML = '<div class="q-muted">' + esc(e.message || 'Failed') + '</div>'; }
 }
 
-async function loadContacts() {
+async function loadOffers(q) {
+    q = q || '';
     try {
+        const r = await api.getAssistantOffers(q);
+        const list = r.data || [];
+        document.getElementById('offersList').innerHTML = list.length ? list.map(function(x){
+            var o = x.offer;
+            var pending = o.status === 'pending_admin';
+            return '<div class="row-item"><strong>طلب #' + esc(x.orderNumber) + '</strong> — ' + esc(x.service || '') +
+            ' — <strong style="color:#0B5F5A;">' + o.price + ' ج.م</strong>' +
+            '<div>الممرض: ' + esc(o.nurse ? o.nurse.name : '') + ' ⭐ ' + ((o.nurse && o.nurse.rating != null) ? o.nurse.rating : 'جديد') + ' · ' + esc((o.nurse && o.nurse.specialization) || '') + '</div>' +
+            '<div style="color:#64748b;">المريض: ' + esc(x.patient ? x.patient.name : '') + ' · حالة الطلب: ' + esc(x.status) + '</div>' +
+            (o.notes ? '<div>ملاحظة: ' + esc(o.notes) + '</div>' : '') +
+            (pending ? '<div style="display:flex;gap:8px;margin-top:8px;">' +
+                '<button class="q-btn q-btn-sm" style="flex:1;" onclick="passOffer(\'' + x.orderId + '\',\'' + o.id + '\')">تمرير للمريض ➡️</button>' +
+                '<button class="q-btn q-btn-sm" style="flex:1;" onclick="rejectOffer(\'' + x.orderId + '\',\'' + o.id + '\')">رفض ❌</button></div>'
+                : '<div style="font-size:12px;color:#4A605E;margin-top:4px;">الحالة: ' + esc(o.status) + '</div>') + '</div>';
+        }).join('') : '<div class="q-muted">لا توجد أسعار</div>';
+    } catch (e) { document.getElementById('offersList').innerHTML = '<div class="q-muted">' + esc(e.message || 'Failed') + '</div>'; }
+}
+
+async function passOffer(orderId, offerId) {
+    if (!confirm('تمرير هذا السعر للمريض؟')) return;
+    try { await api.assistantPassOffer(orderId, offerId); loadOffers(''); }
+    catch (e) { alert(e.message || 'Failed'); }
+}
+
+async function rejectOffer(orderId, offerId) {
+    var notes = prompt('سبب الرفض (اختياري):', '');
+    if (notes === null) return;
+    try { await api.assistantRejectOffer(orderId, offerId, notes); loadOffers(''); }
+    catch (e) { alert(e.message || 'Failed'); }
+}
+
+async function loadTransfers() {
+    try {
+        const r = await api.getAssistantOrderPayments();
+        const list = r.data || [];
+        document.getElementById('transfersList').innerHTML = list.length ? list.map(function(t){
+            return '<div class="row-item"><strong>' + esc(t.user ? t.user.name : '') + '</strong> — ' + t.amount + ' ج.م عبر ' + (t.paymentMethod === 'vodafone_cash' ? '📱 فودافون كاش' : '💳 InstaPay') +
+            '<div style="color:#64748b;">طلب #' + esc(t.order ? t.order.orderNumber : '—') + ' | مرجع: ' + esc(t.reference || '—') + ' | عرض المريض: ' + (t.order && t.order.patientBid != null ? t.order.patientBid + ' ج.م' : '—') + ' | حالة الطلب: ' + esc(t.order ? t.order.status : '—') + '</div>' +
+            '<div style="display:flex;gap:8px;margin-top:8px;">' +
+                '<button class="q-btn q-btn-sm" style="flex:1;" onclick="reviewTransfer(\'' + t.id + '\',\'approve\')">✅ قبول وتفعيل</button>' +
+                '<button class="q-btn q-btn-sm" style="flex:1;" onclick="reviewTransfer(\'' + t.id + '\',\'reject\')">❌ رفض</button></div></div>';
+        }).join('') : '<div class="q-muted">لا توجد تحويلات معلقة</div>';
+    } catch (e) { document.getElementById('transfersList').innerHTML = '<div class="q-muted">' + esc(e.message || 'Failed') + '</div>'; }
+}
+
+async function reviewTransfer(id, action) {
+    if (action === 'approve' && !confirm('قبول هذا التحويل وتفعيل الطلب؟')) return;
+    if (action === 'reject' && !confirm('رفض هذا التحويل؟')) return;
+    try { await api.reviewAssistantOrderPayment(id, action); loadTransfers(); }
+    catch (e) { alert(e.message || 'Failed'); }
+}
+
+async function loadContacts() {    try {
         const r = await api.getAssistantContacts();
         const list = r.data || [];
         document.getElementById('contacts').innerHTML = list.length ? list.map(function(c){

@@ -17,7 +17,12 @@ const generateToken = (id, role) => {
 const registerPatient = asyncHandler(async (req, res) => {
   const meta = getDeviceMeta(req);
   await assertDeviceAllowed(meta);
-  const { fullName, email, phone, password, nationalId, governorate, city, address, gender } = req.body;
+  const { fullName, email, phone, password, nationalId, governorate, city, address, gender, acceptTerms } = req.body;
+
+  // Liability waiver is mandatory: the app is a helper only.
+  if (acceptTerms !== true && acceptTerms !== 'true') {
+    throw new ApiError(400, 'يجب الموافقة على شروط الاستخدام وإخلاء المسؤولية أولاً / You must accept the Terms & liability waiver first');
+  }
 
   const existingUser = await User.findOne({
     $or: [{ email }, { phone }, { nationalId }]
@@ -50,6 +55,7 @@ const registerPatient = asyncHandler(async (req, res) => {
     idCardImage: idCardData,
     location: { governorate, city, address }
   });
+  try { require('../utils/terms').grantTerms(patient); await patient.save(); } catch (_) { /* waiver best-effort */ }
 
   const token = generateToken(patient._id, patient.role);
 
@@ -74,8 +80,13 @@ const registerNurse = asyncHandler(async (req, res) => {
   const {
     fullName, email, phone, password, nationalId,
     specialization, yearsOfExperience, bio,
-    governorate, city, address, gender
+    governorate, city, address, gender, acceptTerms
   } = req.body;
+
+  // Liability waiver is mandatory: the app is a helper only.
+  if (acceptTerms !== true && acceptTerms !== 'true') {
+    throw new ApiError(400, 'يجب الموافقة على شروط الاستخدام وإخلاء المسؤولية أولاً / You must accept the Terms & liability waiver first');
+  }
 
   const existingUser = await User.findOne({
     $or: [{ email }, { phone }, { nationalId }]
@@ -131,6 +142,7 @@ const registerNurse = asyncHandler(async (req, res) => {
     bio: bio || null,
     location: { governorate, city, address }
   });
+  try { require('../utils/terms').grantTerms(nurse); await nurse.save(); } catch (_) { /* waiver best-effort */ }
 
   const token = generateToken(nurse._id, nurse.role);
 
@@ -194,6 +206,14 @@ const login = asyncHandler(async (req, res) => {
 
   const token = generateToken(user._id, user.role);
 
+  // Liability waiver: patients/nurses registered before the waiver (or after
+  // a terms update) must accept it on sign-in before using the app.
+  let needsTermsAcceptance = false;
+  try {
+    const { termsAccepted, TERMS_VERSION } = require('../utils/terms');
+    if (['patient', 'nurse'].includes(user.role) && !termsAccepted(user)) needsTermsAcceptance = true;
+  } catch (_) {}
+
   ResponseHelper.success(res, {
     user: {
       id: user._id,
@@ -203,13 +223,14 @@ const login = asyncHandler(async (req, res) => {
       role: user.role,
       status: user.status,
       gender: user.gender,
+      needsTermsAcceptance,
       ...(user.role === 'assistant' ? {
         assistantLabel: user.assistantLabel || null,
         assistantScopes: Array.isArray(user.assistantScopes) ? user.assistantScopes : [],
       } : {}),
     },
     token
-  }, 'تم تسجيل الدخول بنجاح');
+  }, needsTermsAcceptance ? 'يرجى الموافقة على شروط الاستخدام أولاً / Please accept the Terms first' : 'تم تسجيل الدخول بنجاح');
 });
 
 const loginWithPhone = asyncHandler(async (req, res) => {
@@ -245,6 +266,12 @@ const loginWithPhone = asyncHandler(async (req, res) => {
 
   const token = generateToken(user._id, user.role);
 
+  let needsTermsAcceptancePhone = false;
+  try {
+    const { termsAccepted } = require('../utils/terms');
+    if (['patient', 'nurse'].includes(user.role) && !termsAccepted(user)) needsTermsAcceptancePhone = true;
+  } catch (_) {}
+
   ResponseHelper.success(res, {
     user: {
       id: user._id,
@@ -254,13 +281,14 @@ const loginWithPhone = asyncHandler(async (req, res) => {
       role: user.role,
       status: user.status,
       gender: user.gender,
+      needsTermsAcceptance: needsTermsAcceptancePhone,
       ...(user.role === 'assistant' ? {
         assistantLabel: user.assistantLabel || null,
         assistantScopes: Array.isArray(user.assistantScopes) ? user.assistantScopes : [],
       } : {}),
     },
     token
-  }, 'تم تسجيل الدخول بنجاح');
+  }, needsTermsAcceptancePhone ? 'يرجى الموافقة على شروط الاستخدام أولاً / Please accept the Terms first' : 'تم تسجيل الدخول بنجاح');
 });
 
   const getMe = asyncHandler(async (req, res) => {
@@ -278,6 +306,25 @@ const loginWithPhone = asyncHandler(async (req, res) => {
 
 const logout = asyncHandler(async (req, res) => {
   ResponseHelper.success(res, { ok: true }, 'تم تسجيل الخروج بنجاح');
+});
+
+// GET /api/auth/terms — public bilingual liability waiver (helper-only app)
+const getTerms = asyncHandler(async (req, res) => {
+  const { TERMS_VERSION, TERMS_AR, TERMS_EN } = require('../utils/terms');
+  ResponseHelper.success(res, { version: TERMS_VERSION, ar: TERMS_AR, en: TERMS_EN }, 'Terms of use');
+});
+
+// POST /api/auth/accept-terms {accept: true} — signed-in user accepts waiver
+const acceptTerms = asyncHandler(async (req, res) => {
+  if (req.body.accept !== true && req.body.accept !== 'true') {
+    throw new ApiError(400, 'يجب الموافقة على الشروط أولاً / You must accept the terms first');
+  }
+  const user = await User.findById(req.user.id);
+  if (!user) throw new ApiError(404, 'User not found');
+  const { grantTerms, TERMS_VERSION } = require('../utils/terms');
+  grantTerms(user);
+  await user.save();
+  ResponseHelper.success(res, { accepted: true, version: TERMS_VERSION }, 'تم قبول الشروط بنجاح / Terms accepted');
 });
 
 const getAdminContact = asyncHandler(async (req, res) => {
@@ -521,6 +568,8 @@ module.exports = {
   getMe,
   getAdminContact,
   updateProfile,
+  getTerms,
+  acceptTerms,
   adminLogin,
   adminRegister,
   adminResetPassword,

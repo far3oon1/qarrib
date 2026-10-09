@@ -25,6 +25,8 @@ router.post('/register/patient', handleUploadSingle(), normalizeRegister, valida
 router.post('/register/nurse', handleUploadMultiple(), normalizeRegister, validate(registerNurse), authController.registerNurse);
 router.post('/login', validate(login), authController.login);
 router.post('/login/phone', validate(loginPhone), authController.loginWithPhone);
+router.get('/terms', authController.getTerms);
+router.post('/accept-terms', protect, authController.acceptTerms);
 router.post('/logout', protect, authController.logout);
 // Dedicated helper sign-in (accounts created by admin on the Helpers page)
 router.post('/assistant/login', validate(assistantLogin), authController.assistantLogin);

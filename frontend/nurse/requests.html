@@ -134,18 +134,29 @@
                 const container = document.getElementById('requestsList');
 
                 if (result.success && result.data.length > 0) {
-                    container.innerHTML = result.data.map(req => `
-                        <div class="request-card">
-                            <div class="request-service">${req.serviceType}</div>
-                            <div class="request-amount">${req.amount ? req.amount + ' ج.م' : 'السعر لم يحدده الأدمن بعد'}</div>
-                            <div class="request-detail">📍 ${req.address}${req.distanceKm != null ? ' — 📏 ' + req.distanceKm + ' كم' : ''}</div>
-                            <div class="request-detail">📝 ${req.description || 'لا يوجد وصف'}</div>
-                            <div class="request-detail">⏰ ${formatDate(req.createdAt)}</div>
-                            <div class="request-actions">
-                                <button class="btn btn-primary" onclick="acceptRequest('${req.id}')">قبول الطلب</button>
-                            </div>
-                        </div>
-                    `).join('');
+                    container.innerHTML = result.data.map(function(req) {
+                        var base = (req.basePrice != null) ? req.basePrice : (req.service && req.service.basePrice);
+                        var short = req.isShortlisted ? '<div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:8px 10px;font-size:13px;font-weight:700;color:#92400e;margin-bottom:10px;">⭐ تم ترشيحك لهذا الطلب! أرسل سعرك بسرعة قبل الآخرين (يُراجع من الإدارة أولاً)</div>' : '';
+                        var myOffer = req.hasMyOffer ? '<div style="font-size:13px;margin-bottom:8px;color:' + (req.myOfferStatus === 'pending_review' ? '#1d4ed8' : (req.myOfferStatus === 'approved' ? '#059669' : '#b45309')) + ';">سعرك: <b>' + req.myOfferPrice + ' ج.م</b> — ' + (req.myOfferStatus === 'pending_review' ? '👀 ظاهر للمريض' : (req.myOfferStatus === 'approved' ? '✅ مقبول' : '🔍 قيد مراجعة الإدارة')) + '</div>' : '';
+                        var priceBox = '<div style="font-size:12px;color:#64748b;">سعرك يساوي الثابت أو يزيد عنه (أقل سعر مقبول: ' + (base != null ? base + ' ج.م' : '—') + ')</div>' +
+                            '<div style="display:flex;gap:8px;margin-top:6px;">' +
+                            '<input type="number" min="' + (base != null ? base : 1) + '" placeholder="سعرك بالجنيه" id="price-' + req.id + '" value="' + (req.myOfferPrice || '') + '" style="flex:1;border:2px solid #e2e8f0;border-radius:10px;padding:10px;font-size:14px;">' +
+                            '<button class="btn btn-secondary" style="flex:1;" onclick="submitPrice(\'' + req.id + '\',' + (base != null ? base : 'null') + ')">إرسال السعر 💰</button>' +
+                        '</div>';
+                        return '<div class="request-card"' + (req.isShortlisted ? ' style="border:2px solid #f59e0b;"' : '') + '>' +
+                            short +
+                            '<div class="request-service">' + req.serviceType + '</div>' +
+                            '<div class="request-amount">💰 المريض عارض: ' + (req.patientOfferedPrice != null ? req.patientOfferedPrice + ' ج.م' : (req.amount ? req.amount + ' ج.م' : '—')) + '</div>' +
+                            '<div style="font-size:13px;color:#64748b;margin-bottom:12px;">السعر الثابت للخدمة: ' + (base != null ? base + ' ج.م' : 'يُحدد من الإدارة') + '</div>' +
+                            '<div class="request-detail">📍 ' + req.address + (req.distanceKm != null ? ' — 📏 ' + req.distanceKm + ' كم' : '') + '</div>' +
+                            '<div class="request-detail">📝 ' + (req.description || 'لا يوجد وصف') + '</div>' +
+                            '<div class="request-detail">⏰ ' + formatDate(req.createdAt) + '</div>' +
+                            myOffer + priceBox +
+                            '<div class="request-actions">' +
+                                '<button class="btn btn-primary" onclick="acceptRequest(\'' + req.id + '\')">قبول الطلب بالسعر الأساسي</button>' +
+                            '</div>' +
+                        '</div>';
+                    }).join('');
                 } else {
                     container.innerHTML = `
                         <div class="empty-state">
@@ -157,6 +168,19 @@
                 }
             } catch (error) {
                 showAlert('فشل تحميل الطلبات', 'error');
+            }
+        }
+
+        async function submitPrice(orderId, base) {
+            var inp = document.getElementById('price-' + orderId);
+            var price = inp ? Number(inp.value) : NaN;
+            if (!price || price <= 0) { showAlert('أدخل سعراً صحيحاً أولاً', 'error'); return; }
+            if (base != null && price < base) { showAlert('سعرك أقل من السعر الثابت (' + base + ' ج.م) — يجب أن يساويه أو يزيد عنه', 'error'); return; }
+            try {
+                var r = await api.submitOffer(orderId, price, '');
+                if (r.success) { showAlert('تم إرسال سعرك للإدارة — سيظهر للمريض بعد مراجعته'); loadRequests(); }
+            } catch (error) {
+                showAlert(error.message || 'فشل إرسال السعر', 'error');
             }
         }
 

@@ -131,6 +131,15 @@
                         <label class="form-label">كلمة المرور</label>
                         <input type="password" class="form-input" id="password" placeholder="••••••••" required minlength="6">
                     </div>
+                    <!-- الخطوة الأولى: الموافقة على الشروط وإخلاء المسؤولية قبل أي شيء (عربي/English) -->
+                    <div class="form-group" style="background:#fefce8;border:1px solid #fde68a;border-radius:12px;padding:12px;">
+                        <label class="form-label">📜 <span>شروط الاستخدام وإخلاء المسؤولية الكامل / Full Terms & Waiver — اقرأ أولاً</span></label>
+                        <div id="termsBox" style="max-height:150px;overflow-y:auto;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:10px;font-size:12px;line-height:1.9;white-space:pre-wrap;">جاري تحميل الشروط...</div>
+                        <label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px;font-size:13px;font-weight:700;cursor:pointer;">
+                            <input type="checkbox" id="acceptTermsBox" style="width:20px;height:20px;margin-top:2px;">
+                            <span>أوافق على الشروط — التطبيق وسيلة مساعدة فقط، ويخلي مسؤوليته تماماً عن أي شيء وعن أي مساءلة قانونية، والطوارئ للمستشفى المختص / I accept — helper tool only, full waiver of everything and of any legal accountability, emergencies go to hospital</span>
+                        </label>
+                    </div>
                     <button type="button" class="btn btn-primary" onclick="nextStep()">التالي</button>
                 </div>
 
@@ -238,6 +247,12 @@
         }
 
         function nextStep() {
+            // البوابة الأولى: لا يتقدم خطوة دون الموافقة على إخلاء المسؤولية
+            if (currentStep === 1 && !document.getElementById('acceptTermsBox').checked) {
+                showAlert(L('اقرأ الشروط ووافق عليها أولاً — الموافقة شرط للتسجيل كمريض أو ممرض', 'Read and accept the Terms first — acceptance is required to register as patient or nurse'), 'error');
+                try { window.scrollTo(0, document.body.scrollHeight); } catch (e) {}
+                return;
+            }
             if (currentStep < totalSteps) {
                 currentStep++;
                 updateSteps();
@@ -308,6 +323,14 @@
 
             // بنبني FormData عشان نرفع ملفات + بيانات مع بعض
             const formData = new FormData();
+            // Liability waiver is mandatory (helper-only app)
+            if (!document.getElementById('acceptTermsBox').checked) {
+                showAlert(L('يجب الموافقة على شروط الاستخدام وإخلاء المسؤولية أولاً', 'You must accept the Terms & liability waiver first'), 'error');
+                btn.disabled = false;
+                btn.textContent = L('إنشاء الحساب', 'Create account');
+                return;
+            }
+            formData.append('acceptTerms', 'true');
             const fullName = document.getElementById('name').value.trim();
             formData.append('fullName', fullName);
             formData.append('name', fullName);
@@ -429,6 +452,25 @@
                 btn.textContent = L('إنشاء الحساب', 'Create account');
             }
         });
+
+        // Liability waiver text (server version first, static fallback)
+        (function loadTerms(){
+            var box = document.getElementById('termsBox');
+            var fallback = 'تطبيق قرّب وسيلة مساعدة فقط وليس مستشفى أو جهة طبية. يخلي التطبيق مسؤوليته تماماً عن أي شيء يحدث قبل الخدمة أو أثناءها أو بعدها، وعن أي مساءلة قانونية من أي نوع — الاستخدام على مسؤوليتك الخاصة. الخدمة للحالات البسيطة فقط — وعند أي طوارئ توجه فوراً للطوارئ أو المستشفى المختص.\n\nQarrib is a helper tool only — not a hospital. The app fully disclaims everything and any legal accountability of any kind — use at your own risk. Simple cases only — in any emergency go to the ER/hospital immediately.';
+            function render(ar, en) {
+                try {
+                    var lang = (typeof currentLang === 'function') ? currentLang() : 'ar';
+                    box.textContent = (lang === 'en' ? (en || ar) : (ar || en)) || fallback;
+                } catch (e) { box.textContent = ar || en || fallback; }
+            }
+            try {
+                var base = (typeof API_BASE_URL !== 'undefined') ? API_BASE_URL : '';
+                fetch(base + '/auth/terms').then(function(r){ return r.json(); }).then(function(j){
+                    if (j && j.success && j.data) render(j.data.ar, j.data.en);
+                    else render(null, null);
+                }).catch(function(){ render(null, null); });
+            } catch (e) { render(null, null); }
+        })();
     </script>
 </body>
 </html>

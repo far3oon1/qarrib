@@ -188,6 +188,7 @@
                         <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 16px; margin-bottom: 8px;">
                             <div style="font-weight: 700;">${t.user ? t.user.name : ''} — ${t.amount} ج.م عبر ${t.paymentMethod === 'vodafone_cash' ? '📱 فودافون كاش' : '💳 InstaPay'}</div>
                             <div style="font-size: 13px; color: #64748b;">طلب #${t.order ? t.order.orderNumber : '—'} | ${t.user ? t.user.phone : ''} | مرجع: ${t.reference || '—'} | ${formatDate(t.createdAt)}</div>
+                            <div style="font-size: 13px; color: #0B4A46;">💰 عرض المريض: <b>${t.order && t.order.patientBid != null ? t.order.patientBid + ' ج.م' : '—'}</b> | حالة الطلب: ${t.order ? t.order.status : '—'}${t.order && t.order.status === 'under_review' ? ' — القبول يفتح الطلب للممرضين 🟢' : ''}</div>
                             <div style="display: flex; gap: 8px; margin-top: 10px;">
                                 <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="reviewOrderPayment('${t.id}', 'approved')">✅ قبول (تفعيل الخدمة)</button>
                                 <button class="btn btn-danger btn-sm" style="flex:1;" onclick="reviewOrderPayment('${t.id}', 'rejected')">❌ رفض</button>

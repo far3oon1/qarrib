@@ -9,6 +9,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const { shapeOrder } = require('../utils/orderShape');
 const { assertAdminPriced } = require('../utils/adminPricing');
 const { findNearestNurses } = require('../utils/nearestNurses');
+const { pickMatchNurses, MATCH_LIMIT_DEFAULT } = require('../utils/matchNurses');
 const { getAdminIds } = require('../utils/adminIds');
 
 const COMMISSION_RATE = 10;
@@ -22,14 +23,17 @@ const emitOrder = (orderId, event, data) => {
 };
 
 // POST /api/orders/create  (frontend + voice-note simple flow)
-// Money is HELD at creation (wallet) or after Paymob webhook (card).
+// inDrive-style: patient suggests their own price (never below the admin
+// fixed service price) and pays it UPFRONT — wallet is held instantly,
+// InstaPay/Vodafone Cash creates a pending transfer the admin/assistant
+// must approve before the request opens to nurses.
 const createSimple = asyncHandler(async (req, res) => {
   // Accept both shapes: new {governorate, city, lat, lng, amount}
   // and legacy request-service.html {serviceType, location:{lat,lng}, amount|requestedPrice|nursePrice}
   const {
     service, serviceType, description,
     governorate, city, address, lat, lng, location,
-    preferredDate, preferredTime, paymentMethod
+    preferredDate, preferredTime, paymentMethod, suggestedPrice, reference
   } = req.body;
 
   const gov = governorate || 'Cairo';
@@ -65,18 +69,38 @@ const createSimple = asyncHandler(async (req, res) => {
   // explicitly marked as not requiring approval.
   const priced = Number.isFinite(finalAmount) && finalAmount > 0;
   const needsApproval = !priced || serviceDoc.requireApproval !== false;
-  const openNow = priced && !needsApproval;
 
-  const method = paymentMethod || 'wallet';
-  const patient = await User.findById(req.user.id);
-  if (method === 'wallet' && openNow && (patient.walletBalance || 0) < finalAmount) {
-    throw new ApiError(400, 'Insufficient wallet balance', [
-      { required: finalAmount, available: patient.walletBalance || 0 }
+  // Patient's own bid: starts from the fixed price, may raise it to get
+  // accepted faster — NEVER below the admin fixed price.
+  let patientBid = Number(suggestedPrice);
+  if (!Number.isFinite(patientBid) || patientBid <= 0) patientBid = priced ? finalAmount : null;
+  if (priced && patientBid != null && patientBid < finalAmount) {
+    throw new ApiError(400, `عرضك (${patientBid} ج.م) أقل من السعر الثابت للخدمة (${finalAmount} ج.م) — يمكنك تثبيته أو زيادته فقط`, [
+      { basePrice: finalAmount, suggested: patientBid }
     ]);
   }
 
-  const commission = priced ? Math.round(finalAmount * (COMMISSION_RATE / 100) * 100) / 100 : 0;
-  const nurseEarnings = priced ? Math.round((finalAmount - commission) * 100) / 100 : 0;
+  const method = paymentMethod || 'wallet';
+  const isManual = method === 'instapay' || method === 'vodafone_cash';
+  if (!['wallet', 'instapay', 'vodafone_cash'].includes(method)) {
+    throw new ApiError(400, 'paymentMethod must be wallet, instapay or vodafone_cash');
+  }
+  const patient = await User.findById(req.user.id);
+  // Wallet pays instantly (request opens at once); manual transfers wait for
+  // admin/assistant approval on the Payments page before opening.
+  const openNow = priced && !needsApproval && method === 'wallet';
+  if (method === 'wallet' && priced && (patient.walletBalance || 0) < patientBid) {
+    throw new ApiError(400, 'رصيد محفظتك لا يكفي عرضك — اشحنها أو ادفع عبر انستا باي / فودافون كاش', [
+      { required: patientBid, available: patient.walletBalance || 0 }
+    ]);
+  }
+  if (isManual && priced && !(reference || '').trim()) {
+    throw new ApiError(400, 'اكتب مرجع التحويل (رقم العملية) ليتمكن فريقنا من مراجعته واعتماده');
+  }
+
+  const holdAmount = priced ? patientBid : null;
+  const commission = priced ? Math.round(holdAmount * (COMMISSION_RATE / 100) * 100) / 100 : 0;
+  const nurseEarnings = priced ? Math.round((holdAmount - commission) * 100) / 100 : 0;
 
   const order = await Order.create({
     patient: req.user.id,
@@ -89,7 +113,9 @@ const createSimple = asyncHandler(async (req, res) => {
     preferredDate: preferredDate ? new Date(preferredDate) : new Date(),
     preferredTime: preferredTime || 'anytime',
     status: openNow ? 'open' : 'under_review',
-    finalPrice: priced ? finalAmount : null,
+    finalPrice: holdAmount,
+    patientOfferedPrice: holdAmount,
+    amountHeld: 0,
     commission,
     commissionRate: COMMISSION_RATE,
     nurseEarnings,
@@ -97,53 +123,99 @@ const createSimple = asyncHandler(async (req, res) => {
     paymentMethod: priced ? method : null,
     paymentStatus: 'pending',
     escrowStatus: 'none',
-    statusHistory: [{ status: openNow ? 'open' : 'under_review', changedBy: req.user.id, notes: openNow ? 'Request created with admin-set service price' : 'Request created — waiting for admin approval' }]
+    statusHistory: [{ status: openNow ? 'open' : 'under_review', changedBy: req.user.id, notes: openNow ? `Request created — patient bid ${holdAmount} (base ${finalAmount})` : 'Request created — waiting for admin approval' }]
   });
 
   if (method === 'wallet' && openNow) {
-    patient.walletBalance = (patient.walletBalance || 0) - finalAmount;
+    patient.walletBalance = (patient.walletBalance || 0) - holdAmount;
     await patient.save();
     await Wallet.create({
       user: patient._id, order: order._id, type: 'payment',
-      amount: finalAmount, status: 'completed', paymentMethod: 'wallet',
-      description: `Escrow hold for order ${order.orderNumber}`,
+      amount: holdAmount, status: 'completed', paymentMethod: 'wallet',
+      description: `Escrow hold for order ${order.orderNumber} (patient bid ${holdAmount}, base ${finalAmount})`,
       balanceAfter: patient.walletBalance
     });
     order.paymentStatus = 'paid';
     order.escrowStatus = 'held';
-    order.statusHistory.push({ status: 'open', changedBy: req.user.id, notes: 'Escrow held (wallet)' });
+    order.amountHeld = holdAmount;
+    order.statusHistory.push({ status: 'open', changedBy: req.user.id, notes: `Escrow held (wallet) ${holdAmount}` });
     await order.save();
   }
 
-  const { notifyNewOrder } = require('../utils/notifyOrder');
+  if (isManual && priced) {
+    // Upfront manual payment: held only after admin/assistant approval.
+    await Wallet.create({
+      user: patient._id, order: order._id, type: 'payment',
+      amount: holdAmount, status: 'pending', paymentMethod: method,
+      reference: (reference || '').trim(),
+      description: `${method === 'vodafone_cash' ? 'Vodafone Cash' : 'InstaPay'} upfront transfer for order ${order.orderNumber} (patient bid ${holdAmount})`,
+      balanceAfter: patient.walletBalance || 0
+    });
+  }
+
   if (openNow) {
-    // Approved & priced: visible to nurses immediately (nearest first)
-    const { nurses, admins } = await notifyNewOrder({ order, serviceDoc, gov, amount: finalAmount });
-    emitOrder(order._id, 'new_order', { orderId: order._id, governorate: gov, amount: finalAmount });
+    // Uber/inDrive shortlist: pick 3-4 nearest nurses (online first) and
+    // invite ONLY them to counter the patient bid. Shared helper keeps every
+    // open path consistent (nurse sees the patient bid + the fixed base).
+    const { openAndShortlist } = require('../utils/shortlist');
+    const picks = await openAndShortlist({ order, serviceDoc, gov, amount: finalAmount, actorId: req.user.id, actorNote: `Request opened — patient bid ${holdAmount} (base ${finalAmount})` });
+    const admins = await getAdminIds();
+    const serviceName = serviceDoc.nameAr || serviceDoc.name || 'خدمة تمريض';
+    for (const a of admins) {
+      await Notification.create({
+        recipient: a._id, title: 'طلب خدمة جديد',
+        message: `طلب جديد #${order.orderNumber}: ${serviceName} في ${gov} — عرض المريض ${holdAmount} ج.م (الثابت ${finalAmount}) — رُشح ${picks.length} ممرضين`,
+        type: 'order', data: { orderId: order._id, patientBid: holdAmount, basePrice: finalAmount }
+      });
+    }
     try {
       const { emitToUser } = require('../sockets');
-      nurses.forEach((n) => emitToUser(String(n._id), 'notification', { title: 'طلب جديد متاح', orderId: order._id }));
       admins.forEach((a) => emitToUser(String(a._id), 'notification', { title: 'طلب خدمة جديد', orderId: order._id }));
     } catch (_) { /* sockets optional */ }
   } else {
-    // Waiting for admin approval: hidden from nurses until approved
+    // Hidden from nurses until approved: either the service itself is
+    // unpriced, or the patient paid manually and the transfer awaits
+    // admin/assistant approval on the Payments page.
     const admins = await getAdminIds({ limit: 20 });
+    const manualPending = isManual && priced;
     for (const a of admins) {
       await Notification.create({
-        recipient: a._id, title: 'طلب جديد يحتاج موافقة الإدارة',
-        message: `طلب جديد #${order.orderNumber}: ${serviceDoc.nameAr} في ${gov}${priced ? ` — السعر المقترح ${finalAmount} ج.م` : ' — حدد السعر'} ثم اعتمد الخدمة ليظهر للممرضين`,
-        type: 'order', data: { orderId: order._id }
+        recipient: a._id,
+        title: manualPending ? 'تحويل طلب بانتظار القبول 💰' : 'طلب جديد يحتاج موافقة الإدارة',
+        message: manualPending
+          ? `${patient.fullName} حوّل ${holdAmount} ج.م مقدماً للطلب #${order.orderNumber} (${method === 'vodafone_cash' ? 'فودافون كاش' : 'InstaPay'}، مرجع: ${(reference || '').trim()}) — عرضه ${holdAmount} (الثابت ${finalAmount}) — اقبل التحويل ليُفتح الطلب للممرضين`
+          : `طلب جديد #${order.orderNumber}: ${serviceDoc.nameAr} في ${gov}${priced ? ` — عرض المريض ${holdAmount} ج.م` : ' — حدد السعر'} ثم اعتمد الخدمة ليظهر للممرضين`,
+        type: manualPending ? 'payment' : 'order', data: { orderId: order._id, patientBid: holdAmount }
       });
     }
+    // Assistants back up approvals when no admin is around (masked queue).
+    try {
+      const assistants = await User.find({ role: 'assistant', isActive: true, assistantScopes: { $in: ['manage_orders', 'manage_payments_help'] } }).select('_id').limit(20);
+      for (const as of assistants) {
+        await Notification.create({
+          recipient: as._id,
+          title: manualPending ? 'تحويل طلب بانتظار القبول 💰' : 'طلب جديد يحتاج مراجعة',
+          message: `طلب #${order.orderNumber}: ${serviceDoc.nameAr} — عرض المريض ${holdAmount != null ? holdAmount + ' ج.م' : '—'} — راجعه من لوحة المساعد`,
+          type: manualPending ? 'payment' : 'order', data: { orderId: order._id }
+        });
+      }
+    } catch (_) { /* assistants optional */ }
     await Notification.create({
-      recipient: patient._id, title: 'طلبك قيد مراجعة الإدارة',
-      message: `استلمنا طلبك (${serviceDoc.nameAr}) — الإدارة ستراجع وتعتمد الخدمة قريباً ثم يظهر لأقرب الممرضين`,
+      recipient: patient._id,
+      title: manualPending ? 'تحويلك قيد مراجعة فريقنا ⏳' : 'طلبك قيد مراجعة الإدارة',
+      message: manualPending
+        ? `استلمنا تحويلك (${holdAmount} ج.م) لطلب ${serviceDoc.nameAr} — سيُفتح طلبك لأقرب الممرضين فور قبول التحويل`
+        : `استلمنا طلبك (${serviceDoc.nameAr}) — الإدارة ستراجع وتعتمد الخدمة قريباً ثم يظهر لأقرب الممرضين`,
       type: 'order', data: { orderId: order._id }
     });
   }
 
   const populated = await Order.findById(order._id).populate('service', 'nameAr basePrice').populate('patient', 'fullName phone');
-  ResponseHelper.success(res, shapeOrder(populated), openNow ? 'Request created successfully' : 'تم استلام طلبك — قيد مراجعة الإدارة واعتماد الخدمة', 201);
+  const doneData = shapeOrder(populated);
+  const doneMsg = openNow
+    ? 'Request created successfully'
+    : (isManual && priced ? 'تم إرسال التحويل — سيُفتح طلبك للممرضين بعد قبول فريقنا للتحويل' : 'تم استلام طلبك — قيد مراجعة الإدارة واعتماد الخدمة');
+  ResponseHelper.success(res, { ...doneData, pendingTransferApproval: isManual && priced }, doneMsg, 201);
 });
 
 // POST /api/orders/:id/accept (nurse, first-come)
@@ -420,7 +492,8 @@ const cancelOrder = asyncHandler(async (req, res) => {
 
   if (order.escrowStatus === 'held') {
     const patient = await User.findById(order.patient);
-    const refundAmount = order.finalPrice || 0;
+    // Refund exactly what was secured (bid + any settled top-ups)
+    const refundAmount = (Number(order.amountHeld) || 0) > 0 ? Number(order.amountHeld) : (order.finalPrice || 0);
     patient.walletBalance = (patient.walletBalance || 0) + refundAmount;
     await patient.save();
     await Wallet.create({
@@ -431,6 +504,14 @@ const cancelOrder = asyncHandler(async (req, res) => {
     });
     order.escrowStatus = 'refunded';
     order.paymentStatus = 'refunded';
+    order.amountHeld = 0;
+  } else {
+    // No held money but a manual transfer may still be awaiting review —
+    // fail it so it can't be approved after cancellation.
+    try {
+      const Wallet = require('../models/Wallet');
+      await Wallet.updateMany({ order: order._id, type: 'payment', status: 'pending' }, { status: 'failed' });
+    } catch (_) { /* ledger best-effort */ }
   }
   await order.save();
   emitOrder(order._id, 'order_update', { orderId: order._id, status: 'cancelled' });
@@ -574,20 +655,30 @@ const approveOffer = asyncHandler(async (req, res) => {
   // Assigning a nurse requires an admin-set service price first
   const offerService = await Service.findById(order.service);
   assertAdminPriced(offerService);
+  // inDrive rule: accept only same-or-higher than the fixed system price
+  const { adminPriceOf } = require('../utils/adminPricing');
+  const floor = adminPriceOf(offerService);
+  if (floor != null && Number(offer.price) < floor) {
+    throw new ApiError(400, `لا يمكن قبول ${offer.price} ج.م — أقل من السعر الثابت (${floor} ج.م)`);
+  }
 
   offer.status = 'approved';
   offer.reviewedAt = new Date();
   order.selectedOffer = offer._id;
-  order.finalPrice = offer.price;
-  order.commission = Math.round(offer.price * (order.commissionRate / 100) * 100) / 100;
-  order.nurseEarnings = Math.round((offer.price - order.commission) * 100) / 100;
-  order.platformFee = order.commission;
+  // Upfront-bid settle: patient already secured amountHeld at request time —
+  // charge only the extra (or refund the excess) straight to platform hold.
+  const settlePatient = await User.findById(order.patient);
+  const { settleAcceptPrice } = require('../utils/settlePrice');
+  const settled = await settleAcceptPrice({ order, patient: settlePatient, acceptedPrice: offer.price });
   order.assignedNurse = offer.nurse;
   order.status = 'assigned';
   order.acceptedAt = order.acceptedAt || new Date();
   // The assigned nurse must confirm OK or decline before starting
   order.nurseAccepted = null;
   order.nurseAcceptedAt = null;
+  (order.matchedNurses || []).forEach((m) => {
+    if (String(m.nurse) === String(offer.nurse)) m.status = 'chosen';
+  });
   order.statusHistory.push({ status: 'assigned', changedBy: req.user.id, notes: `Patient approved price ${offer.price}` });
   await order.save();
 
@@ -598,8 +689,12 @@ const approveOffer = asyncHandler(async (req, res) => {
   } catch (_) { /* best-effort */ }
 
   await Notification.create({ recipient: offer.nurse, title: 'تم اختيارك لطلب — أكّد القبول', message: `وافق المريض على سعرك ${offer.price} ج.م للطلب #${order.orderNumber} — افتح طلباتك واضغط "موافق" أو "رفض"`, type: 'order', data: { orderId: order._id } });
-  // When admin accepts the nurse price, patient must be told to PAY now
-  await Notification.create({ recipient: order.patient, title: 'تم قبول السعر — ادفع الآن', message: `الإدارة قبلت سعر ${offer.price} ج.م لطلبك #${order.orderNumber} — ادفع من المحفظة أو InstaPay أو فودافون كاش ليبدأ الممرض`, type: 'order', data: { orderId: order._id, finalPrice: offer.price } });
+  // Money was secured upfront at request time — settle moved only the
+  // difference, so the patient just gets a receipt (no separate pay step).
+  const settleNote = settled.diff > 0
+    ? ` — تم خصم فرق السعر ${settled.diff} ج.م من محفظتك تلقائياً`
+    : (settled.diff < 0 ? ` — تم إرجاع ${Math.abs(settled.diff)} ج.م لمحفظتك (سعر أقل من عرضك)` : ' — المبلغ كان محجوزاً مقدماً');
+  await Notification.create({ recipient: order.patient, title: 'تم قبول السعر ✅', message: `تم قبول سعر ${offer.price} ج.م لطلبك #${order.orderNumber}${settleNote}`, type: 'order', data: { orderId: order._id, finalPrice: offer.price } });
   if (req.user.role !== 'admin') {
     const offerAdmins = await getAdminIds();
     for (const a of offerAdmins) {
@@ -609,10 +704,10 @@ const approveOffer = asyncHandler(async (req, res) => {
   try {
     const { emitToOrder, emitToUser } = require('../sockets');
     emitToOrder(String(order._id), 'order_update', { orderId: order._id, status: 'assigned', finalPrice: offer.price });
-    emitToUser(String(order.patient), 'notification', { title: 'تم قبول السعر — ادفع الآن', orderId: order._id, finalPrice: offer.price });
+    emitToUser(String(order.patient), 'notification', { title: 'تم قبول السعر ✅', orderId: order._id, finalPrice: offer.price });
     emitToUser(String(offer.nurse), 'notification', { title: 'تمت الموافقة على سعرك', orderId: order._id });
   } catch (_) { /* sockets optional */ }
-  ResponseHelper.success(res, { orderId: order._id, status: 'assigned', finalPrice: offer.price }, 'تمت الموافقة على السعر');
+  ResponseHelper.success(res, { orderId: order._id, status: 'assigned', finalPrice: offer.price, settledDiff: settled.diff }, settled.diff > 0 ? `تمت الموافقة — خُصم فرق السعر ${settled.diff} ج.م من المحفظة` : 'تمت الموافقة على السعر');
 });
 
 // POST /api/orders/:id/pay {method: 'wallet'|'instapay'|'vodafone_cash', reference?}
@@ -672,6 +767,7 @@ const payManual = asyncHandler(async (req, res) => {
   order.paymentStatus = 'paid';
   order.paymentMethod = method;
   order.escrowStatus = 'held';
+  order.amountHeld = order.finalPrice;
   order.statusHistory.push({ status: order.status, changedBy: req.user.id, notes: method === 'wallet' ? 'Escrow held (wallet)' : method === 'vodafone_cash' ? 'Escrow held (Vodafone Cash to owner)' : 'Escrow held (InstaPay to owner)' });
   await order.save();
 
@@ -691,7 +787,9 @@ const payManual = asyncHandler(async (req, res) => {
 });
 
 // POST /api/orders/:orderId/offer {price, notes?} (nurse suggests a price)
-// The patient and the admin can each accept it (approve-offer endpoints).
+// ADMIN-FIRST flow: the price goes to the admin (or assistant when no admin
+// is around) for review FIRST — the patient only sees it after it is passed
+// to them (status pending_review). Direct patient notification is suppressed.
 const submitOffer = asyncHandler(async (req, res) => {
   const orderId = req.params.orderId || req.params.id;
   const price = Number(req.body.price);
@@ -708,30 +806,62 @@ const submitOffer = asyncHandler(async (req, res) => {
   }
   const offerService = await Service.findById(order.service);
   assertAdminPriced(offerService);
+  // inDrive floor: a nurse price can equal the fixed system price or be
+  // higher — never lower (the patient can only accept same-or-higher).
+  const { adminPriceOf } = require('../utils/adminPricing');
+  const floor = adminPriceOf(offerService);
+  if (floor != null && price < floor) {
+    throw new ApiError(400, `سعرك (${price} ج.م) أقل من السعر الثابت للخدمة (${floor} ج.م) — يجب أن يساويه أو يزيد عنه`);
+  }
 
-  const existing = order.offers.find((o) => String(o.nurse) === String(req.user.id) && o.status === 'pending_review');
+  // Any new/edited price re-enters review — UNLESS the patient already
+  // secured the money (escrow held): then no admin wait is needed and the
+  // price goes straight to the patient (admin can still reject it later).
+  const autoPass = order.escrowStatus === 'held';
+  const existing = order.offers.find((o) => String(o.nurse) === String(req.user.id) && ['pending_admin', 'pending_review'].includes(o.status));
   if (existing) {
     existing.price = price;
     existing.notes = notes;
+    existing.status = autoPass ? 'pending_review' : 'pending_admin';
+    existing.createdAt = new Date();
+    if (autoPass) existing.reviewedAt = new Date();
   } else {
-    order.offers.push({ nurse: req.user.id, price, notes, status: 'pending_review' });
+    order.offers.push({ nurse: req.user.id, price, notes, status: autoPass ? 'pending_review' : 'pending_admin' });
+  }
+  const matchEntry = (order.matchedNurses || []).find((m) => String(m.nurse) === String(req.user.id));
+  if (matchEntry && matchEntry.status === 'pending') {
+    matchEntry.status = 'offered';
+    matchEntry.respondedAt = new Date();
   }
   if (order.status === 'open') order.status = 'offers_received';
-  order.statusHistory.push({ status: order.status, changedBy: req.user.id, notes: `Nurse suggested price ${price}` });
+  order.statusHistory.push({ status: order.status, changedBy: req.user.id, notes: autoPass ? `Nurse suggested price ${price} (auto-passed, escrow held)` : `Nurse suggested price ${price} (waiting admin review)` });
   await order.save();
 
   const nurseName = req.user.fullName || 'A nurse';
-  await Notification.create({ recipient: order.patient, title: 'عرض سعر جديد', message: `${nurseName} اقترح ${price} ج.م لطلبك #${order.orderNumber} — راجع العروض واقبل السعر المناسب`, type: 'order', data: { orderId: order._id, price } });
   const admins = await getAdminIds();
   for (const a of admins) {
-    await Notification.create({ recipient: a._id, title: 'عرض سعر جديد من ممرض', message: `${nurseName} اقترح ${price} ج.م للطلب #${order.orderNumber} — يمكنك قبوله أو اقتراح سعر`, type: 'order', data: { orderId: order._id, price } });
+    await Notification.create({ recipient: a._id, title: autoPass ? 'عرض سعر مرّر تلقائياً ✅' : 'عرض سعر يحتاج مراجعة 💰', message: autoPass ? `${nurseName} اقترح ${price} ج.م للطلب #${order.orderNumber} — مرّر تلقائياً للمريض (المبلغ محجوز)${price === floor ? ' ويساوي الثابت' : ''}` : `${nurseName} اقترح ${price} ج.م للطلب #${order.orderNumber} — راجعه ثم مرّره للمريض أو ارفضه`, type: 'order', data: { orderId: order._id, price } });
   }
+  // Assistants with order scope act when no admin is around — ping them too.
+  // (Masked: they see the price + masked names, never contacts.)
+  try {
+    const assistants = await User.find({ role: 'assistant', isActive: true, assistantScopes: 'manage_orders' }).select('_id').limit(20);
+    for (const as of assistants) {
+      await Notification.create({ recipient: as._id, title: 'عرض سعر يحتاج مراجعة 💰', message: `${nurseName} اقترح ${price} ج.م للطلب #${order.orderNumber} — راجعه ومرّره للمريض`, type: 'order', data: { orderId: order._id, price } });
+    }
+  } catch (_) { /* assistants optional */ }
   try {
     const { emitToOrder, emitToUser } = require('../sockets');
-    emitToOrder(String(order._id), 'order_update', { orderId: order._id, status: order.status, newOffer: { price, nurseId: req.user.id } });
-    emitToUser(String(order.patient), 'notification', { title: 'عرض سعر جديد', orderId: order._id, price });
+    emitToOrder(String(order._id), 'order_update', { orderId: order._id, status: order.status, newOffer: autoPass ? { price, nurseId: req.user.id } : undefined, newOfferPendingAdmin: !autoPass });
+    if (autoPass) emitToUser(String(order.patient), 'notification', { title: 'عرض سعر جديد ✅', orderId: order._id, price });
+    admins.forEach((a) => {
+      try { emitToUser(String(a._id), 'notification', { title: autoPass ? 'عرض سعر مرّر تلقائياً' : 'عرض سعر يحتاج مراجعة', orderId: order._id, price }); } catch (_) {}
+    });
   } catch (_) { /* sockets optional */ }
-  ResponseHelper.success(res, { orderId: order._id, status: order.status, price }, 'تم إرسال سعرك — بانتظار موافقة المريض أو الإدارة');
+  if (autoPass) {
+    await Notification.create({ recipient: order.patient, title: 'عرض سعر جديد ✅', message: `${nurseName} اقترح ${price} ج.م لطلبك #${order.orderNumber} — قارن واقبل أو ارفض من صفحة الاختيار`, type: 'order', data: { orderId: order._id, price, nurseId: req.user.id } });
+  }
+  ResponseHelper.success(res, { orderId: order._id, status: order.status, price, autoPassed: autoPass }, autoPass ? 'تم إرسال سعرك للمريض مباشرة (المبلغ محجوز مسبقاً)' : 'تم إرسال سعرك للإدارة — سيظهر للمريض بعد مراجعته');
 });
 
 // POST /api/orders/:id/accept-price (patient accepts the admin suggested price)
@@ -745,21 +875,18 @@ const acceptSuggestedPrice = asyncHandler(async (req, res) => {
 
   order.status = 'open';
   order.statusHistory.push({ status: 'open', changedBy: req.user.id, notes: `Patient accepted suggested price ${order.finalPrice}` });
+  if (order.patientOfferedPrice == null) order.patientOfferedPrice = order.finalPrice;
   await order.save();
 
-  const { notifyNewOrder } = require('../utils/notifyOrder');
   const serviceDoc = await Service.findById(order.service);
   const gov = (order.location && order.location.governorate) || 'Cairo';
-  const { nurses } = await notifyNewOrder({ order, serviceDoc, gov, amount: order.finalPrice, skipAdmins: true });
+  // Shared shortlist (patient bid + fixed base shown to nurses)
+  const { openAndShortlist } = require('../utils/shortlist');
+  await openAndShortlist({ order, serviceDoc, gov, amount: Number(serviceDoc.basePrice) || order.finalPrice, actorId: req.user.id, actorNote: `Patient accepted suggested price ${order.finalPrice}` });
   const admins = await getAdminIds();
   for (const a of admins) {
     await Notification.create({ recipient: a._id, title: 'المريض قبل السعر المقترح', message: `المريض قبل سعر ${order.finalPrice} ج.م للطلب #${order.orderNumber} — ظهر للممرضين`, type: 'order', data: { orderId: order._id } });
   }
-  try {
-    const { emitToOrder, emitToUser } = require('../sockets');
-    emitToOrder(String(order._id), 'order_update', { orderId: order._id, status: 'open', finalPrice: order.finalPrice });
-    nurses.forEach((n) => emitToUser(String(n._id), 'notification', { title: 'طلب جديد متاح', orderId: order._id }));
-  } catch (_) { /* sockets optional */ }
   ResponseHelper.success(res, { orderId: order._id, status: 'open', finalPrice: order.finalPrice }, 'تم قبول السعر — طلبك ظاهر الآن لأقرب الممرضين');
 });
 
@@ -869,4 +996,235 @@ const completeCash = asyncHandler(async (req, res) => {
   ResponseHelper.success(res, { orderId: order._id, status: 'completed', cashAmount }, 'تم إنهاء الخدمة بعد استلام المبلغ نقداً');
 });
 
-module.exports = { createSimple, acceptOrder, startService, arriveOrder, submitVisitReport, requestCall, callQuota, confirmOrder, cancelOrder, getOrderCompat, rateOrder, approveOffer, payManual, submitOffer, acceptSuggestedPrice, respondToAssignment, completeCash };
+// ---------- Uber/inDrive shortlist: patient picks 1 of 3-4 matched nurses ----------
+
+// GET /api/orders/:id/matches (patient owner or admin)
+// inDrive-style board: the ⭐ shortlist PLUS every other nurse who sent a
+// passed price (any nurse in the area can counter — patient accepts/rejects).
+// Each candidate: profile + rating + patient feedback + own price (only after
+// it is passed — auto-passed when prepaid, else by admin/assistant).
+const getMatches = asyncHandler(async (req, res) => {
+  const order = await Order.findById(req.params.id)
+    .populate('service', 'nameAr basePrice')
+    .populate('matchedNurses.nurse', 'fullName rating totalReviews specialization yearsOfExperience bio isOnline location subscription');
+  if (!order) throw new ApiError(404, 'Order not found');
+  const uid = String(req.user.id);
+  const isOwner = String(order.patient) === uid;
+  if (req.user.role !== 'admin' && !isOwner) throw new ApiError(403, 'Not authorized');
+
+  let trustedFn = null;
+  try { trustedFn = require('./subscription.controller').isTrustedNurse; } catch (_) {}
+
+  const buildCard = async (n, extra) => {
+    const nid = String((n && n._id) || (extra && extra.nurseId) || '');
+    // Latest price offer from this nurse (patient sees it ONLY when passed)
+    const nurseOffers = (order.offers || []).filter((o) => String(o.nurse) === nid);
+    const passed = nurseOffers.filter((o) => o.status === 'pending_review').slice(-1)[0] || null;
+    const waiting = nurseOffers.filter((o) => o.status === 'pending_admin').slice(-1)[0] || null;
+    // Recent patient feedback about this nurse (last 5 completed visits)
+    let reviews = [];
+    try {
+      const done = await Order.find({ assignedNurse: nid, status: 'completed', 'patientReview.rating': { $ne: null } })
+        .populate('patient', 'fullName')
+        .sort({ completedAt: -1, updatedAt: -1 })
+        .limit(5)
+        .lean();
+      reviews = done.map((d) => ({
+        rating: d.patientReview.rating,
+        comment: d.patientReview.comment || null,
+        patientName: (d.patient && d.patient.fullName) || 'مريض',
+        createdAt: d.patientReview.createdAt || d.completedAt || d.updatedAt
+      }));
+    } catch (_) { reviews = []; }
+    const loc = (n && n.location) || {};
+    return {
+      nurseId: nid,
+      name: (n && n.fullName) || 'ممرض',
+      rating: (n && n.rating) ?? 0,
+      totalReviews: (n && n.totalReviews) ?? 0,
+      specialization: (n && n.specialization) || null,
+      yearsOfExperience: (n && n.yearsOfExperience) ?? 0,
+      bio: (n && n.bio) || null,
+      isOnline: !!(n && n.isOnline),
+      isTrusted: trustedFn && n ? !!trustedFn(n) : false,
+      governorate: loc.governorate || null,
+      city: loc.city || null,
+      distanceKm: (extra && extra.distanceKm) ?? null,
+      matchStatus: (extra && extra.matchStatus) || 'offered',
+      shortlisted: !!(extra && extra.shortlisted),
+      offerId: passed ? String(passed._id) : null,
+      offerPrice: passed ? passed.price : null,
+      offerStatus: passed ? 'pending_review' : (waiting ? 'pending_admin' : null),
+      waitingAdminReview: !!waiting && !passed,
+      offerNotes: passed ? (passed.notes || null) : null,
+      reviews
+    };
+  };
+
+  const seen = new Set();
+  const matches = [];
+  for (const m of (order.matchedNurses || [])) {
+    const nid = String((m.nurse && m.nurse._id) || m.nurse);
+    if (seen.has(nid)) continue;
+    seen.add(nid);
+    matches.push(await buildCard(m.nurse, { distanceKm: m.distanceKm ?? null, matchStatus: m.status, shortlisted: true }));
+  }
+  // Extra nurses (beyond the shortlist) that sent a passed price
+  const extraIds = [...new Set((order.offers || [])
+    .filter((o) => o.status === 'pending_review')
+    .map((o) => String(o.nurse)))].filter((id) => !seen.has(id));
+  if (extraIds.length) {
+    const extras = await User.find({ _id: { $in: extraIds } })
+      .select('fullName rating totalReviews specialization yearsOfExperience bio isOnline location subscription');
+    for (const n of extras) {
+      seen.add(String(n._id));
+      matches.push(await buildCard(n, { distanceKm: null, matchStatus: 'offered', shortlisted: false }));
+    }
+  }
+
+  ResponseHelper.success(res, {
+    orderId: order._id,
+    orderNumber: order.orderNumber,
+    status: order.status,
+    service: order.service ? { id: String(order.service._id || order.service), nameAr: order.service.nameAr, basePrice: order.service.basePrice } : null,
+    adminBasePrice: order.finalPrice ?? (order.service ? order.service.basePrice : null),
+    patientBid: order.patientOfferedPrice ?? null,
+    amountHeld: order.amountHeld || 0,
+    matchRound: order.matchRound || 0,
+    matches
+  }, 'Matched nurses');
+});
+
+// POST /api/orders/:id/matches/refresh (patient: replace list with new nurses)
+const refreshMatches = asyncHandler(async (req, res) => {
+  const order = await Order.findById(req.params.id);
+  if (!order) throw new ApiError(404, 'Order not found');
+  if (String(order.patient) !== String(req.user.id)) throw new ApiError(403, 'Not authorized');
+  if (!['open', 'offers_received'].includes(order.status)) throw new ApiError(400, 'This request is no longer open');
+
+  const everMatched = (order.matchedNurses || []).map((m) => String(m.nurse));
+  if (order.assignedNurse) everMatched.push(String(order.assignedNurse));
+  const coords = (order.location && order.location.coordinates) || {};
+  const picks = await pickMatchNurses({ lat: coords.lat, lng: coords.lng, limit: MATCH_LIMIT_DEFAULT, excludeIds: everMatched });
+  if (!picks.length) throw new ApiError(400, 'لا يوجد ممرضون إضافيون متاحون الآن — حاول بعد قليل');
+
+  (order.matchedNurses || []).forEach((m) => {
+    if (['pending', 'offered'].includes(m.status)) m.status = 'replaced';
+  });
+  picks.forEach((p) => order.matchedNurses.push({ nurse: p.nurse, distanceKm: p.distanceKm, status: 'pending', invitedAt: new Date() }));
+  order.matchRound = (order.matchRound || 0) + 1;
+  order.matchExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+  order.statusHistory.push({ status: order.status, changedBy: req.user.id, notes: `Patient refreshed matched nurses (round ${order.matchRound})` });
+  await order.save();
+
+  for (const p of picks) {
+    await Notification.create({
+      recipient: p.nurse, title: 'تم ترشيحك لطلب جديد ⭐',
+      message: `اختارك النظام لطلب #${order.orderNumber}${p.distanceKm != null ? ` (على بعد ${p.distanceKm} كم)` : ''} — أرسل سعرك بسرعة`,
+      type: 'order', data: { orderId: order._id, shortlisted: true, distanceKm: p.distanceKm }
+    });
+  }
+  try {
+    const { emitToOrder, emitToUser } = require('../sockets');
+    emitToOrder(String(order._id), 'order_update', { orderId: order._id, status: order.status, matchesRefreshed: true, matchRound: order.matchRound });
+    picks.forEach((p) => { try { emitToUser(String(p.nurse), 'notification', { title: 'تم ترشيحك لطلب جديد ⭐', orderId: order._id, shortlisted: true }); } catch (_) {} });
+  } catch (_) {}
+  ResponseHelper.success(res, { orderId: order._id, matchRound: order.matchRound, added: picks.length }, 'تم ترشيح ممرضين جدد — راجع القائمة');
+});
+
+// POST /api/orders/:id/choose {nurseId} (patient picks 1 of the matched nurses)
+const chooseNurse = asyncHandler(async (req, res) => {
+  const { nurseId } = req.body;
+  if (!nurseId) throw new ApiError(400, 'nurseId is required');
+  const order = await Order.findById(req.params.id).populate('service', 'nameAr');
+  if (!order) throw new ApiError(404, 'Order not found');
+  if (String(order.patient) !== String(req.user.id)) throw new ApiError(403, 'Not authorized');
+  if (!['open', 'offers_received'].includes(order.status)) throw new ApiError(400, 'This request is no longer open for choosing');
+
+  const matchedIds = (order.matchedNurses || []).map((m) => String(m.nurse));
+  const nurseOffers = (order.offers || []).filter((o) => String(o.nurse) === String(nurseId));
+  const passed = nurseOffers.filter((o) => o.status === 'pending_review').slice(-1)[0] || null;
+  const waiting = nurseOffers.filter((o) => o.status === 'pending_admin').slice(-1)[0] || null;
+  if (!matchedIds.includes(String(nurseId)) && !passed && !waiting) throw new ApiError(404, 'This nurse is not among your matched nurses');
+  if (waiting && !passed) throw new ApiError(400, 'سعر هذا الممرض ما زال قيد مراجعة الإدارة — اختر ممرضاً آخر أو انتظر قليلاً');
+
+  const offerService = await Service.findById(order.service);
+  assertAdminPriced(offerService);
+  // inDrive rule: accept only same-or-higher than the fixed system price
+  const { adminPriceOf } = require('../utils/adminPricing');
+  const floor = adminPriceOf(offerService);
+  const acceptedPrice = passed ? Number(passed.price) : Number(order.finalPrice);
+  if (floor != null && acceptedPrice < floor) {
+    throw new ApiError(400, `لا يمكن قبول ${acceptedPrice} ج.م — أقل من السعر الثابت (${floor} ج.م)`);
+  }
+
+  if (passed) {
+    passed.status = 'approved';
+    passed.reviewedAt = new Date();
+    order.selectedOffer = passed._id;
+  }
+  // Upfront-bid settle: charge only the extra over what the patient already
+  // secured (or refund the excess) — money moves straight to platform hold.
+  const choosePatient = await User.findById(order.patient);
+  const { settleAcceptPrice } = require('../utils/settlePrice');
+  const settled = await settleAcceptPrice({ order, patient: choosePatient, acceptedPrice });
+  order.assignedNurse = nurseId;
+  order.status = 'assigned';
+  order.acceptedAt = order.acceptedAt || new Date();
+  order.nurseAccepted = null;
+  order.nurseAcceptedAt = null;
+  (order.matchedNurses || []).forEach((m) => {
+    if (String(m.nurse) === String(nurseId)) m.status = 'chosen';
+  });
+  order.statusHistory.push({ status: 'assigned', changedBy: req.user.id, notes: passed ? `Patient chose nurse at price ${passed.price}` : 'Patient chose nurse at admin base price' });
+  await order.save();
+
+  try {
+    const { releaseEscrowToNurse } = require('../utils/releaseEscrow');
+    await releaseEscrowToNurse(order);
+  } catch (_) { /* best-effort */ }
+
+  const priceShown = order.finalPrice;
+  const settleNote = settled.diff > 0
+    ? ` — تم خصم فرق السعر ${settled.diff} ج.م من محفظتك تلقائياً`
+    : (settled.diff < 0 ? ` — تم إرجاع ${Math.abs(settled.diff)} ج.م لمحفظتك` : '');
+  await Notification.create({ recipient: nurseId, title: 'تم اختيارك لطلب — أكّد القبول', message: `اختارك المريض لطلب #${order.orderNumber} بسعر ${priceShown} ج.م — افتح طلباتك واضغط "موافق" أو "رفض"`, type: 'order', data: { orderId: order._id } });
+  const admins = await getAdminIds();
+  for (const a of admins) {
+    await Notification.create({ recipient: a._id, title: 'المريض اختار ممرضاً', message: `المريض اختار ممرضاً للطلب #${order.orderNumber} بسعر ${priceShown} ج.م${settled.diff !== 0 ? ` (تسوية المحفظة: ${settled.diff} ج.م)` : ''}`, type: 'order', data: { orderId: order._id, finalPrice: priceShown } });
+  }
+  try {
+    const { emitToOrder, emitToUser } = require('../sockets');
+    emitToOrder(String(order._id), 'order_update', { orderId: order._id, status: 'assigned', finalPrice: priceShown, nurseId: String(nurseId) });
+    emitToUser(String(nurseId), 'notification', { title: 'تم اختيارك لطلب', orderId: order._id });
+  } catch (_) { /* sockets optional */ }
+  ResponseHelper.success(res, { orderId: order._id, status: 'assigned', finalPrice: priceShown, nurseId: String(nurseId), settledDiff: settled.diff }, settled.diff > 0 ? `تم الاختيار — خُصم فرق السعر ${settled.diff} ج.م من محفظتك` : 'تم اختيار الممرض — بانتظار تأكيده');
+});
+
+// POST /api/orders/:id/reject-offer {offerId} (patient rejects one nurse price)
+// inDrive right: patient can accept OR reject each suggested price. The nurse
+// is notified and may send a new price; the request stays open for the rest.
+const rejectOffer = asyncHandler(async (req, res) => {
+  const { offerId } = req.body;
+  if (!offerId) throw new ApiError(400, 'offerId is required');
+  const order = await Order.findById(req.params.id);
+  if (!order) throw new ApiError(404, 'Order not found');
+  if (String(order.patient) !== String(req.user.id)) throw new ApiError(403, 'Not authorized');
+  if (!['open', 'offers_received'].includes(order.status)) throw new ApiError(400, 'This request is no longer open');
+  const offer = order.offers.id(offerId);
+  if (!offer) throw new ApiError(404, 'Offer not found');
+  if (!['pending_review', 'pending_admin'].includes(offer.status)) throw new ApiError(400, 'Offer is not available');
+  offer.status = 'rejected';
+  offer.reviewedAt = new Date();
+  order.statusHistory.push({ status: order.status, changedBy: req.user.id, notes: `Patient rejected price ${offer.price}` });
+  await order.save();
+  await Notification.create({ recipient: offer.nurse, title: 'المريض رفض سعرك', message: `رفض المريض سعرك ${offer.price} ج.م للطلب #${order.orderNumber} — يمكنك إرسال سعر جديد`, type: 'order', data: { orderId: order._id } });
+  try {
+    const { emitToOrder, emitToUser } = require('../sockets');
+    emitToOrder(String(order._id), 'order_update', { orderId: order._id, status: order.status, offerRejected: String(offer._id) });
+    emitToUser(String(offer.nurse), 'notification', { title: 'المريض رفض سعرك', orderId: order._id });
+  } catch (_) { /* sockets optional */ }
+  ResponseHelper.success(res, { orderId: order._id, offerId, status: 'rejected' }, 'تم رفض السعر — يمكنك اختيار ممرض آخر');
+});
+
+module.exports = { createSimple, acceptOrder, startService, arriveOrder, submitVisitReport, requestCall, callQuota, confirmOrder, cancelOrder, getOrderCompat, rateOrder, approveOffer, payManual, submitOffer, acceptSuggestedPrice, respondToAssignment, completeCash, getMatches, refreshMatches, chooseNurse, rejectOffer };
