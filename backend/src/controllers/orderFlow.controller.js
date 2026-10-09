@@ -62,6 +62,11 @@ const createSimple = asyncHandler(async (req, res) => {
     }
   }
   if (!serviceDoc) throw new ApiError(400, 'This service is not configured by the admin');
+  // Retired services (e.g. medical checkup — no doctor) are rejected here
+  try {
+    const { assertServiceAllowed } = require('../utils/serviceCatalog');
+    assertServiceAllowed(serviceDoc, serviceType || service);
+  } catch (e) { if (e.statusCode === 400) throw e; }
 
   const finalAmount = Number(serviceDoc.basePrice);
   // Patient-final rule: a priced service the patient accepts (fixed system

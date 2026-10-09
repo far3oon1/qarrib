@@ -196,6 +196,11 @@ const requestService = asyncHandler(async (req, res) => {
       : await Service.findOne({ $or: [{ name: serviceType }, { nameAr: serviceType }], isActive: true });
   }
   if (!serviceDoc) throw new ApiError(400, 'هذه الخدمة غير موجودة');
+  // Retired services (e.g. medical checkup — no doctor) are rejected here
+  try {
+    const { assertServiceAllowed } = require('../utils/serviceCatalog');
+    assertServiceAllowed(serviceDoc, serviceType);
+  } catch (e) { if (e.statusCode === 400) throw e; }
   // Admin pricing comes first: unpriced requests wait in review (same as /orders/create)
   const { adminPriceOf } = require('../utils/adminPricing');
   const pricedService = serviceDoc.isActive !== false && adminPriceOf(serviceDoc) != null;
