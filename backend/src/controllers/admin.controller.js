@@ -899,12 +899,12 @@ const approveNurseOffer = asyncHandler(async (req, res) => {
     const { releaseEscrowToNurse } = require('../utils/releaseEscrow');
     await releaseEscrowToNurse(order);
   } catch (_) { /* best-effort */ }
-  await Notification.create({ recipient: order.patient, title: 'تم قبول السعر — ادفع الآن', message: `الإدارة قبلت سعر ${offer.price} ج.م لطلبك #${order.orderNumber} — ادفع من المحفظة أو InstaPay`, type: 'order', data: { orderId: order._id, finalPrice: offer.price } });
+  await Notification.create({ recipient: order.patient, title: 'تم قبول السعر ✅', message: `قبلت الإدارة سعر ${offer.price} ج.م لطلبك #${order.orderNumber} — المبلغ كان محجوزاً مقدماً ولن يُخصم منك شيء إضافي`, type: 'order', data: { orderId: order._id, finalPrice: offer.price } });
   await Notification.create({ recipient: offer.nurse, title: 'تم اختيارك لطلب — أكّد القبول', message: `قبلت الإدارة سعرك ${offer.price} ج.م للطلب #${order.orderNumber} — افتح طلباتك واضغط "موافق" أو "رفض"`, type: 'order', data: { orderId: order._id } });
   try {
     const { emitToOrder, emitToUser } = require('../sockets');
     emitToOrder(String(order._id), 'order_update', { orderId: order._id, status: 'assigned', finalPrice: offer.price });
-    emitToUser(String(order.patient), 'notification', { title: 'تم قبول السعر — ادفع الآن', orderId: order._id });
+    emitToUser(String(order.patient), 'notification', { title: 'تم قبول السعر ✅', orderId: order._id });
     emitToUser(String(offer.nurse), 'notification', { title: 'الإدارة قبلت سعرك', orderId: order._id });
   } catch (_) { /* sockets optional */ }
   ResponseHelper.success(res, { orderId: order._id, status: 'assigned', finalPrice: offer.price }, 'تم قبول سعر الممرض — بانتظار دفع المريض');

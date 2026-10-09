@@ -721,8 +721,14 @@ const payManual = asyncHandler(async (req, res) => {
   if (!order) throw new ApiError(404, 'Order not found');
   if (String(order.patient) !== String(req.user.id)) throw new ApiError(403, 'Not authorized');
   if (order.finalPrice == null) throw new ApiError(400, 'Price is not fixed yet');
-  // Already paid (held or already released straight to the nurse) — never charge twice
-  if (['held', 'released'].includes(order.escrowStatus)) throw new ApiError(400, 'Order is already paid');
+  // Double-pay armor: if ANY money is already secured for this order, refuse
+  // another payment with a clear warning — nobody can trick the patient
+  // into paying twice (checked three independent ways).
+  const alreadyPaidWarning = '⚠️ دفعت هذا الطلب من قبل — المبلغ محجوز ولن يتم الخصم مرة أخرى / Already paid — amount is secured, no second charge';
+  if (['held', 'released'].includes(order.escrowStatus)) throw new ApiError(400, alreadyPaidWarning);
+  if ((Number(order.amountHeld) || 0) > 0) throw new ApiError(400, alreadyPaidWarning);
+  const priorPaid = await Wallet.findOne({ order: order._id, user: req.user.id, type: 'payment', status: 'completed' });
+  if (priorPaid) throw new ApiError(400, alreadyPaidWarning);
   // Payment is allowed in any pre-completion state (open/under_review/offers_received/
   // price_approved/assigned/paid/in_progress). Without a nurse yet the money is
   // simply held and released straight to the nurse on assignment.
