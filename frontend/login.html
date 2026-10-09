@@ -206,8 +206,9 @@
             var result = await api.assistantLogin({ email: email, password: password });
             if (result.success) {
                 setUser(result.data.user);
-                showAlert('helper', currentLang === 'ar' ? 'أهلاً بك! جاري فتح لوحة المساعد...' : 'Welcome! Opening helper panel...', 'success');
-                setTimeout(function(){ window.location.href = '/admin/assistant-panel.html'; }, 800);
+                // Helpers accept the same waiver on every sign-in.
+                showAlert('helper', currentLang === 'ar' ? 'تذكير بالشروط: وسيلة مساعدة فقط — وافق للدخول' : 'Terms reminder: helper tool only — accept to enter', 'success');
+                setTimeout(function(){ showTermsGate('helper'); }, 600);
             } else { showAlert('helper', result.message || 'Login failed'); }
         } catch (e) {
             if (isBlockedText(e.message)) { clearAuth(); showBlockedBanner(e.message); }

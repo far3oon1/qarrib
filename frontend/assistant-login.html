@@ -150,10 +150,9 @@
                         spinner.classList.remove('show');
                         return;
                     }
-                    showAlert('alert-success', 'تم تسجيل الدخول بنجاح! جاري فتح لوحة المساعد...', 'success');
-                    setTimeout(function() {
-                        window.location.href = '/admin/assistant-panel.html';
-                    }, 1000);
+                    // Liability waiver is required for helpers too — reminded on EVERY sign-in.
+                    showAlert('alert-success', 'تذكير بالشروط: التطبيق وسيلة مساعدة فقط — وافق للدخول', 'success');
+                    setTimeout(function() { showTermsGate(); }, 600);
                 } else {
                     showAlert('alert-error', result.message || 'فشل تسجيل الدخول');
                 }
@@ -168,6 +167,54 @@
         document.getElementById('password-helper').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') helperLogin();
         });
+
+        // Liability-waiver gate (same helper-only terms, AR/EN, every sign-in)
+        var TERMS_FALLBACK = 'تطبيق قرّب وسيلة مساعدة فقط وليس مستشفى أو جهة طبية. يخلي التطبيق مسؤوليته تماماً عن أي شيء يحدث قبل الخدمة أو أثناءها أو بعدها، وعن أي مساءلة قانونية من أي نوع — الاستخدام على مسؤوليتك الخاصة. الخدمة للحالات البسيطة فقط — وعند أي طوارئ توجه فوراً للطوارئ أو المستشفى المختص.\n\nQarrib is a helper tool only — not a hospital. The app fully disclaims everything and any legal accountability of any kind — use at your own risk. Simple cases only — in any emergency go to the ER/hospital immediately.';
+        function showTermsGate() {
+            var ov = document.getElementById('termsGate');
+            if (!ov) {
+                ov = document.createElement('div');
+                ov.id = 'termsGate';
+                ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px;';
+                ov.innerHTML = '<div style="background:#0f2b28;border:1px solid rgba(255,255,255,.15);border-radius:16px;max-width:520px;width:100%;max-height:86vh;overflow:auto;padding:20px;color:#fff;">' +
+                    '<h3 style="margin:0 0 8px;">📜 شروط الاستخدام وإخلاء المسؤولية / Terms & Waiver</h3>' +
+                    '<div id="termsGateText" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:12px;font-size:13px;line-height:1.9;white-space:pre-wrap;max-height:40vh;overflow:auto;color:#e2e8f0;"></div>' +
+                    '<label style="display:flex;gap:8px;align-items:flex-start;margin:12px 0;font-size:13px;font-weight:700;cursor:pointer;">' +
+                    '<input type="checkbox" id="termsGateCheck" style="width:20px;height:20px;">' +
+                    '<span>أوافق — وسيلة مساعدة فقط، إخلاء كامل من أي شيء ومن أي مساءلة قانونية، والطوارئ للمستشفى المختص / I accept — helper tool only, full waiver, emergencies go to hospital</span></label>' +
+                    '<div style="display:flex;gap:8px;"><button id="termsGateBtn" style="flex:1;padding:12px;border:0;border-radius:10px;background:linear-gradient(135deg,#0B5F5A,#14b8a6);color:#fff;font-weight:700;cursor:pointer;" onclick="acceptTermsAndGo()">موافقة ودخول ✅</button>' +
+                    '<button style="flex:1;padding:12px;border:1px solid rgba(255,255,255,.2);border-radius:10px;background:transparent;color:#fff;cursor:pointer;" onclick="termsGateLogout()">خروج</button></div></div>';
+                document.body.appendChild(ov);
+            } else { ov.style.display = 'flex'; }
+            var txt = document.getElementById('termsGateText');
+            txt.textContent = TERMS_FALLBACK;
+            try {
+                api.getTerms().then(function(r){
+                    if (r && r.success && r.data) txt.textContent = (r.data.ar || r.data.en) || TERMS_FALLBACK;
+                }).catch(function(){});
+            } catch (e) {}
+        }
+        async function acceptTermsAndGo() {
+            var c = document.getElementById('termsGateCheck');
+            if (!c || !c.checked) { showAlert('alert-error', 'يجب الموافقة على الشروط أولاً / You must accept first'); return; }
+            var btn = document.getElementById('termsGateBtn');
+            btn.disabled = true;
+            try {
+                var r = await api.acceptTerms();
+                if (r && r.success) {
+                    document.getElementById('termsGate').style.display = 'none';
+                    window.location.href = '/admin/assistant-panel.html';
+                }
+            } catch (e) { showAlert('alert-error', e.message || 'Failed'); }
+            btn.disabled = false;
+        }
+        function termsGateLogout() {
+            try { api.logout(); } catch (e) {}
+            try { clearAuth(); } catch (e) {}
+            var ov = document.getElementById('termsGate');
+            if (ov) ov.style.display = 'none';
+            window.location.reload();
+        }
 </script>
 </body>
 </html>
