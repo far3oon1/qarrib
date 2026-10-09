@@ -170,8 +170,8 @@ const sendMessage = asyncHandler(async (req, res) => {
 // Same queue the admin sees, but phones/addresses are never included, so a
 // helper can pass/reject prices when no admin is available.
 const listOffers = asyncHandler(async (req, res) => {
-  const { status } = req.query; // pending_admin (default) | pending_review | approved | rejected | all
-  const wanted = status || 'pending_admin';
+  const { status } = req.query; // pending_review (default, live) | pending_admin (legacy) | approved | rejected | all
+  const wanted = status || 'pending_review';
   const orders = await Order.aggregate([
     { $match: { offers: { $exists: true, $not: { $size: 0 } } } },
     { $unwind: '$offers' },
