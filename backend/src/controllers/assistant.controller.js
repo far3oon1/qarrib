@@ -229,6 +229,9 @@ const passOffer = asyncHandler(async (req, res) => {
   if (!['open', 'offers_received'].includes(order.status)) throw new ApiError(400, 'Order is no longer open for pricing');
   const offer = order.offers.id(offerId);
   if (!offer) throw new ApiError(404, 'Offer not found');
+  if (offer.status === 'pending_review') {
+    return ResponseHelper.success(res, { orderId: order._id, offerId, status: offer.status }, 'السعر ظاهر للمريض بالفعل');
+  }
   if (offer.status !== 'pending_admin') throw new ApiError(400, 'Offer was already reviewed');
   offer.status = 'pending_review';
   offer.reviewedBy = req.user.id;

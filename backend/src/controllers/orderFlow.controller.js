@@ -814,19 +814,19 @@ const submitOffer = asyncHandler(async (req, res) => {
     throw new ApiError(400, `سعرك (${price} ج.م) أقل من السعر الثابت للخدمة (${floor} ج.م) — يجب أن يساويه أو يزيد عنه`);
   }
 
-  // Any new/edited price re-enters review — UNLESS the patient already
-  // secured the money (escrow held): then no admin wait is needed and the
-  // price goes straight to the patient (admin can still reject it later).
-  const autoPass = order.escrowStatus === 'held';
+  // Patient-first rule: a nurse price goes STRAIGHT to the patient, who
+  // can accept it with no admin approval. Admin/assistant still see every
+  // offer (FYI notification) and may reject a bad price or assign a nurse
+  // themselves if the patient does not act.
   const existing = order.offers.find((o) => String(o.nurse) === String(req.user.id) && ['pending_admin', 'pending_review'].includes(o.status));
   if (existing) {
     existing.price = price;
     existing.notes = notes;
-    existing.status = autoPass ? 'pending_review' : 'pending_admin';
+    existing.status = 'pending_review';
     existing.createdAt = new Date();
-    if (autoPass) existing.reviewedAt = new Date();
+    existing.reviewedAt = new Date();
   } else {
-    order.offers.push({ nurse: req.user.id, price, notes, status: autoPass ? 'pending_review' : 'pending_admin' });
+    order.offers.push({ nurse: req.user.id, price, notes, status: 'pending_review' });
   }
   const matchEntry = (order.matchedNurses || []).find((m) => String(m.nurse) === String(req.user.id));
   if (matchEntry && matchEntry.status === 'pending') {
@@ -834,13 +834,13 @@ const submitOffer = asyncHandler(async (req, res) => {
     matchEntry.respondedAt = new Date();
   }
   if (order.status === 'open') order.status = 'offers_received';
-  order.statusHistory.push({ status: order.status, changedBy: req.user.id, notes: autoPass ? `Nurse suggested price ${price} (auto-passed, escrow held)` : `Nurse suggested price ${price} (waiting admin review)` });
+  order.statusHistory.push({ status: order.status, changedBy: req.user.id, notes: `Nurse suggested price ${price} (straight to patient)` });
   await order.save();
 
   const nurseName = req.user.fullName || 'A nurse';
   const admins = await getAdminIds();
   for (const a of admins) {
-    await Notification.create({ recipient: a._id, title: autoPass ? 'عرض سعر مرّر تلقائياً ✅' : 'عرض سعر يحتاج مراجعة 💰', message: autoPass ? `${nurseName} اقترح ${price} ج.م للطلب #${order.orderNumber} — مرّر تلقائياً للمريض (المبلغ محجوز)${price === floor ? ' ويساوي الثابت' : ''}` : `${nurseName} اقترح ${price} ج.م للطلب #${order.orderNumber} — راجعه ثم مرّره للمريض أو ارفضه`, type: 'order', data: { orderId: order._id, price } });
+    await Notification.create({ recipient: a._id, title: 'عرض سعر جديد 👀', message: `${nurseName} اقترح ${price} ج.م للطلب #${order.orderNumber} — ظهر للمريض مباشرة (يقبل بدون إدارة) — يمكنك رفضه أو تعيين الممرض لو المريض لم يتصرف`, type: 'order', data: { orderId: order._id, price } });
   }
   // Assistants with order scope act when no admin is around — ping them too.
   // (Masked: they see the price + masked names, never contacts.)
@@ -852,16 +852,15 @@ const submitOffer = asyncHandler(async (req, res) => {
   } catch (_) { /* assistants optional */ }
   try {
     const { emitToOrder, emitToUser } = require('../sockets');
-    emitToOrder(String(order._id), 'order_update', { orderId: order._id, status: order.status, newOffer: autoPass ? { price, nurseId: req.user.id } : undefined, newOfferPendingAdmin: !autoPass });
-    if (autoPass) emitToUser(String(order.patient), 'notification', { title: 'عرض سعر جديد ✅', orderId: order._id, price });
+    emitToOrder(String(order._id), 'order_update', { orderId: order._id, status: order.status, newOffer: { price, nurseId: req.user.id } });
+    emitToUser(String(order.patient), 'notification', { title: 'عرض سعر جديد ✅', orderId: order._id, price });
     admins.forEach((a) => {
-      try { emitToUser(String(a._id), 'notification', { title: autoPass ? 'عرض سعر مرّر تلقائياً' : 'عرض سعر يحتاج مراجعة', orderId: order._id, price }); } catch (_) {}
+      try { emitToUser(String(a._id), 'notification', { title: 'عرض سعر جديد', orderId: order._id, price }); } catch (_) {}
     });
   } catch (_) { /* sockets optional */ }
-  if (autoPass) {
-    await Notification.create({ recipient: order.patient, title: 'عرض سعر جديد ✅', message: `${nurseName} اقترح ${price} ج.م لطلبك #${order.orderNumber} — قارن واقبل أو ارفض من صفحة الاختيار`, type: 'order', data: { orderId: order._id, price, nurseId: req.user.id } });
-  }
-  ResponseHelper.success(res, { orderId: order._id, status: order.status, price, autoPassed: autoPass }, autoPass ? 'تم إرسال سعرك للمريض مباشرة (المبلغ محجوز مسبقاً)' : 'تم إرسال سعرك للإدارة — سيظهر للمريض بعد مراجعته');
+  await Notification.create({ recipient: order.patient, title: 'عرض سعر جديد ✅', message: `${nurseName} اقترح ${price} ج.م لطلبك #${order.orderNumber} — قارن واقبل أو ارفض من صفحة الاختيار (بدون انتظار الإدارة)`, type: 'order', data: { orderId: order._id, price, nurseId: req.user.id } });
+  try { require('../utils/audit').logEvent(req, 'offer.submit', { targetType: 'order', targetId: String(order._id), details: `nurse ${nurseName} offered ${price} EGP on #${order.orderNumber} (straight to patient)` }); } catch (_) {}
+  ResponseHelper.success(res, { orderId: order._id, status: order.status, price }, 'تم إرسال سعرك للمريض مباشرة');
 });
 
 // POST /api/orders/:id/accept-price (patient accepts the admin suggested price)
