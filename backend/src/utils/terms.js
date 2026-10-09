@@ -4,7 +4,7 @@
 // patient AND every nurse must accept these terms BEFORE registering, and is
 // reminded of them on EVERY sign-in. Bump TERMS_VERSION whenever the text
 // changes so old acceptances become stale automatically.
-const TERMS_VERSION = '2.0';
+const TERMS_VERSION = '2.1';
 
 const TERMS_AR = `شروط الاستخدام وإخلاء المسؤولية الكامل — تطبيق قرّب (الإصدار ${TERMS_VERSION})
 
@@ -18,9 +18,7 @@ const TERMS_AR = `شروط الاستخدام وإخلاء المسؤولية ا
 
 5) حالات الطوارئ: عند أي حالة طارئة أو خطيرة توجه فوراً للطوارئ أو المستشفى المختص ولا تعتمد على التطبيق إطلاقاً.
 
-6) تحقق بنفسك: على المريض التأكد من هوية الممرض وترخيصه قبل بدء الخدمة، وعلى الممرض التأكد من صحة بيانات الطلب قبل القبول — التطبيق لا يضمن أي طرف.
-
-7) استخدام على مسؤوليتك: استمرارك في التسجيل أو الدخول أو استخدام التطبيق يعني موافقتك الكاملة والنهائية على كل ما سبق.`;
+6) استخدام على مسؤوليتك: استمرارك في التسجيل أو الدخول أو استخدام التطبيق يعني موافقتك الكاملة والنهائية على كل ما سبق.`;
 
 const TERMS_EN = `Full Terms of Use & Liability Waiver — Qarrib App (v${TERMS_VERSION})
 
@@ -34,9 +32,7 @@ const TERMS_EN = `Full Terms of Use & Liability Waiver — Qarrib App (v${TERMS_
 
 5) Emergencies: In any urgent or serious case, go to the emergency room or the specialized hospital immediately — never rely on the app.
 
-6) Verify yourself: Patients must verify the nurse's identity and license before the visit; nurses must verify the request details before accepting — the app guarantees neither party.
-
-7) Use at your own risk: Continuing to register, sign in, or use the app means your full and final acceptance of everything above.`;
+6) Use at your own risk: Continuing to register, sign in, or use the app means your full and final acceptance of everything above.`;
 
 function termsAccepted(user) {
   if (!user) return false;
