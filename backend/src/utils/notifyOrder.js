@@ -22,7 +22,7 @@ async function notifyNewOrder({ order, serviceDoc, gov, amount, skipAdmins = fal
     await Notification.create({
       recipient: nurse._id,
       title: 'طلب جديد قريب منك 📍',
-      message: `طلب جديد: ${serviceName} في ${gov} — على بعد ${distanceKm.toFixed(1)} كم منك — المريض عارض ${bid} ج.م (الثابت ${amount} ج.م) — اقترح سعرك`,
+      message: `طلب جديد: ${serviceName} في ${gov} — على بعد ${distanceKm.toFixed(1)} كم منك — سعر الطلب ${bid} ج.م (الثابت ${amount} ج.م) — اقترح سعرك (الثابت أو أعلى)`,
       type: 'order',
       data: { orderId: order._id, distanceKm: Math.round(distanceKm * 10) / 10, patientBid: bid, basePrice: amount }
     });
@@ -35,7 +35,7 @@ async function notifyNewOrder({ order, serviceDoc, gov, amount, skipAdmins = fal
     await Notification.create({
       recipient: n._id,
       title: 'طلب جديد متاح',
-      message: `طلب جديد: ${serviceName} في ${gov} — المريض عارض ${bid} ج.م (الثابت ${amount} ج.م) — اقترح سعرك`,
+      message: `طلب جديد: ${serviceName} في ${gov} — سعر الطلب ${bid} ج.م (الثابت ${amount} ج.م) — اقترح سعرك (الثابت أو أعلى)`,
       type: 'order',
       data: { orderId: order._id, patientBid: bid, basePrice: amount }
     });

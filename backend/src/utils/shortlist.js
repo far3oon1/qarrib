@@ -24,7 +24,7 @@ async function openAndShortlist({ order, serviceDoc, gov, amount, actorId, actor
     await Notification.create({
       recipient: p.nurse,
       title: 'طلب جديد قريب منك 📍',
-      message: `طلب جديد: ${serviceName} في ${gov}${p.distanceKm != null ? ` — على بعد ${p.distanceKm} كم` : ''} — المريض عارض ${bid} ج.م (الثابت ${amount} ج.م) — اقترح سعرك بسرعة (يُراجع من الإدارة أولاً)`,
+      message: `طلب جديد: ${serviceName} في ${gov}${p.distanceKm != null ? ` — على بعد ${p.distanceKm} كم` : ''} — سعر الطلب ${bid} ج.م (الثابت ${amount} ج.م) — اقترح سعرك (الثابت أو أعلى)`,
       type: 'order',
       data: { orderId: order._id, shortlisted: true, distanceKm: p.distanceKm, patientBid: bid, basePrice: amount }
     });

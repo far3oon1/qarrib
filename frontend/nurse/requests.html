@@ -146,7 +146,7 @@
                         return '<div class="request-card"' + (req.isShortlisted ? ' style="border:2px solid #f59e0b;"' : '') + '>' +
                             short +
                             '<div class="request-service">' + req.serviceType + '</div>' +
-                            '<div class="request-amount">💰 المريض عارض: ' + (req.patientOfferedPrice != null ? req.patientOfferedPrice + ' ج.م' : (req.amount ? req.amount + ' ج.م' : '—')) + '</div>' +
+                            '<div class="request-amount">💰 سعر الطلب: ' + (req.patientOfferedPrice != null ? req.patientOfferedPrice + ' ج.م' : (req.amount ? req.amount + ' ج.م' : '—')) + '</div>' +
                             '<div style="font-size:13px;color:#64748b;margin-bottom:12px;">السعر الثابت للخدمة: ' + (base != null ? base + ' ج.م' : 'يُحدد من الإدارة') + '</div>' +
                             '<div class="request-detail">📍 ' + req.address + (req.distanceKm != null ? ' — 📏 ' + req.distanceKm + ' كم' : '') + '</div>' +
                             '<div class="request-detail">📝 ' + (req.description || 'لا يوجد وصف') + '</div>' +

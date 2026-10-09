@@ -122,7 +122,7 @@
                 document.getElementById('matchesBox').innerHTML = '<div class="q-card" style="padding:24px;text-align:center;">هذا الطلب لم يعد مفتوحاً (الحالة: ' + esc(d.status) + '). <a href="dashboard.html">عودة للرئيسية</a></div>';
                 return;
             }
-            document.getElementById('orderBar').innerHTML = 'طلب #' + esc(d.orderNumber || '') + ' — ' + esc((d.service && d.service.nameAr) || 'خدمة تمريض') + ' · عرضك: <b>' + (d.patientBid != null ? d.patientBid + ' ج.م' : '—') + '</b> · الثابت: ' + (d.adminBasePrice != null ? d.adminBasePrice + ' ج.م' : '—') + (d.amountHeld ? ' · المحجوز: ' + d.amountHeld + ' ج.م ✅' : '');
+            document.getElementById('orderBar').innerHTML = 'طلب #' + esc(d.orderNumber || '') + ' — ' + esc((d.service && d.service.nameAr) || 'خدمة تمريض') + ' · سعر الطلب: <b>' + (d.patientBid != null ? d.patientBid + ' ج.م' : '—') + '</b> (الثابت: ' + (d.adminBasePrice != null ? d.adminBasePrice + ' ج.م' : '—') + ')' + (d.amountHeld ? ' · المحجوز: ' + d.amountHeld + ' ج.م ✅' : '');
             var box = document.getElementById('matchesBox');
             if (!d.matches || !d.matches.length) {
                 box.innerHTML = '<div class="q-card" style="padding:32px;text-align:center;color:#4A605E;">لم يتم ترشيح ممرضين بعد — اضغط "ممرضون آخرون" للبحث من جديد.</div>';
