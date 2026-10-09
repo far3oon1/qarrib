@@ -149,13 +149,16 @@
                 </div>
 
                 <div class="form-group" style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 12px;">
-                    <label class="form-label">💰 عرضك للسعر (مثل inDrive)</label>
-                    <div style="font-size: 13px; color: #166534; margin-bottom: 8px;" id="basePriceHint">السعر الثابت يظهر بعد اختيار الخدمة — عرضك يساويه أو يزيد عنه فقط (لا يمكن الإنقاص).</div>
+                    <label class="form-label">💰 سعر الخدمة (ثابت من الإدارة)</label>
+                    <div style="font-size: 22px; font-weight: 800; color: #059669;" id="fixedPriceBox">اختر الخدمة أولاً</div>
+                    <div style="font-size: 13px; color: #166534; margin: 8px 0;" id="basePriceHint">السعر ثابت ومحدد من الإدارة — لا يمكن تغييره أو الإنقاص منه.</div>
+                    <label class="form-label" style="margin-top:4px;">⚡ زيادة اختيارية فوق الثابت (لتسريع قبول الممرضين — اختياري)</label>
                     <div style="display:flex;gap:8px;align-items:center;">
-                        <input type="number" min="1" class="form-input" id="suggestedPrice" placeholder="عرضك بالجنيه" style="flex:1;">
-                        <button type="button" class="btn btn-sm btn-outline" style="width:auto;white-space:nowrap;" onclick="resetBid()">السعر الثابت</button>
+                        <input type="number" min="0" value="0" class="form-input" id="priceBoost" placeholder="0" style="flex:1;" oninput="refreshTotal()">
+                        <button type="button" class="btn btn-sm btn-outline" style="width:auto;white-space:nowrap;" onclick="resetBid()">بدون زيادة</button>
                     </div>
-                    <div style="font-size: 12px; color: #166534; margin-top:6px;">💡 زيادة عرضك تجعل الممرضين يقبلون أسرع — يُخصم من محفظتك فوراً أو يبقى معلقاً حتى قبول تحويلك.</div>
+                    <div style="font-size: 14px; font-weight: 800; color: #0B4A46; margin-top:8px;">الإجمالي عند الإرسال: <span id="totalPricePreview">—</span> ج.م</div>
+                    <div style="font-size: 12px; color: #166534; margin-top:6px;">💡 الممرضون يقترحون أسعارهم (الثابت أو أعلى) وأنت تقبل ✅ أو ترفض ❌ من صفحة الاختيار.</div>
                 </div>
 
                 <div class="form-group">
@@ -258,20 +261,25 @@
         function refreshBidHint() {
             var base = currentBasePrice();
             var hint = document.getElementById('basePriceHint');
-            var inp = document.getElementById('suggestedPrice');
+            var box = document.getElementById('fixedPriceBox');
             if (base != null) {
-                hint.textContent = 'السعر الثابت لهذه الخدمة: ' + base + ' ج.م — عرضك يساويه أو يزيد عنه فقط.';
-                inp.min = base;
-                inp.placeholder = 'عرضك (من ' + base + ' ج.م)';
-                if (!inp.value) inp.value = base;
+                hint.textContent = 'السعر ثابت ومحدد من الإدارة — لا يمكن تغييره أو الإنقاص منه. الزيادة اختيارية فقط.';
+                box.textContent = base + ' ج.م';
             } else {
                 hint.textContent = 'هذه الخدمة بانتظار تسعير الإدارة — سيُحدد السعر قبل فتح طلبك.';
-                inp.min = 1;
+                box.textContent = 'بانتظار التسعير';
             }
+            refreshTotal();
+        }
+        function refreshTotal() {
+            var base = currentBasePrice();
+            var boost = Math.max(0, Number(document.getElementById('priceBoost').value) || 0);
+            var el = document.getElementById('totalPricePreview');
+            el.textContent = (base != null) ? (base + boost) : '—';
         }
         function resetBid() {
-            var base = currentBasePrice();
-            if (base != null) document.getElementById('suggestedPrice').value = base;
+            document.getElementById('priceBoost').value = 0;
+            refreshTotal();
         }
         // Show/hide transfer reference depending on method
         document.querySelectorAll('input[name="payMethod"]').forEach(function(r){
@@ -409,10 +417,11 @@
             }
 
             const payMethod = (document.querySelector('input[name="payMethod"]:checked') || {}).value || 'instapay';
-            const suggestedRaw = Number(document.getElementById('suggestedPrice').value);
+            // Fixed system price + optional patient boost (never below fixed)
             const base = currentBasePrice();
-            if (base != null && (!suggestedRaw || suggestedRaw < base)) {
-                showAlert('عرضك يجب أن يساوي السعر الثابت (' + base + ' ج.م) أو يزيد عنه', 'error');
+            const boost = Math.max(0, Number(document.getElementById('priceBoost').value) || 0);
+            if (base == null) {
+                showAlert('هذه الخدمة بانتظار تسعير الإدارة — اختر خدمة مسعّرة', 'error');
                 btn.disabled = false;
                 btn.textContent = 'إرسال الطلب';
                 return;
@@ -423,7 +432,7 @@
                 address: document.getElementById('address').value.trim(),
                 location: userLocation,
                 paymentMethod: payMethod,
-                suggestedPrice: (base != null && suggestedRaw) ? suggestedRaw : undefined,
+                suggestedPrice: base + boost,
                 reference: (document.getElementById('payReference') || {}).value || ''
             };
 

@@ -164,7 +164,7 @@ const createSimple = asyncHandler(async (req, res) => {
     for (const a of admins) {
       await Notification.create({
         recipient: a._id, title: 'طلب خدمة جديد',
-        message: `طلب جديد #${order.orderNumber}: ${serviceName} في ${gov} — عرض المريض ${holdAmount} ج.م (الثابت ${finalAmount}) — رُشح ${picks.length} ممرضين`,
+        message: `طلب جديد #${order.orderNumber}: ${serviceName} في ${gov} — سعر الطلب ${holdAmount} ج.م (الثابت ${finalAmount}) — رُشح ${picks.length} ممرضين`,
         type: 'order', data: { orderId: order._id, patientBid: holdAmount, basePrice: finalAmount }
       });
     }
@@ -184,7 +184,7 @@ const createSimple = asyncHandler(async (req, res) => {
         title: manualPending ? 'تحويل طلب بانتظار القبول 💰' : 'طلب جديد يحتاج موافقة الإدارة',
         message: manualPending
           ? `${patient.fullName} حوّل ${holdAmount} ج.م مقدماً للطلب #${order.orderNumber} (${method === 'vodafone_cash' ? 'فودافون كاش' : 'InstaPay'}، مرجع: ${(reference || '').trim()}) — عرضه ${holdAmount} (الثابت ${finalAmount}) — اقبل التحويل ليُفتح الطلب للممرضين`
-          : `طلب جديد #${order.orderNumber}: ${serviceDoc.nameAr} في ${gov}${priced ? ` — عرض المريض ${holdAmount} ج.م` : ' — حدد السعر'} ثم اعتمد الخدمة ليظهر للممرضين`,
+          : `طلب جديد #${order.orderNumber}: ${serviceDoc.nameAr} في ${gov}${priced ? ` — سعر الطلب ${holdAmount} ج.م` : ' — حدد السعر'} ثم اعتمد الخدمة ليظهر للممرضين`,
         type: manualPending ? 'payment' : 'order', data: { orderId: order._id, patientBid: holdAmount }
       });
     }
@@ -195,7 +195,7 @@ const createSimple = asyncHandler(async (req, res) => {
         await Notification.create({
           recipient: as._id,
           title: manualPending ? 'تحويل طلب بانتظار القبول 💰' : 'طلب جديد يحتاج مراجعة',
-          message: `طلب #${order.orderNumber}: ${serviceDoc.nameAr} — عرض المريض ${holdAmount != null ? holdAmount + ' ج.م' : '—'} — راجعه من لوحة المساعد`,
+          message: `طلب #${order.orderNumber}: ${serviceDoc.nameAr} — سعر الطلب ${holdAmount != null ? holdAmount + ' ج.م' : '—'} — راجعه من لوحة المساعد`,
           type: manualPending ? 'payment' : 'order', data: { orderId: order._id }
         });
       }
@@ -693,7 +693,7 @@ const approveOffer = asyncHandler(async (req, res) => {
   // difference, so the patient just gets a receipt (no separate pay step).
   const settleNote = settled.diff > 0
     ? ` — تم خصم فرق السعر ${settled.diff} ج.م من محفظتك تلقائياً`
-    : (settled.diff < 0 ? ` — تم إرجاع ${Math.abs(settled.diff)} ج.م لمحفظتك (سعر أقل من عرضك)` : ' — المبلغ كان محجوزاً مقدماً');
+    : (settled.diff < 0 ? ` — تم إرجاع ${Math.abs(settled.diff)} ج.م لمحفظتك (السعر المقبول أقل)` : ' — المبلغ كان محجوزاً مقدماً');
   await Notification.create({ recipient: order.patient, title: 'تم قبول السعر ✅', message: `تم قبول سعر ${offer.price} ج.م لطلبك #${order.orderNumber}${settleNote}`, type: 'order', data: { orderId: order._id, finalPrice: offer.price } });
   if (req.user.role !== 'admin') {
     const offerAdmins = await getAdminIds();

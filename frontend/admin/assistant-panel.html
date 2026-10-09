@@ -209,7 +209,7 @@ async function loadTransfers() {
         const list = r.data || [];
         document.getElementById('transfersList').innerHTML = list.length ? list.map(function(t){
             return '<div class="row-item"><strong>' + esc(t.user ? t.user.name : '') + '</strong> — ' + t.amount + ' ج.م عبر ' + (t.paymentMethod === 'vodafone_cash' ? '📱 فودافون كاش' : '💳 InstaPay') +
-            '<div style="color:#64748b;">طلب #' + esc(t.order ? t.order.orderNumber : '—') + ' | مرجع: ' + esc(t.reference || '—') + ' | عرض المريض: ' + (t.order && t.order.patientBid != null ? t.order.patientBid + ' ج.م' : '—') + ' | حالة الطلب: ' + esc(t.order ? t.order.status : '—') + '</div>' +
+            '<div style="color:#64748b;">طلب #' + esc(t.order ? t.order.orderNumber : '—') + ' | مرجع: ' + esc(t.reference || '—') + ' | سعر الطلب: ' + (t.order && t.order.patientBid != null ? t.order.patientBid + ' ج.م' : '—') + ' | حالة الطلب: ' + esc(t.order ? t.order.status : '—') + '</div>' +
             '<div style="display:flex;gap:8px;margin-top:8px;">' +
                 '<button class="q-btn q-btn-sm" style="flex:1;" onclick="reviewTransfer(\'' + t.id + '\',\'approve\')">✅ قبول وتفعيل</button>' +
                 '<button class="q-btn q-btn-sm" style="flex:1;" onclick="reviewTransfer(\'' + t.id + '\',\'reject\')">❌ رفض</button></div></div>';
