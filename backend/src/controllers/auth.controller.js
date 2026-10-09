@@ -543,6 +543,13 @@ const assistantLogin = asyncHandler(async (req, res) => {
 
   const token = generateToken(assistant._id, assistant.role);
 
+  // Helpers accept the same liability waiver (every sign-in reminds them).
+  let assistantNeedsTerms = true;
+  try {
+    const { termsAccepted } = require('../utils/terms');
+    assistantNeedsTerms = !termsAccepted(assistant);
+  } catch (_) {}
+
   ResponseHelper.success(res, {
     user: {
       id: assistant._id,
@@ -551,11 +558,12 @@ const assistantLogin = asyncHandler(async (req, res) => {
       phone: assistant.phone,
       role: assistant.role,
       status: assistant.status,
+      needsTermsAcceptance: assistantNeedsTerms,
       assistantLabel: assistant.assistantLabel || null,
       assistantScopes: Array.isArray(assistant.assistantScopes) ? assistant.assistantScopes : [],
     },
     token
-  }, 'Welcome back — helper sign-in successful');
+  }, assistantNeedsTerms ? 'يرجى الموافقة على شروط الاستخدام أولاً / Please accept the Terms first' : 'Welcome back — helper sign-in successful');
 });
 
 module.exports = {
