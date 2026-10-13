@@ -7,6 +7,7 @@ const Service = require('../models/Service');
 const ApiError = require('../utils/ApiError');
 const ResponseHelper = require('../utils/response');
 const asyncHandler = require('../utils/asyncHandler');
+const { resolveRate } = require('../utils/commission');
 const { deleteFromCloudinary } = require('../config/cloudinary');
 const { sendPasswordResetEmail } = require('../utils/email');
 const crypto = require('crypto');
@@ -373,6 +374,7 @@ const reviewOrderPrice = asyncHandler(async (req, res) => {
 
     order.selectedOffer = pendingOffer._id;
     order.finalPrice = pendingOffer.price;
+    order.commissionRate = resolveRate(order.commissionRate);
     order.commission = Math.round(pendingOffer.price * (order.commissionRate / 100));
     order.status = 'price_approved';
     order.statusHistory.push({ status: 'price_approved', changedBy: req.user.id, notes: adminNotes || 'تمت الموافقة على السعر' });
@@ -417,7 +419,7 @@ const setOrderPrice = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'لا يمكن تسعير هذا الطلب في حالته الحالية');
   }
 
-  const rate = Number(order.commissionRate) > 0 ? Number(order.commissionRate) : 10;
+  const rate = resolveRate(order.commissionRate);
   order.finalPrice = price;
   order.commission = Math.round(price * (rate / 100) * 100) / 100;
   order.nurseEarnings = Math.round((price - order.commission) * 100) / 100;
@@ -452,7 +454,7 @@ const approveService = asyncHandler(async (req, res) => {
   if (!Number.isFinite(price) || price <= 0) {
     throw new ApiError(400, 'حدد السعر أولاً قبل اعتماد الخدمة');
   }
-  const rate = Number(order.commissionRate) > 0 ? Number(order.commissionRate) : 10;
+  const rate = resolveRate(order.commissionRate);
   order.finalPrice = price;
   order.commission = Math.round(price * (rate / 100) * 100) / 100;
   order.nurseEarnings = Math.round((price - order.commission) * 100) / 100;
@@ -485,7 +487,7 @@ const suggestOrderPrice = asyncHandler(async (req, res) => {
   if (!['under_review', 'open'].includes(order.status)) {
     throw new ApiError(400, 'لا يمكن اقتراح سعر في الحالة الحالية');
   }
-  const rate = Number(order.commissionRate) > 0 ? Number(order.commissionRate) : 10;
+  const rate = resolveRate(order.commissionRate);
   order.finalPrice = price;
   order.commission = Math.round(price * (rate / 100) * 100) / 100;
   order.nurseEarnings = Math.round((price - order.commission) * 100) / 100;

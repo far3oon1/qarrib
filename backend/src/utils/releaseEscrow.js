@@ -23,12 +23,13 @@ async function releaseEscrowToNurse(order, options) {
     description: `Earnings for order ${order.orderNumber} (paid directly on patient payment)`,
     balanceAfter: nurse.walletBalance
   });
+  const { resolveRate } = require('./commission');
   const platformFee = order.platformFee || 0;
   if (platformFee > 0) {
     await Wallet.create({
       user: nurse._id, order: order._id, type: 'fee',
       amount: platformFee, status: 'completed', paymentMethod: order.paymentMethod,
-      description: `Platform fee (${(order.commissionRate || 10)}%) for order ${order.orderNumber}`,
+      description: `Platform fee (${resolveRate(order.commissionRate)}%) for order ${order.orderNumber}`,
       balanceAfter: nurse.walletBalance
     });
   }

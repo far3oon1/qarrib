@@ -174,7 +174,7 @@ const orderSchema = new mongoose.Schema({
 
   commissionRate: {
     type: Number,
-    default: 10
+    default: 20
   },
 
   status: {

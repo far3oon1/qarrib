@@ -12,7 +12,9 @@ const { findNearestNurses } = require('../utils/nearestNurses');
 const { pickMatchNurses, MATCH_LIMIT_DEFAULT } = require('../utils/matchNurses');
 const { getAdminIds } = require('../utils/adminIds');
 
-const COMMISSION_RATE = 10;
+const { getCommissionRate } = require('../utils/commission');
+
+const COMMISSION_RATE = getCommissionRate();
 
 const emitOrder = (orderId, event, data) => {
   try {
@@ -104,7 +106,8 @@ const createSimple = asyncHandler(async (req, res) => {
   }
 
   const holdAmount = priced ? patientBid : null;
-  const commission = priced ? Math.round(holdAmount * (COMMISSION_RATE / 100) * 100) / 100 : 0;
+  const liveRate = getCommissionRate();
+  const commission = priced ? Math.round(holdAmount * (liveRate / 100) * 100) / 100 : 0;
   const nurseEarnings = priced ? Math.round((holdAmount - commission) * 100) / 100 : 0;
 
   const order = await Order.create({
@@ -122,7 +125,7 @@ const createSimple = asyncHandler(async (req, res) => {
     patientOfferedPrice: holdAmount,
     amountHeld: 0,
     commission,
-    commissionRate: COMMISSION_RATE,
+    commissionRate: liveRate,
     nurseEarnings,
     platformFee: commission,
     paymentMethod: priced ? method : null,

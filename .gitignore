@@ -20,3 +20,5 @@ backend/logs/
 logs/
 *.log
 backend/uploads/
+.vercel
+.env*

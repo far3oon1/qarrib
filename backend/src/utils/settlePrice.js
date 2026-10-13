@@ -4,6 +4,7 @@
 //   accepted < held  -> refund the rest to the patient wallet (ledgered)
 // Final price / commission / earnings are recomputed from the accepted price.
 const ApiError = require('./ApiError');
+const { resolveRate } = require('./commission');
 
 const round2 = (n) => Math.round(Number(n) * 100) / 100;
 
@@ -40,7 +41,7 @@ async function settleAcceptPrice({ order, patient, acceptedPrice }) {
     });
   }
 
-  const rate = Number(order.commissionRate) > 0 ? Number(order.commissionRate) : 10;
+  const rate = resolveRate(order.commissionRate);
   order.finalPrice = accepted;
   order.amountHeld = accepted;
   order.commission = round2(accepted * (rate / 100));
