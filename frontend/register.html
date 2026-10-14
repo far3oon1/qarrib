@@ -214,20 +214,21 @@
             </form>
 
             <div class="form-link">
-                لديك حساب بالفعل؟ <a href="login.html">تسجيل الدخول</a>
+                لديك حساب بالفعل؟ <a href="login-patient.html" id="loginLink">تسجيل الدخول</a>
             </div>
         </div>
     </div>
 
 <script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
 <script src="js/api.js?v=8"></script>
-<script src="js/auth.js?v=6"></script>
+<script src="js/auth.js?v=8"></script>
 <script src="js/permissions.js?v=1"></script>
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const role = urlParams.get('role') || 'patient';
-        document.getElementById('subtitle').textContent = 
+        document.getElementById('subtitle').textContent =
             role === 'nurse' ? 'إنشاء حساب ممرض' : 'إنشاء حساب مريض';
+        document.getElementById('loginLink').href = role === 'nurse' ? 'login-nurse.html' : 'login-patient.html';
 
         if (role === 'nurse') {
             document.getElementById('nurseFields').style.display = 'block';

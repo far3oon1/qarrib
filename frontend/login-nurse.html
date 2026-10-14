@@ -72,7 +72,7 @@
                     <label class="q-label"><span data-i18n="pass2">Password</span><input id="password-nurse" type="password" class="q-input" placeholder="Password"></label>
                     <button class="q-btn" id="btn-nurse" type="button" onclick="login('nurse')"><span class="spinner" id="spinner-nurse"></span><span data-i18n="signin2">Sign in</span></button>
                     <div style="font-size:15px;color:#4A605E;text-align:center;"><span data-i18n="noacc2">Don't have an account?</span> <a href="register.html?role=nurse" style="color:#0B5F5A;font-weight:600;" data-i18n="regn">Register as a nurse</a></div>
-                    <div class="other-roles" data-i18n="otherroles">Are you a patient or a helper? <a href="login-patient.html" data-i18n="gotologin">Patient sign in</a> · <a href="login-assistant.html" data-i18n="gotologin2">Helper sign in</a> · <a href="login.html" data-i18n="home">All logins</a></div>
+                    <div class="other-roles" data-i18n="otherroles">Are you a patient or a helper? <a href="login-patient.html" data-i18n="gotologin">Patient sign in</a> · <a href="login-assistant.html" data-i18n="gotologin2">Helper sign in</a></div>
                 </div>
             </div>
         </div>
@@ -80,7 +80,7 @@
 
 <script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
 <script src="js/api.js?v=8"></script>
-<script src="js/auth.js?v=7"></script>
+<script src="js/auth.js?v=8"></script>
 <script>
     if (isLoggedIn() && getRole()) { redirectBasedOnRole(); }
     else if (isLoggedIn()) {
@@ -198,7 +198,7 @@
     }
 
     var currentLang = 'en';
-    var AR = { tagline:'أقرب ممرض لك، وقت ما تحتاجه.', p1:'ممرضون مرخّصون وموثّقون', p2:'عروض واضحة من ممرضين قريبين منك', p3:'تابع كل زيارة لحظة بلحظة', ntitle:'تسجيل دخول الممرض', nsub:'قدّم خدماتك واكسب', email2:'البريد الإلكتروني', pass2:'كلمة المرور', signin2:'تسجيل الدخول', noacc2:'ليس لديك حساب؟', regn:'سجل كممرض', otherroles:'هل أنت مريض أو مساعد؟', gotologin:'دخول المريض', gotologin2:'دخول المساعد', home:'كل صفحات الدخول' };
+    var AR = { tagline:'أقرب ممرض لك، وقت ما تحتاجه.', p1:'ممرضون مرخّصون وموثّقون', p2:'عروض واضحة من ممرضين قريبين منك', p3:'تابع كل زيارة لحظة بلحظة', ntitle:'تسجيل دخول الممرض', nsub:'قدّم خدماتك واكسب', email2:'البريد الإلكتروني', pass2:'كلمة المرور', signin2:'تسجيل الدخول', noacc2:'ليس لديك حساب؟', regn:'سجل كممرض', otherroles:'هل أنت مريض أو مساعد؟', gotologin:'دخول المريض', gotologin2:'دخول المساعد' };
     var EN = {};
     document.querySelectorAll('[data-i18n]').forEach(function(el){ var k = el.getAttribute('data-i18n'); if (!EN[k]) EN[k] = el.textContent; });
     document.getElementById('roleTag').textContent = 'Nurse';

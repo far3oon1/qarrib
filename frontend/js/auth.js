@@ -27,8 +27,15 @@ function clearAuth() {
     localStorage.removeItem('user');
 }
 
+function roleLoginPage(role) {
+    if (role === 'nurse') return '/login-nurse.html';
+    if (role === 'assistant') return '/login-assistant.html';
+    if (role === 'admin') return '/admin-login.html';
+    return '/login-patient.html';
+}
+
 function redirectToLogin() {
-    window.location.href = '/login.html';
+    window.location.href = roleLoginPage(getRole());
 }
 
 function redirectBasedOnRole() {
@@ -94,11 +101,12 @@ function hasScope(scope) {
 }
 
 function logout() {
+    var page = roleLoginPage(getRole());
     clearAuth();
     if (typeof api !== 'undefined' && api.logout) {
         api.logout().catch(function() {});
     }
-    window.location.href = '/login.html';
+    window.location.href = page;
 }
 
 function formatCurrency(amount) {
@@ -205,8 +213,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                 clearAuth();
                 try {
                     var here = window.location.pathname || '';
-                    if (here.indexOf('login.html') === -1 && here.indexOf('register.html') === -1) {
-                        window.location.href = '/login.html?blocked=1';
+                    if (here.indexOf('login-') === -1 && here.indexOf('register.html') === -1) {
+                        window.location.href = roleLoginPage(getRole()) + '?blocked=1';
                     }
                 } catch (e) {}
                 return;

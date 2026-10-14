@@ -1,8 +1,10 @@
-const CACHE_NAME = 'qarrib-mobile-v8';
+const CACHE_NAME = 'qarrib-mobile-v9';
 const APP_SHELL = [
   '/',
   '/index.html',
-  '/login.html',
+  '/login-patient.html',
+  '/login-nurse.html',
+  '/login-assistant.html',
   '/register.html',
   '/plans.html',
   '/css/main.css',

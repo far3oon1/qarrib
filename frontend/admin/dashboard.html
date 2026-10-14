@@ -131,7 +131,7 @@
 
 <script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
 <script src="../js/api.js?v=9"></script>
-<script src="../js/auth.js?v=7"></script>
+<script src="../js/auth.js?v=8"></script>
 <script src="../js/notifications.js"></script>
 <script src="../js/notify-popup.js?v=1"></script>
 <script src="../js/permissions.js?v=1"></script>
@@ -172,7 +172,7 @@
         try { var i = await api.getVersion(); var el=document.getElementById('versionInfo'); el.style.display='block'; el.innerHTML='<strong>API:</strong> '+(i.version||'ok')+' · '+new Date().toLocaleString(); }
         catch(e){ var el2=document.getElementById('versionInfo'); el2.style.display='block'; el2.textContent='Web 1.0.0'; }
     }
-    function logout(){ api.logout(); clearAuth(); location.href='../login.html'; }
+    function logout(){ api.logout(); clearAuth(); location.href='../admin-login.html'; }
     loadStats(); loadEarnings();
 </script>
 </body>

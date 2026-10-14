@@ -72,7 +72,7 @@
                     <label class="q-label"><span data-i18n="pass">Password</span><input id="password-patient" type="password" class="q-input" placeholder="Password"></label>
                     <button class="q-btn" id="btn-patient" type="button" onclick="login('patient')"><span class="spinner" id="spinner-patient"></span><span data-i18n="signin">Sign in</span></button>
                     <div style="font-size:15px;color:#4A605E;text-align:center;"><span data-i18n="noacc">Don't have an account?</span> <a href="register.html?role=patient" style="color:#0B5F5A;font-weight:600;" data-i18n="regp">Register as a patient</a></div>
-                    <div class="other-roles" data-i18n="otherroles">Are you a nurse or a helper? <a href="login-nurse.html" data-i18n="gotologin">Nurse sign in</a> · <a href="login-assistant.html" data-i18n="gotologin2">Helper sign in</a> · <a href="login.html" data-i18n="home">All logins</a></div>
+                    <div class="other-roles" data-i18n="otherroles">Are you a nurse or a helper? <a href="login-nurse.html" data-i18n="gotologin">Nurse sign in</a> · <a href="login-assistant.html" data-i18n="gotologin2">Helper sign in</a></div>
                 </div>
             </div>
         </div>
@@ -80,7 +80,7 @@
 
 <script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
 <script src="js/api.js?v=8"></script>
-<script src="js/auth.js?v=7"></script>
+<script src="js/auth.js?v=8"></script>
 <script>
     if (isLoggedIn() && getRole()) { redirectBasedOnRole(); }
     else if (isLoggedIn()) {
@@ -198,7 +198,7 @@
     }
 
     var currentLang = 'en';
-    var AR = { tagline:'أقرب ممرض لك، وقت ما تحتاجه.', p1:'ممرضون مرخّصون وموثّقون', p2:'عروض واضحة من ممرضين قريبين منك', p3:'تابع كل زيارة لحظة بلحظة', ptitle:'تسجيل دخول المريض', psub:'احصل على رعاية تمريضية في منزلك', email:'البريد الإلكتروني', pass:'كلمة المرور', signin:'تسجيل الدخول', noacc:'ليس لديك حساب؟', regp:'سجل كمريض', otherroles:'هل أنت ممرض أو مساعد؟', gotologin:'دخول الممرض', gotologin2:'دخول المساعد', home:'كل صفحات الدخول' };
+    var AR = { tagline:'أقرب ممرض لك، وقت ما تحتاجه.', p1:'ممرضون مرخّصون وموثّقون', p2:'عروض واضحة من ممرضين قريبين منك', p3:'تابع كل زيارة لحظة بلحظة', ptitle:'تسجيل دخول المريض', psub:'احصل على رعاية تمريضية في منزلك', email:'البريد الإلكتروني', pass:'كلمة المرور', signin:'تسجيل الدخول', noacc:'ليس لديك حساب؟', regp:'سجل كمريض', otherroles:'هل أنت ممرض أو مساعد؟', gotologin:'دخول الممرض', gotologin2:'دخول المساعد' };
     var EN = {};
     document.querySelectorAll('[data-i18n]').forEach(function(el){ var k = el.getAttribute('data-i18n'); if (!EN[k]) EN[k] = el.textContent; });
     document.getElementById('roleTag').textContent = 'Patient';
