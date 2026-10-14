@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qarrib-mobile-v9';
+const CACHE_NAME = 'qarrib-mobile-v10';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -12,6 +12,7 @@ const APP_SHELL = [
   '/css/autofit.css',
   '/js/api.js',
   '/js/auth.js',
+  '/js/install.js',
   '/js/autofit.js',
   '/js/language.js?v=4',
   '/js/notify-popup.js?v=1',
@@ -45,10 +46,16 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/socket.io/') || url.pathname.startsWith('/uploads/')) return;
 
   if (request.mode === 'navigate') {
-    event.respondWith(fetch(request).then((response) => {
+    event.respondWith(fetch(request, { cache: 'no-cache' }).then((response) => {
       if (response.ok) {
         const copy = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+        return caches.open(CACHE_NAME)
+          .then((cache) => cache.put(request, copy))
+          .then(() => response)
+          .catch((error) => {
+            console.warn('Qarrib could not update its offline cache.', error);
+            return response;
+          });
       }
       return response;
     }).catch(async () => (await caches.match(request)) || (await caches.match('/'))));
@@ -56,13 +63,22 @@ self.addEventListener('fetch', (event) => {
   }
 
   event.respondWith(caches.match(request).then((cached) => {
-    const network = fetch(request).then((response) => {
+    const network = fetch(request, { cache: 'no-cache' }).then((response) => {
       if (response.ok) {
         const copy = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+        return caches.open(CACHE_NAME)
+          .then((cache) => cache.put(request, copy))
+          .then(() => response)
+          .catch((error) => {
+            console.warn('Qarrib could not update its offline cache.', error);
+            return response;
+          });
       }
       return response;
     });
-    return cached || network;
+    return network.catch((error) => {
+      if (cached) return cached;
+      throw error;
+    });
   }));
 });
