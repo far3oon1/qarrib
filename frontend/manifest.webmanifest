@@ -2,7 +2,7 @@
   "id": "./",
   "name": "Qarrib Healthcare | قرّب",
   "short_name": "Qarrib | قرّب",
-  "description": "Home nursing services — request a licensed nurse, compare offers, track live.",
+  "description": "Home nursing services — request a licensed nurse, compare offers, track live. خدمات تمريض منزلي.",
   "lang": "ar",
   "dir": "rtl",
   "start_url": "./index.html",
