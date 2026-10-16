@@ -6,15 +6,15 @@
   "server": {
     "androidScheme": "https",
     "iosScheme": "https",
-    "cleartext": true,
+    "cleartext": false,
     "allowNavigation": ["qarrib1.vercel.app", "qarrib.onrender.com", "*.onrender.com", "*.vercel.app"]
   },
   "android": {
-    "allowMixedContent": true,
+    "allowMixedContent": false,
     "captureInput": true
   },
   "ios": {
     "contentInset": "automatic",
-    "limitsNavigationsToAppBoundDomains": false
+    "limitsNavigationsToAppBoundDomains": true
   }
 }
