@@ -198,7 +198,7 @@
 
     function orderCard(o){
         var acceptBtn = o.status === 'price_approved'
-            ? '<button class="p-btn-outline" style="margin-top:8px;width:100%;" data-accept="' + escapeHtml(o.id) + '">Accept ' + escapeHtml(o.amount || 0) + ' EGP &amp; open to nurses</button>' : '';
+            ? '<button class="p-btn-outline" style="margin-top:8px;width:100%;" data-accept="' + escapeHtml(o.id) + '"><span>Accept</span> <span>' + escapeHtml(o.amount || 0) + '</span> <span>EGP &amp; open to nurses</span></button>' : '';
         // unicode-bidi:plaintext keeps "200 EGP - Cairo, Nasr City" in reading
         // order inside the RTL page; without it the two LTR runs swap places.
         return '<div style="background:#fff;border:1px solid #E1E7F0;border-radius:14px;padding:14px;margin-bottom:10px;">' +

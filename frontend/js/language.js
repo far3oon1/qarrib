@@ -654,6 +654,25 @@
         'البريد الإلكتروني أو كلمة المرور غير صحيحة': 'Incorrect email or password',
         'يرجى إدخال البريد الإلكتروني وكلمة المرور': 'Please enter email and password',
         'تم تسجيل الدخول بنجاح! جاري التحويل...': 'Signed in! Redirecting...',
+        // Patient dashboard: order status + plan/support card copy.
+        // These are produced by JS in patient/dashboard.html, so a static
+        // HTML sweep never sees them and they stayed English in the APK.
+        'تم اقتراح سعر': 'Price suggested',
+        'خدمة': 'Service',
+        'افتح محادثة الدعم': 'Open support chat',
+        'قبول السعر المقترح؟': 'Accept the suggested price?',
+        'لوحة التحكم - قرّب': 'Dashboard - Qarrib',
+        'دقيقة': 'min',
+        '🎧 دعم مباشر من الأدمن': '🎧 Direct admin support',
+        '🎧 محادثة دعم ذات أولوية مع الأدمن': '🎧 Priority admin support chat',
+        '👑 VIP · محادثة مدير مخصص لك': '👑 VIP · Your dedicated manager chat',
+        'راسل الأدمن في أي وقت — إجابات ذات أولوية للمشتركين.': 'Message the admin anytime — priority answers for subscribers.',
+        'راسل الأدمن مباشرة — إجابات ذات أولوية لأعضاء Pro.': 'Message the admin directly — priority answers for Pro members.',
+        'راسل الأدمن في أي وقت، ليلاً أو نهاراً — إجابات VIP أولاً.': 'Message the admin anytime, day or night — VIP answers first.',
+        'افتح الطلب وانشره للممرضين': 'EGP & open to nurses',
+        'اقبل': 'Accept',
+        'تمت الزيارة مع التقرير': 'Visit completed & report',
+        'العروض لطلبك': 'Offers for your request',
     };
 
     var prefixes = [
