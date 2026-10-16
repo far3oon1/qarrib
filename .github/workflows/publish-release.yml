@@ -1,0 +1,102 @@
+name: Publish release binaries
+
+# Builds upload installers to a GitHub Release so the site can link real files
+# instead of shipping ~700 MB of binaries through git. Binaries are ignored by
+# .gitignore on purpose: they live on the Releases tab, versioned per tag.
+#
+# Required secret: none beyond the default GITHUB_TOKEN, which already has
+# `contents: write` for release creation.
+#
+# Triggered manually, or by pushing a `v*` tag.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to publish (e.g. v1.1.0)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Build must run on the developer machine: the Electron toolchain and the
+      # Android SDK/keystore are not available in CI here.
+      - name: Upload Android APK
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          found=0
+          for f in android/app/build/outputs/apk/release/*.apk; do
+            gh release upload "$TAG" "$f" --repo "$GITHUB_REPOSITORY" --clobber
+            found=1
+          done
+          if [ "$found" -eq 0 ]; then
+            echo "::notice::No release APK found; skipping. Build it with npm run android:apk"
+          fi
+
+      - name: Upload macOS build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          found=0
+          for f in dist/*.dmg dist/*.zip; do
+            case "$f" in
+              *.dmg|*-mac*) gh release upload "$TAG" "$f" --repo "$GITHUB_REPOSITORY" --clobber; found=1 ;;
+            esac
+          done
+          if [ "$found" -eq 0 ]; then
+            echo "::notice::No macOS build found; skipping. Build it with npm run build:mac"
+          fi
+
+      - name: Upload Windows and Linux builds
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          found=0
+          for f in dist/*.exe dist/*.tar.gz dist/*.AppImage; do
+            gh release upload "$TAG" "$f" --repo "$GITHUB_REPOSITORY" --clobber
+            found=1
+          done
+          if [ "$found" -eq 0 ]; then
+            echo "::notice::No desktop builds found; skipping. Build with npm run build:win / build:linux"
+          fi
+
+      - name: Report
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          {
+            echo "### Published to \`$TAG\`"
+            echo ""
+            echo "| Asset | Size |"
+            echo "|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets \
+            --jq '.assets[] | "| \(.name) | \(.size) |"' >> "$GITHUB_STEP_SUMMARY"
