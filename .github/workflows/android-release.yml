@@ -1,0 +1,133 @@
+name: Build signed Android APK
+
+# Builds the release APK on ubuntu-latest and attaches it to the release.
+#
+# Why CI instead of the local Windows machine: `gradlew assembleRelease`
+# fails there during task-dependency resolution with
+#   java.io.IOException: The filename, directory name, or volume label syntax is incorrect
+# which is NOT reproducible on Linux. Building here sidesteps it entirely and
+# produces a genuine release build (not debuggable), which the locally
+# produced APK was.
+#
+# Required repository secrets:
+#   ANDROID_KEYSTORE_BASE64   base64 of qarrib-release.keystore (no newlines)
+#   ANDROID_KEYSTORE_PASSWORD keystore password
+#   ANDROID_KEY_ALIAS         key alias
+#   ANDROID_KEY_PASSWORD      key password
+#
+# Never store the keystore in the repo.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to attach the APK to (e.g. v1.1.0)'
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-apk
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Writes android/keystore.properties, which android/app/build.gradle
+      # reads via signingConfigs. A missing file leaves the build unsigned
+      # rather than failing, so this step is what makes it signed.
+      - name: Restore signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$KEYSTORE_B64" || { echo "::error::ANDROID_KEYSTORE_BASE64 secret is not set"; exit 1; }
+          printf '%s' "$KEYSTORE_B64" | base64 -d > android/qarrib-release.keystore
+          cat > android/keystore.properties <<EOF
+          storeFile=../android/qarrib-release.keystore
+          storePassword=$STORE_PASS
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASS
+          EOF
+
+      - name: Sync Capacitor web assets
+        run: npm run android:sync
+
+      # gradle.properties pins org.gradle.java.home to a Windows-only path.
+      # It is committed for local convenience, so override it here.
+      - name: Build release APK
+        run: |
+          ./android/gradlew -p android assembleRelease \
+            -Dorg.gradle.java.home="$JAVA_HOME" \
+            --no-daemon --stacktrace
+
+      - name: Locate APK
+        id: apk
+        run: |
+          set -euo pipefail
+          apk=$(find android/app/build/outputs/apk/release -name '*.apk' | head -n1)
+          test -n "$apk" || { echo "::error::no APK produced"; exit 1; }
+          echo "path=$apk" >> "$GITHUB_OUTPUT"
+          echo "found $apk"
+
+      # A debug-derived APK still installs but carries android:debuggable,
+      # which lets anyone attach a debugger and read app storage. Fail loudly
+      # rather than publishing that.
+      - name: Verify signature and reject debuggable builds
+        run: |
+          set -euo pipefail
+          bt="$ANDROID_SDK_ROOT/build-tools/34.0.0"
+          apk="${{ steps.apk.outputs.path }}"
+          "$bt/aapt2" dump badging "$apk" | grep -E "^package:|application-debuggable" || true
+          if "$bt/aapt2" dump xmltree --file AndroidManifest.xml "$apk" | grep -q 'debuggable.*0xffffffff'; then
+            echo "::error::APK is debuggable - refusing to publish"; exit 1
+          fi
+          "$bt/apksigner" verify --verbose --print-certs "$apk"
+
+      - name: Attach to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            tag="${{ inputs.tag }}"
+          else
+            tag="${GITHUB_REF#refs/tags/}"
+          fi
+          name="Qarrib-Healthcare-$(grep -m1 versionName android/app/build.gradle | grep -oE '[0-9]+\.[0-9]+\.[0-9]+').apk"
+          gh release upload "$tag" "${{ steps.apk.outputs.path }}" \
+            --repo "$GITHUB_REPOSITORY" --clobber
+          echo "attached as $name"
+          name="$name" >> "$GITHUB_OUTPUT"
+
+      - name: Summary
+        run: |
+          echo "### Android release APK" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Tag: \`${{ inputs.tag || github.ref_name }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Download: https://github.com/${{ github.repository }}/releases/download/${{ inputs.tag || github.ref_name }}/Qarrib-Healthcare-$(grep -m1 versionName android/app/build.gradle | grep -oE '[0-9]+\.[0-9]+\.[0-9]+').apk" >> "$GITHUB_STEP_SUMMARY"
