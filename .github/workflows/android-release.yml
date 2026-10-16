@@ -44,10 +44,13 @@ jobs:
           node-version: 20
           cache: npm
 
+      # Capacitor 7 generates capacitor.build.gradle with
+      # sourceCompatibility/targetCompatibility = JavaVersion.VERSION_21, so the
+      # build must run on JDK 21. Using 17 fails with "invalid source release: 21".
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
 
       # android-actions/setup-android@v3 fails on current runners because it
       # still tries to install the obsolete 'tools' package. GitHub runners
