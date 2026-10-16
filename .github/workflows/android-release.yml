@@ -93,6 +93,9 @@ jobs:
       # It is committed for local convenience, so override it here.
       - name: Build release APK
         run: |
+          # The exec bit is not preserved when this repo is checked out on
+          # Windows, so gradlew arrives non-executable.
+          chmod +x android/gradlew
           ./android/gradlew -p android assembleRelease \
             -Dorg.gradle.java.home="$JAVA_HOME" \
             --no-daemon --stacktrace
