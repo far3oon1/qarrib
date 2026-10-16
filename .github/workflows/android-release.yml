@@ -82,8 +82,10 @@ jobs:
           set -euo pipefail
           test -n "$KEYSTORE_B64" || { echo "::error::ANDROID_KEYSTORE_BASE64 secret is not set"; exit 1; }
           printf '%s' "$KEYSTORE_B64" | base64 -d > android/qarrib-release.keystore
+          # storeFile is resolved relative to the app module dir (android/app),
+          # so "../<name>" lands on android/<name>, next to this properties file.
           cat > android/keystore.properties <<EOF
-          storeFile=../android/qarrib-release.keystore
+          storeFile=../qarrib-release.keystore
           storePassword=$STORE_PASS
           keyAlias=$KEY_ALIAS
           keyPassword=$KEY_PASS
