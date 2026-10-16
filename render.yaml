@@ -6,24 +6,42 @@ services:
     startCommand: cd backend && npm start
     healthCheckPath: /health
     autoDeploy: true
+    # Secrets are NEVER committed. Each entry below with `sync: false` must be
+    # set manually in the Render dashboard (Service > Environment).
+    # See docs/DEPLOY-24-7-RENDER.md for the required key list.
     envVars:
       - key: NODE_ENV
         value: production
       - key: JWT_EXPIRES_IN
         value: 7d
-      - key: OWNER_INSTAPAY_NUMBER
-        value: "***REMOVED***"
-      - key: MONGODB_URI
-        value: "mongodb+srv://***REMOVED***/"
-      - key: JWT_SECRET
-        value: "change_me_to_long_random_string"
-      - key: JWT_REFRESH_SECRET
-        value: "change_me_to_long_random_string_2"
-      - key: ADMIN_DEFAULT_EMAIL
-        value: admin@qarrab.com
-      - key: ADMIN_DEFAULT_PASSWORD
-        value: "change_me"
-      - key: ADMIN_SECRET_KEY
-        value: "change_me_to_secret_key"
       - key: CLIENT_URL
         value: "https://far3oon1.github.io/qarrib,https://qarrib1.vercel.app"
+      # ---- Secrets: set in the Render dashboard, do not commit ----
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: ADMIN_DEFAULT_EMAIL
+        sync: false
+      - key: ADMIN_DEFAULT_PASSWORD
+        sync: false
+      - key: ADMIN_SECRET_KEY
+        sync: false
+      - key: OWNER_INSTAPAY_NUMBER
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
