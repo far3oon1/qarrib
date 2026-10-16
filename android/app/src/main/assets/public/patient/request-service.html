@@ -2,9 +2,17 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>طلب خدمة - قرّب</title>
+    <link rel="apple-touch-icon" href="../icon-180.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="../manifest.webmanifest">
+    <meta name="description" content="Qarrib Healthcare - nursing care at your door.">
+    <meta name="theme-color" content="#0B5F5A">
     <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <style>
         .page-header {
             background: linear-gradient(135deg, #2563eb, #1d4ed8);
@@ -92,10 +100,6 @@
                             <div class="service-type-icon">🩹</div>
                             <div class="service-type-name">تغيير جروح</div>
                         </div>
-                        <div class="service-type" data-value="checkup">
-                            <div class="service-type-icon">🩺</div>
-                            <div class="service-type-name">فحص طبي</div>
-                        </div>
                         <div class="service-type" data-value="elderly">
                             <div class="service-type-icon">👴</div>
                             <div class="service-type-name">رعاية مسنين</div>
@@ -134,8 +138,51 @@
                     </div>
                 </div>
 
+                <div class="form-group">
+                    <label class="form-label">أقرب الممرضين المتصلين الآن (بث مباشر)</label>
+                    <div id="nearbyMap" style="width:100%;height:220px;border-radius:12px;background:#e2e8f0;z-index:1;"></div>
+                    <div id="nearbyList" style="margin-top:8px;font-size:13px;color:#64748b;">جاري البحث عن أقرب الممرضين...</div>
+                </div>
+
                 <div class="form-group" style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 12px;">
-                    <div style="font-size: 14px; color: #166534;">💰 السعر يحدده الممرض — ستصلك عروض الأسعار للموافقة عليها قبل الدفع.</div>
+                    <label class="form-label">💰 سعر الخدمة (ثابت من الإدارة)</label>
+                    <div style="font-size: 22px; font-weight: 800; color: #059669;" id="fixedPriceBox">اختر الخدمة أولاً</div>
+                    <div style="font-size: 13px; color: #166534; margin: 8px 0;" id="basePriceHint">السعر ثابت ومحدد من الإدارة — لا يمكن تغييره أو الإنقاص منه.</div>
+                    <label class="form-label" style="margin-top:4px;">⚡ زيادة اختيارية فوق الثابت (لتسريع قبول الممرضين — اختياري)</label>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <input type="number" min="0" value="0" class="form-input" id="priceBoost" placeholder="0" style="flex:1;" oninput="refreshTotal()">
+                        <button type="button" class="btn btn-sm btn-outline" style="width:auto;white-space:nowrap;" onclick="resetBid()">بدون زيادة</button>
+                    </div>
+                    <div style="font-size: 14px; font-weight: 800; color: #0B4A46; margin-top:8px;">الإجمالي عند الإرسال: <span id="totalPricePreview">—</span> ج.م</div>
+                    <div style="font-size: 12px; color: #166534; margin-top:6px;">💡 الممرضون يقترحون أسعارهم (الثابت أو أعلى) وأنت تقبل ✅ أو ترفض ❌ من صفحة الاختيار.</div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">طريقة الدفع المقدم</label>
+                    <div style="display:flex;gap:8px;">
+                        <label style="flex:1;background:white;border:2px solid #e2e8f0;border-radius:12px;padding:12px;text-align:center;cursor:pointer;">
+                            <input type="radio" name="payMethod" value="instapay" checked>
+                            <div style="font-size:20px;">📲</div>
+                            <div style="font-weight:700;">انستا باي</div>
+                            <div style="font-size:12px;color:#64748b;">تحويل مقدم + مرجع — يُفتح الطلب بعد القبول</div>
+                        </label>
+                        <label style="flex:1;background:white;border:2px solid #e2e8f0;border-radius:12px;padding:12px;text-align:center;cursor:pointer;">
+                            <input type="radio" name="payMethod" value="vodafone_cash">
+                            <div style="font-size:20px;">📱</div>
+                            <div style="font-weight:700;">فودافون كاش</div>
+                            <div style="font-size:12px;color:#64748b;">تحويل مقدم + مرجع — يُفتح الطلب بعد القبول</div>
+                        </label>
+                        <label style="flex:1;background:white;border:2px solid #e2e8f0;border-radius:12px;padding:12px;text-align:center;cursor:pointer;">
+                            <input type="radio" name="payMethod" value="wallet">
+                            <div style="font-size:20px;">💳</div>
+                            <div style="font-weight:700;">المحفظة</div>
+                            <div style="font-size:12px;color:#64748b;">خصم فوري: <span id="walletBalance">0</span> ج.م</div>
+                        </label>
+                    </div>
+                    <div id="refBox" style="margin-top:8px;">
+                        <label class="form-label">مرجع التحويل (رقم العملية) — مطلوب للتحويلات</label>
+                        <input type="text" class="form-input" id="payReference" placeholder="مثال: 123456789">
+                    </div>
                 </div>
 
                 <button type="submit" class="btn btn-primary" id="submitBtn">إرسال الطلب</button>
@@ -162,9 +209,13 @@
         </nav>
     </div>
 
-    <script>window.QARRAB_API_URL = "https://qarrib.onrender.com";</script>
-    <script src="../js/api.js"></script>
-    <script src="../js/auth.js"></script>
+    <script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="../js/api.js?v=6"></script>
+    <script src="../js/auth.js?v=8"></script>
+    <script src="../js/notifications.js"></script>
+    <script src="../js/notify-popup.js?v=1"></script>
+    <script src="../js/permissions.js?v=1"></script>
     <script>
         if (!requireRole('patient')) redirectToLogin();
 
@@ -176,10 +227,82 @@
                 document.querySelectorAll('.service-type').forEach(t => t.classList.remove('selected'));
                 type.classList.add('selected');
                 document.getElementById('serviceType').value = type.dataset.value;
+                try { refreshBidHint(); } catch (e) {}
             });
         });
+        // Preselect from dashboard service grid (?service=Injections & IV etc.)
+        (function preselect(){
+            try {
+                var q = new URLSearchParams(window.location.search).get('service') || '';
+                if (!q) return;
+                q = q.toLowerCase();
+                var map = { 'injection': 'injection', 'iv': 'iv', 'wound': 'wound', 'elderly': 'elderly', 'post': 'other', 'surgery': 'other' };
+                var key = null;
+                Object.keys(map).forEach(function(k){ if (q.indexOf(k) !== -1 && !key) key = map[k]; });
+                if (key) {
+                    var el = document.querySelector('.service-type[data-value="' + key + '"]');
+                    if (el) { el.classList.add('selected'); document.getElementById('serviceType').value = key; }
+                }
+            } catch (e) {}
+        })();
 
-        // Get location
+        // Show the admin-set price under each service card (per service type)
+        var SERVICE_KEYS = { injection: 'injection', wound: 'wound_care', elderly: 'elderly_care', iv: 'iv_therapy', other: 'other' };
+        var SERVICE_PRICES = {};
+        function currentBasePrice() {
+            var key = document.getElementById('serviceType').value;
+            var s = SERVICE_PRICES[SERVICE_KEYS[key]];
+            return (s && s.basePrice > 0) ? s.basePrice : null;
+        }
+        function refreshBidHint() {
+            var base = currentBasePrice();
+            var hint = document.getElementById('basePriceHint');
+            var box = document.getElementById('fixedPriceBox');
+            if (base != null) {
+                hint.textContent = 'السعر ثابت ومحدد من الإدارة — لا يمكن تغييره أو الإنقاص منه. الزيادة اختيارية فقط.';
+                box.textContent = base + ' ج.م';
+            } else {
+                hint.textContent = 'هذه الخدمة بانتظار تسعير الإدارة — سيُحدد السعر قبل فتح طلبك.';
+                box.textContent = 'بانتظار التسعير';
+            }
+            refreshTotal();
+        }
+        function refreshTotal() {
+            var base = currentBasePrice();
+            var boost = Math.max(0, Number(document.getElementById('priceBoost').value) || 0);
+            var el = document.getElementById('totalPricePreview');
+            el.textContent = (base != null) ? (base + boost) : '—';
+        }
+        function resetBid() {
+            document.getElementById('priceBoost').value = 0;
+            refreshTotal();
+        }
+        // Show/hide transfer reference depending on method
+        document.querySelectorAll('input[name="payMethod"]').forEach(function(r){
+            r.addEventListener('change', function(){
+                var v = (document.querySelector('input[name="payMethod"]:checked') || {}).value;
+                document.getElementById('refBox').style.display = (v === 'wallet') ? 'none' : 'block';
+            });
+        });
+        async function loadServicePrices() {
+            try {
+                const r = await api.getServicePrices();
+                const list = r.success ? (r.data.services || r.data) : [];
+                const byName = {};
+                list.forEach(function(s) { if (s.name) byName[s.name] = s; });
+                SERVICE_PRICES = byName;
+                document.querySelectorAll('.service-type').forEach(function(card) {
+                    const s = byName[SERVICE_KEYS[card.dataset.value]];
+                    const el = document.createElement('div');
+                    el.style.cssText = 'font-size:13px;font-weight:700;color:#059669;margin-top:4px;';
+                    el.textContent = (s && s.basePrice > 0) ? s.basePrice + ' ج.م' : 'بانتظار التسعير';
+                    card.appendChild(el);
+                });
+                refreshBidHint();
+            } catch (e) {}
+        }
+
+        // Get location — REQUIRED for real (fresh fix, blocked-state help)
         function getLocation() {
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
@@ -197,15 +320,66 @@
                                 </p>
                             </div>
                         `;
+                        loadNearbyNurses();
                     },
                     (error) => {
+                        var denied = error && error.code === 1;
+                        var mp = document.getElementById('mapPreview');
+                        if (denied && window.QarribPerms) {
+                            mp.innerHTML = '<div style="text-align:center;"><div style="font-size:28px;">⚠️</div>'
+                                + '<p>Location is BLOCKED for this site</p>'
+                                + '<button type="button" class="btn btn-sm" style="margin-top:8px;" onclick="QarribPerms.showDeniedHelp(\'location\').then(function(ok){ if(ok) getLocation(); })">How to enable / كيف تفعّل</button></div>';
+                        } else {
+                            mp.innerHTML = '<div style="text-align:center;"><div style="font-size:28px;">📍</div>'
+                                + '<p>Waiting for GPS fix…</p>'
+                                + '<button type="button" class="btn btn-sm btn-outline" style="margin-top:8px;" onclick="getLocation()">Retry / إعادة</button></div>';
+                        }
                         showAlert('فشل تحديد الموقع. يرجى التأكد من تفعيل GPS', 'error');
-                    }
+                    },
+                    { enableHighAccuracy: false, timeout: 30000, maximumAge: 0 }
                 );
             } else {
                 showAlert('المتصفح لا يدعم تحديد الموقع', 'error');
             }
         }
+
+        // Live nearest-nurse map (refreshes every 20s)
+        let nearbyMap = null, nearbyMarkers = [];
+        function ensureNearbyMap(lat, lng) {
+            if (nearbyMap) { nearbyMap.setView([lat, lng], 13); return; }
+            try {
+                nearbyMap = L.map('nearbyMap').setView([lat, lng], 13);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap', maxZoom: 19 }).addTo(nearbyMap);
+            } catch (e) { nearbyMap = null; }
+        }
+        async function loadNearbyNurses() {
+            const lat = userLocation ? userLocation.lat : 30.0444;
+            const lng = userLocation ? userLocation.lng : 31.2357;
+            ensureNearbyMap(lat, lng);
+            try {
+                const r = await api.getNearbyNurses(lat, lng, 50);
+                const list = (r.success ? r.data : []) || [];
+                nearbyMarkers.forEach(m => { try { nearbyMap.removeLayer(m); } catch (e) {} });
+                nearbyMarkers = [];
+                if (nearbyMap) {
+                    const meIcon = L.divIcon({ className: '', html: '<div style="background:#2563eb;width:26px;height:26px;border-radius:50%;border:3px solid white;"></div>', iconSize: [26, 26], iconAnchor: [13, 13] });
+                    nearbyMarkers.push(L.marker([lat, lng], { icon: meIcon }).addTo(nearbyMap).bindPopup('موقعك'));
+                    list.slice(0, 10).forEach(n => {
+                        const c = n.location && n.location.coordinates;
+                        if (!c || c.lat == null) return;
+                        const ic = L.divIcon({ className: '', html: '<div style="background:#10b981;width:26px;height:26px;border-radius:50%;border:3px solid white;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;">N</div>', iconSize: [26, 26], iconAnchor: [13, 13] });
+                        nearbyMarkers.push(L.marker([c.lat, c.lng], { icon: ic }).addTo(nearbyMap).bindPopup((n.fullName || 'ممرض') + ' - ' + (n.distanceKm != null ? n.distanceKm.toFixed(1) + ' كم' : '')));
+                    });
+                }
+                document.getElementById('nearbyList').innerHTML = list.length
+                    ? list.slice(0, 5).map(n => `<div>🟢 ${n.fullName || 'ممرض'}${n.isTrusted ? ' ✅ موثّق' : ''} - ⭐ ${n.rating || 'جديد'} - ${n.distanceKm != null ? n.distanceKm.toFixed(1) + ' كم' : ''}</div>`).join('')
+                    : 'لا يوجد ممرضون متصلون قريبون الآن — سيصلك إشعار عند توفرهم.';
+            } catch (e) {
+                document.getElementById('nearbyList').textContent = 'تعذر تحميل الممرضين القريبين.';
+            }
+        }
+        loadNearbyNurses();
+        setInterval(loadNearbyNurses, 20000);
 
         async function loadWallet() {
             try {
@@ -217,9 +391,15 @@
             } catch(e) {}
         }
 
-        // Form submission
+        // Form submission — location permission is REQUIRED and really requested
         document.getElementById('requestForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+            try {
+                if (window.QarribPerms && !(await QarribPerms.ensure('location'))) {
+                    showAlert('مطلوب تفعيل الموقع لطلب ممرض / Location is required to request a nurse', 'error');
+                    return;
+                }
+            } catch (_) {}
             const btn = document.getElementById('submitBtn');
             btn.disabled = true;
             btn.textContent = 'جاري الإرسال...';
@@ -232,11 +412,24 @@
                 return;
             }
 
+            const payMethod = (document.querySelector('input[name="payMethod"]:checked') || {}).value || 'instapay';
+            // Fixed system price + optional patient boost (never below fixed)
+            const base = currentBasePrice();
+            const boost = Math.max(0, Number(document.getElementById('priceBoost').value) || 0);
+            if (base == null) {
+                showAlert('هذه الخدمة بانتظار تسعير الإدارة — اختر خدمة مسعّرة', 'error');
+                btn.disabled = false;
+                btn.textContent = 'إرسال الطلب';
+                return;
+            }
             const orderData = {
                 serviceType,
                 description: document.getElementById('description').value.trim(),
                 address: document.getElementById('address').value.trim(),
-                location: userLocation
+                location: userLocation,
+                paymentMethod: payMethod,
+                suggestedPrice: base + boost,
+                reference: (document.getElementById('payReference') || {}).value || ''
             };
 
             if (!orderData.address) {
@@ -250,11 +443,27 @@
                 const result = await api.createOrder(orderData);
 
                 if (result.success) {
-                    showAlert('تم إرسال الطلب بنجاح! سيصلك سعر الممرض قريباً.');
-                    setTimeout(() => window.location.href = 'dashboard.html', 1500);
+                    const st = result.data && result.data.status;
+                    const newId = result.data && (result.data.id || result.data._id);
+                    if (result.data && result.data.pendingTransferApproval) {
+                        showAlert('تم إرسال تحويلك — سيُفتح طلبك لأقرب الممرضين فور قبول فريقنا للتحويل ⏳');
+                        setTimeout(() => window.location.href = 'dashboard.html', 1800);
+                    } else if (st === 'under_review') {
+                        showAlert('تم استلام طلبك — قيد مراجعة الإدارة لتحديد السعر');
+                        setTimeout(() => window.location.href = 'dashboard.html', 1500);
+                    } else {
+                        showAlert('تم إرسال الطلب! اختر ممرضك من الأقرب إليك...');
+                        setTimeout(() => window.location.href = newId ? ('choose-nurse.html?order=' + newId) : 'dashboard.html', 1200);
+                    }
                 }
             } catch (error) {
-                showAlert(error.message || 'فشل إرسال الطلب', 'error');
+                const msg = error.message || 'فشل إرسال الطلب';
+                if (msg.indexOf('Insufficient wallet balance') !== -1) {
+                    showAlert('رصيد محفظتك لا يكفي — اشحنها من صفحة المحفظة أو اختر الدفع بانستا باي', 'error');
+                    setTimeout(() => window.location.href = 'wallet.html', 2000);
+                } else {
+                    showAlert(msg, 'error');
+                }
             } finally {
                 btn.disabled = false;
                 btn.textContent = 'إرسال الطلب';
@@ -262,6 +471,8 @@
         });
 
         loadWallet();
+        loadServicePrices();
     </script>
+<script src="../js/install.js?v=6"></script>
 </body>
 </html>

@@ -2,8 +2,15 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>إنشاء حساب - قرّب</title>
+    <link rel="apple-touch-icon" href="icon-180.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="description" content="Qarrib Healthcare - nursing care at your door.">
+    <meta name="theme-color" content="#0B5F5A">
     <link rel="stylesheet" href="css/main.css">
     <style>
         .register-container {
@@ -89,6 +96,8 @@
                 <p id="subtitle">إنشاء حساب جديد</p>
             </div>
 
+            <div id="blockedBanner" style="display:none;background:#FDECEA;border:2px solid #B42318;border-radius:12px;padding:14px 16px;font-size:15px;font-weight:700;color:#7f1d1d;text-align:center;margin-bottom:16px;">⛔ <span id="blockedBannerText">تم حظرك لمخالفة قواعد التطبيق / You have been blocked for breaking the rules of the app</span></div>
+
             <div class="step-indicator" id="stepIndicator">
                 <div class="step-dot active"></div>
                 <div class="step-dot"></div>
@@ -121,6 +130,15 @@
                     <div class="form-group">
                         <label class="form-label">كلمة المرور</label>
                         <input type="password" class="form-input" id="password" placeholder="••••••••" required minlength="6">
+                    </div>
+                    <!-- الخطوة الأولى: الموافقة على الشروط وإخلاء المسؤولية قبل أي شيء (عربي/English) -->
+                    <div class="form-group" style="background:#fefce8;border:1px solid #fde68a;border-radius:12px;padding:12px;">
+                        <label class="form-label">📜 <span>شروط الاستخدام وإخلاء المسؤولية الكامل / Full Terms & Waiver — اقرأ أولاً</span></label>
+                        <div id="termsBox" style="max-height:150px;overflow-y:auto;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:10px;font-size:12px;line-height:1.9;white-space:pre-wrap;">جاري تحميل الشروط...</div>
+                        <label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px;font-size:13px;font-weight:700;cursor:pointer;">
+                            <input type="checkbox" id="acceptTermsBox" style="width:20px;height:20px;margin-top:2px;">
+                            <span>أوافق على الشروط — التطبيق وسيلة مساعدة فقط، ويخلي مسؤوليته تماماً عن أي شيء وعن أي مساءلة قانونية، والطوارئ للمستشفى المختص / I accept — helper tool only, full waiver of everything and of any legal accountability, emergencies go to hospital</span>
+                        </label>
                     </div>
                     <button type="button" class="btn btn-primary" onclick="nextStep()">التالي</button>
                 </div>
@@ -196,19 +214,21 @@
             </form>
 
             <div class="form-link">
-                لديك حساب بالفعل؟ <a href="login.html">تسجيل الدخول</a>
+                لديك حساب بالفعل؟ <a href="login-patient.html" id="loginLink">تسجيل الدخول</a>
             </div>
         </div>
     </div>
 
-<script>window.QARRAB_API_URL = 'https://qarrib.onrender.com';</script>
-<script src="js/api.js"></script>
-<script src="js/auth.js"></script>
+<script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
+<script src="js/api.js?v=8"></script>
+<script src="js/auth.js?v=8"></script>
+<script src="js/permissions.js?v=1"></script>
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const role = urlParams.get('role') || 'patient';
-        document.getElementById('subtitle').textContent = 
+        document.getElementById('subtitle').textContent =
             role === 'nurse' ? 'إنشاء حساب ممرض' : 'إنشاء حساب مريض';
+        document.getElementById('loginLink').href = role === 'nurse' ? 'login-nurse.html' : 'login-patient.html';
 
         if (role === 'nurse') {
             document.getElementById('nurseFields').style.display = 'block';
@@ -228,6 +248,12 @@
         }
 
         function nextStep() {
+            // البوابة الأولى: لا يتقدم خطوة دون الموافقة على إخلاء المسؤولية
+            if (currentStep === 1 && !document.getElementById('acceptTermsBox').checked) {
+                showAlert(L('اقرأ الشروط ووافق عليها أولاً — الموافقة شرط للتسجيل كمريض أو ممرض', 'Read and accept the Terms first — acceptance is required to register as patient or nurse'), 'error');
+                try { window.scrollTo(0, document.body.scrollHeight); } catch (e) {}
+                return;
+            }
             if (currentStep < totalSteps) {
                 currentStep++;
                 updateSteps();
@@ -241,15 +267,71 @@
             }
         }
 
+        // تصغير الصور قبل الرفع (سقف حجم الطلب على الاستضافة ≈ 4.5MB —
+        // صور الموبايل الخام تتجاوزه بسهولة). الملفات غير الصورية تُترك كما هي.
+        function downscaleImage(file) {
+            return new Promise(function(resolve) {
+                if (!file || !file.type || file.type.indexOf('image/') !== 0) return resolve(file);
+                var url = URL.createObjectURL(file);
+                var img = new Image();
+                img.onload = function() {
+                    try {
+                        var maxDim = 1280;
+                        var scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+                        var canvas = document.createElement('canvas');
+                        canvas.width = Math.max(1, Math.round(img.width * scale));
+                        canvas.height = Math.max(1, Math.round(img.height * scale));
+                        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                        URL.revokeObjectURL(url);
+                        canvas.toBlob(function(blob) {
+                            if (blob) {
+                                resolve(new File([blob], (file.name || 'image').replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' }));
+                            } else { resolve(file); }
+                        }, 'image/jpeg', 0.82);
+                    } catch (e) { URL.revokeObjectURL(url); resolve(file); }
+                };
+                img.onerror = function() { URL.revokeObjectURL(url); resolve(file); };
+                img.src = url;
+            });
+        }
+
+        // Language-aware helper: backend returns { message (ar), message_en },
+        // so alerts/buttons always match the active toggle (AR/EN).
+        function currentLang() {
+            try {
+                if (typeof window.getQarribLanguage === 'function') return window.getQarribLanguage();
+                return window.qarribLanguage || localStorage.getItem('qarrib-language') || 'ar';
+            } catch (e) { return 'ar'; }
+        }
+        function L(ar, en) { return currentLang() === 'en' ? en : ar; }
+        function localizedResultMessage(result, fallbackAr, fallbackEn) {
+            if (typeof window.pickLocalizedMessage === 'function') {
+                return window.pickLocalizedMessage(result, L(fallbackAr, fallbackEn));
+            }
+            if (result && (result.message || result.message_en)) {
+                return currentLang() === 'en' ? (result.message_en || result.message) : (result.message || result.message_en);
+            }
+            return L(fallbackAr, fallbackEn);
+        }
+
         // Form submission
         document.getElementById('registerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = document.getElementById('submitBtn');
             btn.disabled = true;
-            btn.textContent = 'جاري الإنشاء...';
+            btn.setAttribute('data-no-translate', 'true');
+            btn.textContent = L('جاري الإنشاء...', 'Creating...');
 
             // بنبني FormData عشان نرفع ملفات + بيانات مع بعض
             const formData = new FormData();
+            // Liability waiver is mandatory (helper-only app)
+            if (!document.getElementById('acceptTermsBox').checked) {
+                showAlert(L('يجب الموافقة على شروط الاستخدام وإخلاء المسؤولية أولاً', 'You must accept the Terms & liability waiver first'), 'error');
+                btn.disabled = false;
+                btn.textContent = L('إنشاء الحساب', 'Create account');
+                return;
+            }
+            formData.append('acceptTerms', 'true');
             const fullName = document.getElementById('name').value.trim();
             formData.append('fullName', fullName);
             formData.append('name', fullName);
@@ -261,15 +343,22 @@
             formData.append('city', 'Cairo');
             formData.append('address', document.getElementById('address').value.trim());
             formData.append('role', role);
+            // Device fingerprint (MAC replacement): auto-tracked for admin block/unblock
+            try {
+                var did = (typeof window.getQarribDeviceId === 'function') ? window.getQarribDeviceId() : (localStorage.getItem('qarrib_device_id') || ('dev-' + Date.now().toString(36)));
+                try { localStorage.setItem('qarrib_device_id', did); } catch (e) {}
+                formData.append('deviceId', did);
+                formData.append('devicePlatform', (navigator && navigator.platform ? navigator.platform : 'web'));
+            } catch (e) {}
             const genderVal = document.getElementById('gender').value;
             if (genderVal) formData.append('gender', genderVal);
 
             if (role === 'nurse') {
                 const spec = document.getElementById('specialization').value;
                 if (!spec) {
-                    showAlert('اختر التخصص من فضلك', 'error');
+                    showAlert(L('اختر التخصص من فضلك', 'Please choose a specialty'), 'error');
                     btn.disabled = false;
-                    btn.textContent = 'إنشاء الحساب';
+                    btn.textContent = L('إنشاء الحساب', 'Create account');
                     return;
                 }
                 formData.append('specialization', spec);
@@ -277,15 +366,16 @@
             }
 
             // نضيف الصور للـ FormData حسب الـ role (متوافق مع multer.js)
-            const idCard = document.getElementById('idCard').files[0];
-            const license = document.getElementById('license').files[0];
+            // الصور اتضغطت تلقائياً لأن سقف حجم الطلب على الاستضافة ≈ 4.5MB
+            const idCard = await downscaleImage(document.getElementById('idCard').files[0]);
+            const license = await downscaleImage(document.getElementById('license').files[0]);
 
-            // فحص حجم الملف قبل الرفع (الحد 10MB — يقبل أي نوع ملف)
-            const tooBig = [idCard, license].find(function (f) { return f && f.size > 10 * 1024 * 1024; });
-            if (tooBig) {
-                showAlert('حجم الملف كبير — الحد الأقصى 10MB', 'error');
+            // فحص إجمالي الحجم قبل الرفع (سقف الاستضافة ≈ 4.5MB)
+            const totalSize = [idCard, license].reduce(function (acc, f) { return acc + (f ? f.size : 0); }, 0);
+            if (totalSize > 4 * 1024 * 1024) {
+                showAlert(L('حجم الملفات كبير — اختر صوراً أصغر (الحد 4MB لإجمالي الملفات)', 'Files are too large — please choose smaller images (4MB total limit)'), 'error');
                 btn.disabled = false;
-                btn.textContent = 'إنشاء الحساب';
+                btn.textContent = L('إنشاء الحساب', 'Create account');
                 return;
             }
 
@@ -308,12 +398,23 @@
                 const endpoint = role === 'nurse' ? '/auth/register/nurse' : '/auth/register/patient';
                 let response;
                 try {
+                    var langHeaders = (typeof window.qarribLangHeaders === 'function') ? window.qarribLangHeaders() : { 'Accept-Language': currentLang(), 'X-Lang': currentLang() };
+                    try {
+                        var didH = (typeof window.getQarribDeviceId === 'function') ? window.getQarribDeviceId() : localStorage.getItem('qarrib_device_id');
+                        if (didH) langHeaders['X-Device-Id'] = didH;
+                        langHeaders['X-Device-Platform'] = (navigator && navigator.platform ? navigator.platform : 'web');
+                    } catch (e) {}
                     response = await fetch(`${API_BASE_URL}${endpoint}`, {
                         method: 'POST',
+                        headers: langHeaders,
                         body: formData
                     });
                 } catch (netErr) {
-                    throw new Error('تعذر الاتصال بالسيرفر (' + API_BASE_URL + ') — تأكد أن السيرفر شغال وافتح الموقع من نفس رابطه ثم حاول مجدداً');
+                    throw new Error(L('تعذر الاتصال بالسيرفر (' + API_BASE_URL + ') — تأكد أن السيرفر شغال وافتح الموقع من نفس رابطه ثم حاول مجدداً', 'Could not reach the server (' + API_BASE_URL + ') — make sure it is running and retry'));
+                }
+
+                if (response.status === 413) {
+                    throw new Error(L('حجم الملفات أكبر من المسموح (4MB) — صغّر الصور وحاول مجدداً', 'Files exceed the allowed size (4MB) — shrink the images and try again'));
                 }
 
                 let result = {};
@@ -321,27 +422,57 @@
                     var body = await response.text();
                     result = body ? JSON.parse(body) : {};
                 } catch (e) {
-                    throw new Error('رد غير صالح من السيرفر');
+                    throw new Error(L('رد غير صالح من السيرفر', 'Invalid response from the server'));
                 }
 
                 if (!response.ok) {
-                    const details = (result.errors || []).map(function (x) { return x.message || x.field; }).join('، ');
-                    throw new Error((result.message || 'فشل إنشاء الحساب') + (details ? ': ' + details : ''));
+                    const details = (result.errors || []).map(function (x) { return x.message || x.field; }).join(currentLang() === 'en' ? ', ' : '، ');
+                    var serverMsg = localizedResultMessage(result, 'فشل إنشاء الحساب', 'Failed to create the account');
+                    throw new Error(serverMsg + (details ? ': ' + details : ''));
                 }
 
                 if (result.success) {
                     api.setToken(result.data.token);
                     setUser(result.data.user);
-                    showAlert('تم إنشاء الحساب بنجاح!');
+                    showAlert(localizedResultMessage(result, 'تم إنشاء الحساب بنجاح!', 'Account created successfully!'));
                     setTimeout(() => redirectBasedOnRole(), 1500);
                 }
             } catch (error) {
-                showAlert(error.message || 'فشل إنشاء الحساب', 'error');
+                var errMsg = error.message || L('فشل إنشاء الحساب', 'Failed to create the account');
+                showAlert(errMsg, 'error');
+                // Blocked device -> unmissable banner with the rules sentence (both languages)
+                if (/blocked|تم حظر|مخالفة قواعد/i.test(errMsg)) {
+                    try {
+                        document.getElementById('blockedBannerText').textContent = errMsg + ' / You have been blocked for breaking the rules of the app';
+                        document.getElementById('blockedBanner').style.display = 'block';
+                        window.scrollTo(0, 0);
+                    } catch (e) {}
+                }
             } finally {
                 btn.disabled = false;
-                btn.textContent = 'إنشاء الحساب';
+                btn.textContent = L('إنشاء الحساب', 'Create account');
             }
         });
+
+        // Liability waiver text (server version first, static fallback)
+        (function loadTerms(){
+            var box = document.getElementById('termsBox');
+            var fallback = 'تطبيق قرّب وسيلة مساعدة فقط وليس مستشفى أو جهة طبية. يخلي التطبيق مسؤوليته تماماً عن أي شيء يحدث قبل الخدمة أو أثناءها أو بعدها، وعن أي مساءلة قانونية من أي نوع — الاستخدام على مسؤوليتك الخاصة. الخدمة للحالات البسيطة فقط — وعند أي طوارئ توجه فوراً للطوارئ أو المستشفى المختص.\n\nQarrib is a helper tool only — not a hospital. The app fully disclaims everything and any legal accountability of any kind — use at your own risk. Simple cases only — in any emergency go to the ER/hospital immediately.';
+            function render(ar, en) {
+                try {
+                    var lang = (typeof currentLang === 'function') ? currentLang() : 'ar';
+                    box.textContent = (lang === 'en' ? (en || ar) : (ar || en)) || fallback;
+                } catch (e) { box.textContent = ar || en || fallback; }
+            }
+            try {
+                var base = (typeof API_BASE_URL !== 'undefined') ? API_BASE_URL : '';
+                fetch(base + '/auth/terms').then(function(r){ return r.json(); }).then(function(j){
+                    if (j && j.success && j.data) render(j.data.ar, j.data.en);
+                    else render(null, null);
+                }).catch(function(){ render(null, null); });
+            } catch (e) { render(null, null); }
+        })();
     </script>
+<script src="js/install.js?v=6"></script>
 </body>
 </html>

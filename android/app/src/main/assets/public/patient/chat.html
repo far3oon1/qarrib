@@ -2,8 +2,15 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>الرسائل - قرّب</title>
+    <link rel="apple-touch-icon" href="../icon-180.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="../manifest.webmanifest">
+    <meta name="description" content="Qarrib Healthcare - nursing care at your door.">
+    <meta name="theme-color" content="#0B5F5A">
     <link rel="stylesheet" href="../css/main.css">
     <style>
         .chat-list {
@@ -71,6 +78,7 @@
         <div class="header">
             <div class="header-content">
                 <div class="logo">الرسائل</div>
+                <a id="supportLink" href="support-chat.html" style="display:none;font-size:13px;font-weight:700;color:#0B5F5A;text-decoration:none;">🎧 دعم الإدارة</a>
             </div>
         </div>
 
@@ -98,9 +106,11 @@
         </nav>
     </div>
 
-    <script>window.QARRAB_API_URL = "https://qarrib.onrender.com";</script>
-    <script src="../js/api.js"></script>
-    <script src="../js/auth.js"></script>
+    <script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
+    <script src="../js/api.js?v=9"></script>
+    <script src="../js/auth.js?v=8"></script>
+    <script src="../js/notifications.js"></script>
+    <script src="../js/notify-popup.js?v=1"></script>
     <script>
         if (!requireRole('patient')) redirectToLogin();
 
@@ -145,6 +155,17 @@
         }
 
         loadChats();
+        // Support chat link: Pro/VIP subscribers only — Free plan never sees it
+        (async function gateSupport(){
+            try {
+                var r = await api.getMySubscription();
+                var pl = r.success && r.data ? r.data.plan : 'free';
+                if (pl === 'pro' || pl === 'vip') {
+                    document.getElementById('supportLink').style.display = 'inline';
+                }
+            } catch(e){}
+        })();
     </script>
+<script src="../js/install.js?v=6"></script>
 </body>
 </html>

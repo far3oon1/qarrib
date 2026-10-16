@@ -2,8 +2,15 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>المستخدمين - أدمن</title>
+    <link rel="apple-touch-icon" href="../icon-180.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="../manifest.webmanifest">
+    <meta name="description" content="Qarrib Healthcare - nursing care at your door.">
+    <meta name="theme-color" content="#0B5F5A">
     <link rel="stylesheet" href="../css/main.css">
     <style>
         .page-header {
@@ -87,6 +94,26 @@
             <button class="filter-btn active" onclick="filterUsers('all')">الكل</button>
             <button class="filter-btn" onclick="filterUsers('patient')">مرضى</button>
             <button class="filter-btn" onclick="filterUsers('nurse')">ممرضين</button>
+            <button class="filter-btn" style="border-color:#0B5F5A;color:#0B5F5A;font-weight:700;" onclick="toggleAddForm()">＋ إضافة حساب</button>
+            <button class="filter-btn" style="border-color:#7f1d1d;color:#7f1d1d;font-weight:700;" onclick="location.href='devices.html'">📵 حظر الأجهزة</button>
+            <button class="filter-btn" style="border-color:#0B5F5A;color:#0B5F5A;font-weight:700;" onclick="location.href='admins.html'">👑 الأدمنز</button>
+            <button class="filter-btn" style="border-color:#0B5F5A;color:#0B5F5A;font-weight:700;" onclick="location.href='assistants.html'">🎧 المساعدون والصلاحيات</button>
+        </div>
+
+        <div id="addForm" style="display:none;background:#fff;margin:0 20px 16px;border-radius:12px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+            <h4 style="margin:0 0 12px;" id="addFormTitle">إضافة حساب جديد</h4>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <input id="new-name" class="form-input" placeholder="الاسم الكامل">
+                <input id="new-email" class="form-input" type="email" placeholder="البريد الإلكتروني" dir="ltr">
+                <input id="new-phone" class="form-input" placeholder="01xxxxxxxxx" dir="ltr">
+                <input id="new-password" class="form-input" type="password" placeholder="كلمة المرور (6 أحرف+)" dir="ltr">
+                <input id="new-nationalId" class="form-input" placeholder="الرقم القومي (14 رقم)" maxlength="14" dir="ltr">
+                <select id="new-role" class="form-input">
+                    <option value="patient">مريض</option>
+                    <option value="nurse">ممرض</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" style="margin-top:12px;" id="addBtn" onclick="createUser()">إنشاء الحساب</button>
         </div>
 
         <div class="user-list" id="userList">
@@ -94,11 +121,114 @@
         </div>
     </div>
 
-    <script>window.QARRAB_API_URL = "https://qarrib.onrender.com";</script>
-    <script src="../js/api.js"></script>
-    <script src="../js/auth.js"></script>
+    <!-- Credentials vault modal (admin only, online, nothing cached) -->
+    <div id="vaultModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:16px;">
+        <div style="background:#fff;border-radius:16px;max-width:560px;width:100%;max-height:90vh;overflow:auto;padding:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                <h3 style="margin:0;" id="vaultTitle">🔐 بيانات الحساب</h3>
+                <button onclick="closeModal('vaultModal')" style="border:0;background:#f1f5f9;border-radius:8px;padding:6px 12px;cursor:pointer;">✕</button>
+            </div>
+            <div style="background:#fefce8;border:1px solid #fde68a;border-radius:10px;padding:8px 12px;font-size:12px;margin-bottom:12px;">🔒 مشفرة (AES-256-GCM) — للأدمن فقط · لا تظهر للمساعدين</div>
+            <div id="vaultBody"><div class="loading"><div class="spinner"></div></div></div>
+        </div>
+    </div>
+
+    <!-- Full online edit modal (admin only) -->
+    <div id="editModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:16px;">
+        <div style="background:#fff;border-radius:16px;max-width:560px;width:100%;max-height:90vh;overflow:auto;padding:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                <h3 style="margin:0;" id="editTitle">✏️ تعديل الحساب أونلاين</h3>
+                <button onclick="closeModal('editModal')" style="border:0;background:#f1f5f9;border-radius:8px;padding:6px 12px;cursor:pointer;">✕</button>
+            </div>
+            <input type="hidden" id="edit-id">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <input id="edit-fullName" class="form-input" placeholder="الاسم الكامل">
+                <input id="edit-email" class="form-input" placeholder="البريد" dir="ltr">
+                <input id="edit-phone" class="form-input" placeholder="الهاتف" dir="ltr">
+                <input id="edit-nationalId" class="form-input" placeholder="الرقم القومي" dir="ltr">
+                <input id="edit-password" class="form-input" type="password" placeholder="كلمة مرور جديدة (اختياري)" dir="ltr">
+                <select id="edit-role" class="form-input"><option value="patient">مريض</option><option value="nurse">ممرض</option></select>
+                <select id="edit-gender" class="form-input"><option value="">— الجنس —</option><option value="male">ذكر</option><option value="female">أنثى</option></select>
+                <select id="edit-status" class="form-input"><option value="active">active</option><option value="approved">approved</option><option value="pending">pending</option><option value="rejected">rejected</option><option value="suspended">suspended</option></select>
+                <input id="edit-specialization" class="form-input" placeholder="التخصص">
+                <input id="edit-yearsOfExperience" class="form-input" type="number" min="0" max="50" placeholder="سنوات الخبرة" dir="ltr">
+                <input id="edit-governorate" class="form-input" placeholder="المحافظة">
+                <input id="edit-city" class="form-input" placeholder="المدينة">
+                <input id="edit-address" class="form-input" placeholder="العنوان" style="grid-column:1/-1;">
+                <input id="edit-bio" class="form-input" placeholder="نبذة" style="grid-column:1/-1;">
+                <select id="edit-payoutMethod" class="form-input"><option value="">— طريقة السحب —</option><option value="vodafone_cash">vodafone_cash</option><option value="instapay">instapay</option><option value="bank_transfer">bank_transfer</option></select>
+                <input id="edit-payoutAccount" class="form-input" placeholder="حساب السحب" dir="ltr">
+            </div>
+            <label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:13px;"><input type="checkbox" id="edit-isActive"> الحساب مفعّل</label>
+            <button class="btn btn-primary" style="margin-top:12px;width:100%;" id="saveFullBtn" onclick="saveFullEdit()">💾 حفظ أونلاين</button>
+        </div>
+    </div>
+
+    <!-- Devices modal: every device this account registered/logged in from -->
+    <div id="devicesModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:16px;">
+        <div style="background:#fff;border-radius:16px;max-width:560px;width:100%;max-height:90vh;overflow:auto;padding:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                <h3 style="margin:0;" id="devicesTitle">📵 الأجهزة</h3>
+                <button onclick="closeModal('devicesModal')" style="border:0;background:#f1f5f9;border-radius:8px;padding:6px 12px;cursor:pointer;">✕</button>
+            </div>
+            <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+                <button class="btn-sm" style="background:#991b1b;color:#fff;" id="blockAllBtn">⛔ حظر كل أجهزة الحساب + إيقافه</button>
+                <button class="btn-sm" style="background:#065f46;color:#fff;" id="unblockAllBtn">✅ فك حظر أجهزته + تفعيله</button>
+            </div>
+            <div id="devicesBody"><div class="loading"><div class="spinner"></div></div></div>
+        </div>
+    </div>
+
+    <script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
+    <script src="../js/api.js?v=8"></script>
+    <script src="../js/auth.js?v=8"></script>
     <script>
         if (!requireRole('admin')) redirectToLogin();
+
+        // Language-aware alerts: backend returns { message (ar), message_en }.
+        function currentLang() {
+            try {
+                if (typeof window.getQarribLanguage === 'function') return window.getQarribLanguage();
+                return window.qarribLanguage || localStorage.getItem('qarrib-language') || 'ar';
+            } catch (e) { return 'ar'; }
+        }
+        function L(ar, en) { return currentLang() === 'en' ? en : ar; }
+        function serverMsg(result, fallbackAr, fallbackEn) {
+            if (typeof window.pickLocalizedMessage === 'function') return window.pickLocalizedMessage(result, L(fallbackAr, fallbackEn));
+            if (result && (result.message || result.message_en)) {
+                return currentLang() === 'en' ? (result.message_en || result.message) : (result.message || result.message_en);
+            }
+            return L(fallbackAr, fallbackEn);
+        }
+
+        function toggleAddForm() {
+            const f = document.getElementById('addForm');
+            f.style.display = f.style.display === 'none' ? 'block' : 'none';
+        }
+
+        async function createUser() {
+            const btn = document.getElementById('addBtn');
+            btn.disabled = true;
+            try {
+                const payload = {
+                    fullName: document.getElementById('new-name').value.trim(),
+                    email: document.getElementById('new-email').value.trim(),
+                    phone: document.getElementById('new-phone').value.trim(),
+                    password: document.getElementById('new-password').value,
+                    nationalId: document.getElementById('new-nationalId').value.trim(),
+                    role: document.getElementById('new-role').value
+                };
+                const result = await api.adminCreateUser(payload);
+                showAlert(serverMsg(result, 'تم إنشاء المستخدم بنجاح', 'User created successfully'));
+                ['new-name','new-email','new-phone','new-password','new-nationalId'].forEach(id => document.getElementById(id).value = '');
+                document.getElementById('addForm').style.display = 'none';
+                loadUsers();
+            } catch (error) {
+                showAlert(error.message || L('فشل إنشاء الحساب', 'Failed to create the account'), 'error');
+            } finally {
+                btn.disabled = false;
+            }
+        }
 
         async function loadUsers(role = '') {
             try {
@@ -113,29 +243,56 @@
                                 <h4>${user.name} ${user.role === 'nurse' ? (user.isVerified ? '✅' : '⏳') : ''}</h4>
                                 <p>${user.email} | ${user.phone} | ${user.role}</p>
                             </div>
-                            <div class="user-actions">
+                            <div class="user-actions" style="flex-wrap:wrap;justify-content:flex-end;">
+                                <button class="btn-sm" style="background:#0B5F5A;color:#fff;"
+                                    onclick="viewCredentials('${user.id}')">
+                                    🔐 ${L('بيانات', 'Vault')}
+                                </button>
+                                <button class="btn-sm" style="background:#7f1d1d;color:#fff;"
+                                    onclick="viewDevices('${user.id}', '${(user.name || '').replace(/'/g, '')}')">
+                                    📵 ${L('الأجهزة', 'Devices')}
+                                </button>
+                                <button class="btn-sm" style="background:#2563eb;color:#fff;"
+                                    onclick="openEdit('${user.id}')">
+                                    ✏️ ${L('تعديل', 'Edit')}
+                                </button>
                                 <button class="btn-sm" style="background: ${user.isActive ? '#fee2e2' : '#d1fae5'}; color: ${user.isActive ? '#991b1b' : '#065f46'};"
                                     onclick="toggleUser('${user.id}', ${!user.isActive})">
-                                    ${user.isActive ? 'تعطيل' : 'تفعيل'}
+                                    ${user.isActive ? L('تعطيل', 'Disable') : L('تفعيل', 'Enable')}
+                                </button>
+                                <button class="btn-sm" style="background:#fee2e2;color:#991b1b;"
+                                    onclick="deleteUser('${user.id}', '${(user.name || '').replace(/'/g, '')}')">
+                                    ${L('حذف', 'Delete')}
                                 </button>
                             </div>
                         </div>
                     `).join('');
                 } else {
-                    container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">👥</div><p>لا يوجد مستخدمين</p></div>`;
+                    container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">👥</div><p>${L('لا يوجد مستخدمين', 'No users found')}</p></div>`;
                 }
             } catch (error) {
-                showAlert('فشل تحميل المستخدمين', 'error');
+                showAlert(error.message || L('فشل تحميل المستخدمين', 'Failed to load users'), 'error');
             }
         }
 
         async function toggleUser(userId, isActive) {
             try {
                 await api.updateAdminUser(userId, { isActive });
-                showAlert(isActive ? 'تم تفعيل المستخدم' : 'تم تعطيل المستخدم');
+                showAlert(isActive ? L('تم تفعيل المستخدم', 'User enabled') : L('تم تعطيل المستخدم', 'User disabled'));
                 loadUsers();
             } catch (error) {
-                showAlert('فشل التحديث', 'error');
+                showAlert(error.message || L('فشل التحديث', 'Update failed'), 'error');
+            }
+        }
+
+        async function deleteUser(userId, name) {
+            if (!confirm(L(`حذف حساب "${name}" نهائياً؟`, `Permanently delete "${name}"?`))) return;
+            try {
+                const result = await api.adminDeleteUser(userId);
+                showAlert(serverMsg(result, 'تم حذف المستخدم بنجاح', 'User deleted successfully'));
+                loadUsers();
+            } catch (error) {
+                showAlert(error.message || L('فشل الحذف', 'Delete failed'), 'error');
             }
         }
 
@@ -145,7 +302,154 @@
             loadUsers(role === 'all' ? '' : role);
         }
 
+        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+        function row(k, v) { return '<div style="display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid #f1f5f9;font-size:13px;"><span style="color:#64748b;">' + k + '</span><strong style="text-align:end;word-break:break-all;">' + esc(v == null || v === '' ? '—' : v) + '</strong></div>'; }
+
+        // Admin vault: all credentials + registration info, decrypted online.
+        async function viewCredentials(userId) {
+            openModal('vaultModal');
+            document.getElementById('vaultBody').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+            try {
+                const r = await api.getUserCredentials(userId);
+                const d = r.data || {};
+                const c = d.credentials || {}, g = d.registration || {};
+                document.getElementById('vaultTitle').textContent = '🔐 ' + (g.fullName || d.name || 'الحساب');
+                let h = '<div style="font-weight:800;margin:6px 0 2px;">بيانات الدخول</div>';
+                h += row('الاسم', c.fullName || g.fullName);
+                h += row('البريد', c.email);
+                h += row('الهاتف', c.phone);
+                h += row('الرقم القومي', c.nationalId);
+                h += row('كلمة المرور', c.passwordNote || '—');
+                h += '<div style="font-weight:800;margin:12px 0 2px;">التسجيل</div>';
+                h += row('الدور', g.role) + row('الحالة', g.status) + row('مفعّل', g.isActive ? 'نعم' : 'لا');
+                h += row('الجنس', g.gender) + row('التخصص', g.specialization) + row('الخبرة', g.yearsOfExperience);
+                h += row('المحافظة', g.location && g.location.governorate) + row('المدينة', g.location && g.location.city) + row('العنوان', g.location && g.location.address);
+                h += row('طريقة السحب', g.payoutMethod) + row('حساب السحب', g.payoutAccount) + row('المحفظة', g.walletBalance);
+                h += row('آخر دخول', g.lastLogin ? new Date(g.lastLogin).toLocaleString() : '—');
+                if (g.idCardImage && g.idCardImage.url) h += '<div style="margin-top:8px;font-size:13px;">صورة البطاقة: <a href="' + esc(g.idCardImage.url) + '" target="_blank">فتح</a></div>';
+                if (g.licenseImage && g.licenseImage.url) h += '<div style="font-size:13px;">الترخيص: <a href="' + esc(g.licenseImage.url) + '" target="_blank">فتح</a></div>';
+                document.getElementById('vaultBody').innerHTML = h;
+            } catch (e) {
+                document.getElementById('vaultBody').innerHTML = '<div style="color:#991b1b;font-size:13px;">' + esc(e.message || 'Failed') + '</div>';
+            }
+        }
+
+        // Load full record into the online edit form.
+        async function openEdit(userId) {
+            openModal('editModal');
+            try {
+                const r = await api.getUserCredentials(userId);
+                const g = (r.data && r.data.registration) || {};
+                document.getElementById('edit-id').value = userId;
+                document.getElementById('edit-fullName').value = g.fullName || '';
+                document.getElementById('edit-email').value = g.email || '';
+                document.getElementById('edit-phone').value = g.phone || '';
+                document.getElementById('edit-nationalId').value = g.nationalId || '';
+                document.getElementById('edit-password').value = '';
+                document.getElementById('edit-role').value = g.role || 'patient';
+                document.getElementById('edit-gender').value = g.gender || '';
+                document.getElementById('edit-status').value = g.status || 'active';
+                document.getElementById('edit-specialization').value = g.specialization || '';
+                document.getElementById('edit-yearsOfExperience').value = g.yearsOfExperience || 0;
+                document.getElementById('edit-governorate').value = (g.location && g.location.governorate) || '';
+                document.getElementById('edit-city').value = (g.location && g.location.city) || '';
+                document.getElementById('edit-address').value = (g.location && g.location.address) || '';
+                document.getElementById('edit-bio').value = g.bio || '';
+                document.getElementById('edit-payoutMethod').value = g.payoutMethod || '';
+                document.getElementById('edit-payoutAccount').value = g.payoutAccount || '';
+                document.getElementById('edit-isActive').checked = !!g.isActive;
+            } catch (e) { showAlert(e.message || 'Failed', 'error'); closeModal('editModal'); }
+        }
+
+        async function saveFullEdit() {
+            const btn = document.getElementById('saveFullBtn');
+            btn.disabled = true;
+            try {
+                const id = document.getElementById('edit-id').value;
+                const payload = {
+                    fullName: document.getElementById('edit-fullName').value.trim(),
+                    email: document.getElementById('edit-email').value.trim(),
+                    phone: document.getElementById('edit-phone').value.trim(),
+                    nationalId: document.getElementById('edit-nationalId').value.trim(),
+                    role: document.getElementById('edit-role').value,
+                    gender: document.getElementById('edit-gender').value || null,
+                    status: document.getElementById('edit-status').value,
+                    specialization: document.getElementById('edit-specialization').value.trim() || null,
+                    yearsOfExperience: Number(document.getElementById('edit-yearsOfExperience').value || 0),
+                    bio: document.getElementById('edit-bio').value.trim() || null,
+                    payoutMethod: document.getElementById('edit-payoutMethod').value || null,
+                    payoutAccount: document.getElementById('edit-payoutAccount').value.trim() || null,
+                    isActive: document.getElementById('edit-isActive').checked,
+                    location: {
+                        governorate: document.getElementById('edit-governorate').value.trim() || null,
+                        city: document.getElementById('edit-city').value.trim() || null,
+                        address: document.getElementById('edit-address').value.trim() || null
+                    }
+                };
+                const pw = document.getElementById('edit-password').value;
+                if (pw) payload.password = pw;
+                const r = await api.updateUserFull(id, payload);
+                showAlert(serverMsg(r, 'تم الحفظ أونلاين', 'Saved online'));
+                closeModal('editModal');
+                loadUsers();
+            } catch (e) { showAlert(e.message || 'Failed', 'error'); }
+            finally { btn.disabled = false; }
+        }
+
+        // ---- Devices per user (register/login fingerprint = MAC replacement) ----
+        var currentDevicesUserId = null;
+        async function viewDevices(userId, name) {
+            currentDevicesUserId = userId;
+            openModal('devicesModal');
+            document.getElementById('devicesTitle').textContent = '📵 أجهزة ' + (name || '');
+            document.getElementById('devicesBody').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+            document.getElementById('blockAllBtn').onclick = function(){ blockUserDevices(userId); };
+            document.getElementById('unblockAllBtn').onclick = function(){ unblockUserDevices(userId); };
+            try {
+                var r = await api.getUserDevices(userId);
+                var rows = (r.data && r.data.devices) || r.data || [];
+                if (!rows.length) {
+                    document.getElementById('devicesBody').innerHTML = '<div style="font-size:13px;color:#64748b;">لا توجد أجهزة مسجلة لهذا الحساب بعد (ستظهر عند أول دخول بعد التحديث).</div>';
+                    return;
+                }
+                document.getElementById('devicesBody').innerHTML = rows.map(function(d){
+                    return '<div style="border:1px solid #e2e8f0;border-radius:10px;padding:10px;margin-bottom:8px;font-size:13px;">' +
+                    '<div><strong>'+(d.blocked ? '⛔ محظور' : '✅ سليم')+'</strong> <span style="font-family:monospace;" dir="ltr">'+esc(d.deviceId)+'</span></div>' +
+                    '<div style="font-size:12px;color:#64748b;font-family:monospace;" dir="ltr">ip: '+esc(d.ip||'—')+'</div>' +
+                    '<div style="font-size:12px;color:#64748b;">'+esc(d.platform||'')+' · آخر ظهور: '+esc(d.lastSeen?new Date(d.lastSeen).toLocaleString():'—')+'</div>' +
+                    '<div style="display:flex;gap:6px;margin-top:6px;">' +
+                    (d.blocked
+                      ? '<button class="btn-sm" style="background:#065f46;color:#fff;" onclick="unblockOne(\''+esc(d.deviceId)+'\')">✅ فك الحظر</button>'
+                      : '<button class="btn-sm" style="background:#991b1b;color:#fff;" onclick="blockOne(\''+esc(d.deviceId)+'\')">⛔ حظر</button>') +
+                    '</div></div>';
+                }).join('');
+            } catch(e){ document.getElementById('devicesBody').innerHTML = '<div style="color:#991b1b;">'+esc(e.message||'Failed')+'</div>'; }
+        }
+        async function blockOne(deviceId){
+            var reason = prompt('سبب الحظر:', 'مخالفة قواعد التطبيق');
+            if(reason===null) return;
+            try{ var r = await api.blockDevice({ deviceId: deviceId, reason: reason }); showAlert(r.message||'تم الحظر'); viewDevices(currentDevicesUserId, ''); }
+            catch(e){ showAlert(e.message||'Failed','error'); }
+        }
+        async function unblockOne(deviceId){
+            try{ var r = await api.unblockDevice({ deviceId: deviceId }); showAlert(r.message||'تم فك الحظر'); viewDevices(currentDevicesUserId, ''); }
+            catch(e){ showAlert(e.message||'Failed','error'); }
+        }
+        async function blockUserDevices(userId){
+            var reason = prompt('سبب حظر كل أجهزة هذا الحساب (سيتم إيقاف الحساب أيضاً):', 'مخالفة قواعد التطبيق');
+            if(reason===null) return;
+            try{ var r = await api.blockDevice({ userId: userId, reason: reason }); showAlert(r.message||'تم الحظر'); closeModal('devicesModal'); loadUsers(); }
+            catch(e){ showAlert(e.message||'Failed','error'); }
+        }
+        async function unblockUserDevices(userId){
+            try{ var r = await api.unblockDevice({ userId: userId }); showAlert(r.message||'تم فك الحظر'); closeModal('devicesModal'); loadUsers(); }
+            catch(e){ showAlert(e.message||'Failed','error'); }
+        }
+
         loadUsers();
     </script>
+<script src="../js/install.js?v=6"></script>
 </body>
 </html>

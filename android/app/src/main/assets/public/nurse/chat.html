@@ -2,8 +2,15 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>الرسائل - ممرض</title>
+    <link rel="apple-touch-icon" href="../icon-180.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="../manifest.webmanifest">
+    <meta name="description" content="Qarrib Healthcare - nursing care at your door.">
+    <meta name="theme-color" content="#0B5F5A">
     <link rel="stylesheet" href="../css/main.css">
     <style>
         .chat-list { padding: 16px; }
@@ -26,6 +33,15 @@
 <body>
     <div class="app-container">
         <div class="header"><div class="header-content"><div class="logo">الرسائل</div></div></div>
+        <div style="padding:12px 16px 0;">
+            <a href="support-chat.html" class="chat-item" style="border:2px solid #0B5F5A;">
+                <div class="chat-avatar" style="background:#0B5F5A;">E</div>
+                <div class="chat-info">
+                    <div class="chat-name">شات الإدارة (دعم)</div>
+                    <div class="chat-preview">تواصل مباشر مع إدارة قرّب</div>
+                </div>
+            </a>
+        </div>
         <div class="chat-list" id="chatList"><div class="loading"><div class="spinner"></div></div></div>
         <nav class="bottom-nav">
             <a href="dashboard.html" class="nav-item"><span class="nav-icon">🏠</span><span>الرئيسية</span></a>
@@ -34,9 +50,11 @@
             <a href="chat.html" class="nav-item active"><span class="nav-icon">💬</span><span>الشات</span></a>
         </nav>
     </div>
-    <script>window.QARRAB_API_URL = "https://qarrib.onrender.com";</script>
-    <script src="../js/api.js"></script>
-    <script src="../js/auth.js"></script>
+    <script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
+    <script src="../js/api.js?v=6"></script>
+    <script src="../js/auth.js?v=8"></script>
+    <script src="../js/notifications.js"></script>
+    <script src="../js/notify-popup.js?v=1"></script>
     <script>
         if (!requireRole('nurse')) redirectToLogin();
         async function loadChats() {
@@ -63,5 +81,6 @@
         }
         loadChats();
     </script>
+<script src="../js/install.js?v=6"></script>
 </body>
 </html>

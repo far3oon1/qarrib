@@ -2,8 +2,15 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>طلباتي - قرّب</title>
+    <link rel="apple-touch-icon" href="../icon-180.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="../manifest.webmanifest">
+    <meta name="description" content="Qarrib Healthcare - nursing care at your door.">
+    <meta name="theme-color" content="#0B5F5A">
     <link rel="stylesheet" href="../css/main.css">
     <style>
         .page-header {
@@ -79,9 +86,11 @@
         </nav>
     </div>
 
-    <script>window.QARRAB_API_URL = "https://qarrib.onrender.com";</script>
-    <script src="../js/api.js"></script>
-    <script src="../js/auth.js"></script>
+    <script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
+    <script src="../js/api.js?v=6"></script>
+    <script src="../js/auth.js?v=8"></script>
+    <script src="../js/notifications.js"></script>
+    <script src="../js/notify-popup.js?v=1"></script>
     <script>
         if (!requireRole('nurse')) redirectToLogin();
 
@@ -106,12 +115,24 @@
                                     <button class="btn btn-secondary btn-sm" onclick="suggestPrice('${order.id}')">اقتراح سعر 💰</button>
                                 </div>
                             ` : ''}
+                            ${(order.status === 'assigned' && order.nurseAccepted !== true) ? `
+                                <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:12px;padding:12px;margin-bottom:8px;">
+                                    <div style="font-weight:700;margin-bottom:4px;">تم اختيارك بسعر ${order.amount ? order.amount + ' ج.م' : ''} — موافق؟</div>
+                                    <div style="font-size:13px;color:#92400E;margin-bottom:8px;">اقبل لبدء التتبع أو ارفض ليعود الطلب للممرضين</div>
+                                    <div style="display:flex;gap:8px;">
+                                        <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="respondAssignment('${order.id}', true)">موافق ✅</button>
+                                        <button class="btn btn-outline btn-sm" style="flex:1;" onclick="respondAssignment('${order.id}', false)">رفض ❌</button>
+                                    </div>
+                                </div>
+                            ` : ''}
                             <div class="order-actions">
                                 ${order.status === 'assigned' ? `
                                     <button class="btn btn-primary btn-sm" onclick="startService('${order.id}')">بدء الخدمة</button>
+                                    <button class="btn btn-outline btn-sm" onclick="window.location.href='track-order.html?order=${order.id}'">تتبع 📍</button>
                                 ` : ''}
                                 ${order.status === 'in_progress' ? `
                                     <button class="btn btn-secondary btn-sm" onclick="completeService('${order.id}')">تمت الخدمة ✅</button>
+                                    <button class="btn btn-outline btn-sm" onclick="window.location.href='track-order.html?order=${order.id}'">تتبع 📍</button>
                                 ` : ''}
                                 ${order.status === 'completed' ? `
                                     <button class="btn btn-success btn-sm" disabled>تم الإنجاز ✅</button>
@@ -157,8 +178,21 @@
             }
         }
 
-        async function startService(orderId) {
+        async function respondAssignment(orderId, accept) {
+            if (!accept && !confirm('رفض الخدمة؟ سيعود الطلب للممرضين الآخرين.')) return;
             try {
+                const result = await api.respondToAssignment(orderId, accept);
+                if (result.success) {
+                    showAlert(accept ? 'تم قبول الخدمة! توجه للمريض.' : 'تم تسجيل رفضك.');
+                    if (accept) setTimeout(function(){ window.location.href = 'track-order.html?order=' + orderId; }, 800);
+                    else loadOrders();
+                }
+            } catch (error) {
+                showAlert(error.message || 'فشلت العملية', 'error');
+            }
+        }
+
+        async function startService(orderId) {            try {
                 const result = await api.startService(orderId);
                 if (result.success) {
                     showAlert('تم بدء الخدمة!');
@@ -199,6 +233,10 @@
                                 lng: position.coords.longitude,
                                 orderId: orderId
                             });
+                        } else if (!window._lastNurseLocPost || Date.now() - window._lastNurseLocPost > 15000) {
+                            // REST fallback (throttled): used when websockets are unavailable (serverless hosting)
+                            window._lastNurseLocPost = Date.now();
+                            try { api.updateNurseLocation(position.coords.latitude, position.coords.longitude, orderId).catch(function() {}); } catch (e) {}
                         }
                     },
                     function() {},
@@ -206,7 +244,9 @@
                 );
             }
 
-            nurseOrderSocket = io({ auth: { token: localStorage.getItem('token') } });
+            if (typeof io === 'undefined') { nurseOrderSocket = null; return; }
+            try { nurseOrderSocket = io({ auth: { token: localStorage.getItem('token') } }); }
+            catch (e) { nurseOrderSocket = null; return; }
             nurseOrderSocket.on('connect', function() {
                 nurseOrderSocket.emit('subscribe_location', { orderId: orderId });
             });
@@ -225,5 +265,6 @@
             } catch(e) {}
         })();
     </script>
+<script src="../js/install.js?v=6"></script>
 </body>
 </html>

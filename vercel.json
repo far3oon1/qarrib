@@ -1,1 +1,17 @@
-{"buildCommand": "echo qarrib-static-ok", "functions": {"api/index.js": {"maxDuration": 30}}, "installCommand": "npm install --omit=dev", "outputDirectory": "frontend", "rewrites": [{"source": "/api/:path*", "destination": "/api/index"}]}
+{
+  "buildCommand": "echo qarrib-static-ok",
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 30,
+      "excludeFiles": "{frontend/**,android/**,ios/**,desktop/**,dist/**}"
+    }
+  },
+  "installCommand": "npm install --omit=dev",
+  "outputDirectory": "frontend",
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "/api/index"
+    }
+  ]
+}

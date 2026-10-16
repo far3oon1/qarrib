@@ -258,7 +258,401 @@
         'فحص طبي': 'Medical checkup',
         'رعاية مسنين': 'Elder care',
         'تركيب محاليل': 'IV setup',
-        'أخرى': 'Other'
+        'أخرى': 'Other',
+        // --- New screens: permissions gate, plans, subscriptions, pro dashboards, bell alerts ---
+        'الأذونات': 'Permissions',
+        '🔐 الأذونات': '🔐 Permissions',
+        'اشتراكات': 'Subscriptions',
+        '💎 الاشتراكات': '💎 Subscriptions',
+        'الخطط': 'Plans',
+        'مجانية': 'Free',
+        'احترافية': 'Pro',
+        'مميزة': 'VIP',
+        'الخطة الحالية': 'Current plan',
+        'تخفيض': 'Downgrade',
+        'اشترك': 'Subscribe',
+        'السعر': 'Price',
+        'شهرياً': '/month',
+        'مكالمات غير محدودة': 'Unlimited calling',
+        'مطابقة ذات أولوية': 'Priority matching',
+        'دعم ذو أولوية': 'Priority support',
+        'خط الإدارة الساخن 24/7': '24/7 admin hotline',
+        'اتصل بالإدارة الآن': 'Call admin now',
+        'استلمت المبلغ — إنهاء': 'Cash received — finish',
+        'المبلغ المستلم': 'Received amount',
+        'المبلغ المتوقع': 'Expected amount',
+        'أدخل المبلغ المستلم أولاً': 'Enter the received amount first',
+        'تم إنهاء الزيارة بعد استلام المبلغ': 'Visit ended after receiving the amount',
+        'موقعك يُبث مباشرة للمريض والإدارة': 'Your location is broadcast live to the patient and admin',
+        'المريض أوقف مشاركة موقعه المباشر': 'The patient paused live live-location sharing',
+        'الممرض أوقف مشاركة موقعه المباشر': 'The nurse paused live location sharing',
+        'مشاركة الموقع المباشر': 'Live location sharing',
+        'الاتصال معطل لهذا الحساب من الإدارة': 'Calling is disabled for this account by admin',
+        'لا يوجد رقم مسجل': 'No registered number',
+        'السماح': 'Enable',
+        'مطلوب': 'Needed',
+        'تم السماح': 'Allowed ✓',
+        'لاحقاً': 'Later',
+        'تفعيل المطلوب': 'Enable required',
+        'إشعار قانوني لأذونات التطبيق': 'App permissions — legal notice',
+        'موقع': 'Location',
+        'المعرض / الصور': 'Gallery / Photos',
+        'اتصال': 'Calling',
+        'إشعارات': 'Notifications',
+        'الشروط والخصوصية': 'Terms & privacy',
+        'حفظ': 'Save',
+        'بحث': 'Search',
+        'كل الأدوار': 'All roles',
+        'المرضى': 'Patients',
+        'الممرضون': 'Nurses',
+        'المشرفون': 'Admins',
+        'تم الحفظ للمستخدم': 'Saved for user',
+        'اعتماد الموقع المباشر': 'Approve live location',
+        'حفظ الأذونات': 'Save permissions',
+        'لا يوجد مستخدمون': 'No users found',
+        'أسعار الخطط': 'Plan prices',
+        'طلبات': 'Requests',
+        'تحديث': 'Refresh',
+        'الموافقة والتفعيل': 'Approve & activate',
+        'رفض': 'Reject',
+        'تم تحديث الأسعار': 'Prices updated',
+        'تنبيه جديد': 'New notification',
+        'طلب خدمة جديد': 'New service request',
+        'تحديث على الطلب': 'Order update',
+        'تم تحديث الأذونات': 'Permissions updated',
+        'اضغط للعرض': 'Tap to view →',
+        'بدأت الخدمة': 'Service started',
+        'تم إنهاء الخدمة': 'Service completed',
+        'تم إلغاء الطلب': 'Order was cancelled',
+        'مرحباً بعودتك': 'Welcome back',
+        'متصل ●': 'Online ●',
+        'ابحث عن طلبات': 'Find requests',
+        'رصيد المحفظة': 'Wallet balance',
+        'سحب': 'Withdraw →',
+        'الزيارات النشطة': 'Active visits',
+        'إجمالي الأرباح': 'Total earnings',
+        'لا توجد زيارات نشطة': 'No active visits',
+        'تتبع المريض 📍': 'Track patient 📍',
+        'أدوات احترافية': 'Pro tools',
+        'حساب استلام الأرباح': 'Payout account',
+        'لم يحدد بعد': 'not set',
+        'تم حفظ حساب الاستلام': 'Payout account saved',
+        'اليوم': 'Today',
+        'شات الدعم': 'Support chat',
+        'طلبات جديدة بالقرب منك': 'New requests near you',
+        'مركز التحكم': 'Control center',
+        'إيرادات المنصة': 'Platform revenue',
+        'أدوات الإدارة': 'Management tools',
+        'نظرة على الأموال': 'Money overview',
+        'تم تحديث الأرباح': 'Earnings refreshed',
+        'العودة إلى المجانية': 'Back to Free',
+        'الرجوع إلى المجانية': 'Downgrade to Free',
+        'اشتراك': 'Subscription',
+        'فشل': 'Failed',
+        'تمت إعادة التعيين': 'Reset done',
+        'ℹ️ النسخة': 'ℹ️ Version',
+        'سحوبات مدفوعة': 'Withdrawals paid',
+        'شحن معلق': 'Topups pending',
+        'فتح المدفوعات': 'Open payments',
+        'زيارات الرعاية، في طريقك': 'Care visits, on your way.',
+        'ابحث عن طلبات بالقرب مني': 'Find requests near me',
+        'طلبات جديدة': 'New requests',
+        'حفظ الأسعار': 'Save prices',
+        'سعر الاحترافية': 'Pro price',
+        'سعر المميزة': 'VIP price',
+        'تم قبول الزيارة': 'Visit accepted',
+        'جارٍ فتح تتبع المريض المباشر': 'Opening live patient tracking…',
+        'تم إشعار المريض والإدارة بتنبيه الجرس': 'Patient and admin were notified with a bell alert',
+        'تم استلام المبلغ': 'Cash received',
+        'انتهت الزيارة — طُلب من المريض التقييم بالنجوم': 'Visit ended — patient was asked to rate with stars',
+        'تم حفظ الأذونات': 'Permissions saved',
+        'تم تحديث بوابات الأجهزة لكل المستخدمين': 'Device gates updated for all users',
+        'خطتك الحالية': 'Your current plan: ',
+        'الترقية إلى الاحترافية 250 / المميزة 500': 'Upgrade to Pro 250 / VIP 500 →',
+        'مميز · اتصل بالإدارة 24/7': '👑 VIP · Call admin 24/7',
+        '📍 مشاركة الموقع المباشر: مفعّلة (اضغط للإيقاف)': '📍 Live location sharing: ON (tap to pause)',
+        '📍 مشاركة الموقع المباشر: متوقفة (اضغط للتفعيل)': '📍 Live location sharing: OFF (tap to enable)',
+        'أوقف الممرض مشاركة موقعه المباشر — ستصلك تنبيهات الجرس عند الوصول. اتصال': 'The nurse paused live location sharing — you will still get bell alerts on arrival. Call: ',
+        'الاتصال معطل لهذا الممرض من الإدارة': 'Calling is disabled for this nurse by admin',
+        'طلب جديد متاح — افتح الطلبات الآن': 'A new request is available — open requests now',
+        'حدّثت الإدارة أذونات حسابك': 'Admin updated your account permissions',
+        'تحكم في من يستطيع ماذا — بدون أكواد': 'Control who can do what — no code needed',
+        'أذونات الأجهزة المطلوبة لكل دور (بوابة قانونية)': 'Required device permissions per role (legal gate)',
+        'أذونات الميزات لكل مستخدم (أضف / أزل كما تشاء)': 'Per-user feature permissions (add / remove as you like)',
+        'ابحث بالاسم / الهاتف / البريد': 'Search name / phone / email',
+        'ابحث لتحميل المستخدمين': 'Search to load users…',
+        'تم حفظ متطلبات الأذونات': 'Permission requirements saved',
+        'مجاني / احترافي / مميز — فوترة شهرية': 'Free / Pro / VIP — monthly billing',
+        'أسعار الخطط (جنيه / شهر)': 'Plan prices (EGP / month)',
+        'معلق': 'pending',
+        'نشط': 'active',
+        'مرفوض': 'rejected',
+        'منتهي': 'expired',
+        'ملغي': 'cancelled',
+        'جارٍ الطلب': 'Requesting…',
+        '(مطلوب)': '(required)',
+        'تم إنهاء الخدمة — قيّم بالنجوم': 'Service completed — please rate with stars ⭐',
+        'قبل ممرض — تتبع مباشرة الآن': 'A nurse accepted — track live now',
+        'تحويل انستا باي': 'InstaPay transfer',
+        'لا توجد زيارات نشطة. اتصل بالإنترنت واقبل طلباً': 'No active visits. Go online and accept a request.',
+        'لا توجد طلبات الآن — ستصلك تنبيه الجرس عند وصول طلب': 'No requests right now — you will get a 🔔 bell alert when one arrives.',
+        // --- Round 2: every remaining English string on patient/nurse/admin screens ---
+        'الممرض في الطريق إليك': 'Your nurse is on the way',
+        'جارٍ تحميل الخريطة…': 'Loading map…',
+        'جارٍ التحميل…': 'Loading…',
+        'جارٍ تحميل العروض…': 'Loading offers…',
+        'جارٍ تحميل خطتك…': 'Loading your plan…',
+        'المسافة:': 'Distance:',
+        'كم · الوقت المتوقع:': 'km · ETA:',
+        'دقائق': 'minutes',
+        'طوارئ': 'Emergency',
+        'رجوع': '← Back',
+        'تم الوصول': 'Arrived',
+        'في الطريق': 'On the way',
+        'اكتملت الزيارة والتقرير': 'Visit completed & report',
+        'مقبول': 'Accepted',
+        'قيد المراجعة': 'Under review',
+        'مفتوح': 'Open',
+        'تم التعيين': 'Assigned',
+        'لا توجد طلبات نشطة.': 'No active orders.',
+        'اطلب الآن': 'Request now',
+        'بانتظار عروض الممرضين…': 'Waiting for nurse offers…',
+        'لا توجد عروض بعد.': 'No offers yet.',
+        'عروض أسعار الممرضين:': 'Nurse price offers:',
+        'السعر المقترح:': 'Suggested price:',
+        'اقبل وافتح للممرضين': 'Accept & open to nurses',
+        'قبول': 'Accept',
+        'الدفع (': 'Payment (',
+        'ادفع من المحفظة': 'Pay from wallet',
+        'مرجع انستا باي': 'InstaPay reference',
+        'إنهاء الخدمة كمكتملة': 'End service as completed',
+        'إلغاء الزيارة': 'Cancel visit',
+        'قيّم ممرضك': 'Rate your nurse',
+        'ملاحظاتك (تُرسل للإدارة أيضاً)': 'Your feedback (sent to admin too)',
+        'إرسال التقييم': 'Send feedback',
+        'يصل قريباً ·': 'Arrives soon ·',
+        'تم قبول السعر!': 'Price accepted!',
+        'تم الدفع! المبلغ محجوز ضماناً.': 'Paid! Amount held in escrow.',
+        'فشل الدفع': 'Payment failed',
+        'تم تسجيل التحويل!': 'Transfer recorded!',
+        'اكتملت الخدمة! قيّم ممرضك.': 'Service completed! Please rate your nurse.',
+        'شكراً! تم إرسال تقييمك.': 'Thank you! Feedback sent.',
+        'تم رفض إذن الموقع. استخدام الموقع الافتراضي.': 'Location permission denied. Using default location.',
+        'تم القبول! طلبك ظاهر الآن للممرضين.': 'Accepted! Your request is now visible to nurses.',
+        'اختر خطتك — فوترة شهرية (30 يوماً)': 'Choose your plan — billed monthly (30 days)',
+        'رعاية تمريضية حتى باب منزلك.': 'Nursing care, at your door.',
+        'الخدمات': 'SERVICES',
+        'رعاية المسنين': 'Elderly care',
+        'الحقن والمحاليل': 'Injections & IV',
+        'فحص العلامات الحيوية': 'Vitals check',
+        'ما بعد الجراحة': 'Post-surgery',
+        'المزيد من الخدمات': 'More services',
+        'احجز حالة طوارئ - وصول خلال': 'Book an emergency - arrival within',
+        'دقيقة': 'minutes',
+        'زيادة': 'Increase',
+        'الخدمات الأساسية': 'Core services',
+        'عرض كل الخدمات': 'View all services',
+        'أفضل الممرضين': 'Top rated nurses',
+        'محفظة قريب': 'Qarrib wallet',
+        'الرصيد': 'Balance',
+        'اشحن': 'Top up',
+        'السجل': 'History',
+        'احجز مباشرة': 'Book now',
+        'ابحث عن خدمة': 'Search a service',
+'صباح الخير': 'Good morning',
+        'مساء الخير': 'Good evening',
+        'جديد': 'New',
+        'لا توجد خدمات متاحة حالياً.': 'No services available right now.',
+        'لا يوجد ممرضون متاحون حالياً.': 'No nurses are available right now.',
+        'الخدمات غير متاحة حالياً.': 'Services are unavailable right now.',
+        'زياراتي': 'My visits',
+        'الزيارات': 'Visits',
+        'عروض ممرضين جديدة': 'New nurse offers',
+        'عرض الكل': 'View all',
+        'عرض كل العروض': 'View all offers',
+        'الحالية': 'CURRENT',
+        'طلب ممرض': 'Request a nurse',
+        'تتبع مباشر للممرض/المريض': 'Live nurse/patient tracking',
+        'الدفع بالمحفظة وانستا باي': 'Wallet & InstaPay payments',
+        'التقييم بالنجوم والملاحظات': 'Rate with stars & feedback',
+        'مكالمات غير محدودة (أرقام الممرض/المريض)': 'Unlimited calling (nurse/patient numbers)',
+        'مطابقة ذات أولوية (الأقرب أولاً)': 'Priority matching (nearest first)',
+        'أولوية رفع الصور': 'Priority photo uploads',
+        'دعم ذو أولوية (8ص–12م)': 'Priority support (8am–12am)',
+        'خصم 5% على الخدمات': '5% service discount',
+        'الاتصال بالخط الساخن للإدارة 24/7': '24/7 admin hotline calling',
+        'مدير حساب مخصص': 'Dedicated account manager',
+        'إعادة جدولة مجانية': 'Free rescheduling',
+        'أولوية السحوبات': 'Priority withdrawals',
+        '👑 شارة مميزة': '👑 VIP badge',
+        'خصم 10% على الخدمات': '10% service discount',
+        'الدعم': 'Support',
+        '(نصف المميز)': '(half of VIP)',
+        'الاتصال بالإدارة 24 ساعة (حصري)': 'Admin 24-hour calling (exclusive)',
+        'الدعم 24/7': 'Support 24/7',
+        'الدعم 9ص–5م': 'Support 9am–5pm',
+        '👑 الخط الساخن للإدارة 24/7 للمميزين': '👑 VIP 24/7 admin hotline',
+        'بصفتك مميزاً يمكنك الاتصال بالإدارة في أي وقت — خط الدعم ذو الأولوية.': 'As a VIP you can call the admin anytime, day or night — priority support line.',
+        '📞 اتصل بالإدارة الآن (24/7)': '📞 Call admin now (24/7)',
+        '💳 ادفع من رصيد المحفظة فوراً، أو عبر تحويل انستا باي (تفعّله الإدارة بعد التحقق). ألغِ في أي وقت — تعود إلى المجانية.': '💳 Pay from wallet balance instantly, or via InstaPay transfer (admin activates after verifying). Cancel anytime — you drop back to Free.',
+        'مرجع انستا باي (لانستا باي فقط)': 'InstaPay reference (for InstaPay only)',
+        'جرّب قرّب — اطلب ممرضاً، تتبع، تحدث وادفع.': 'Try Qarrib — request a nurse, track, chat and pay.',
+        'نصف ميزات التميز — للمستخدمين الدائمين.': 'Half of the premium features — for regular users.',
+        'كل الميزات + الخط الساخن للإدارة 24/7.': 'All features + 24/7 admin hotline calling.',
+        'تم بنجاح': 'Done',
+        'احترافي': 'PRO',
+        'مميز': 'VIP',
+        'مجاني': 'FREE',
+        'رصيد المحفظة': 'Wallet balance',
+        'الزيارات النشطة — تتبع المريض والإنهاء عند الاستلام': 'Active visits — track patient & end on cash',
+        'أدوات احترافية': 'Pro tools',
+        'غير محدد': 'not set',
+        'الرقم / الآيبان': 'Number / IBAN',
+        'شات الدعم (الإدارة)': 'Support chat (admin)',
+        'طلبات جديدة بالقرب منك': 'New requests near you',
+        'طلبات جديدة': 'New requests',
+        'ابحث عن طلبات': 'Find requests',
+        'طلبات': 'Requests',
+        'زيارة': 'Visit',
+        'لم يُقيّم بعد': 'Not rated yet',
+        'التقييمات': 'Feedbacks',
+        '⭐ التقييمات': '⭐ Feedbacks',
+        'التقارير': 'Reports',
+        'تتبع المريض': 'Track patient',
+        'الأذونات': 'Permissions',
+        'تحديث الأرباح': 'Refresh earnings',
+        'الرسوم:': 'Fees:',
+        '· الممرضون:': '· Nurses:',
+        'إعادة تعيين المدفوعات': 'Reset payments',
+        'مركز التحكم.': 'Control center.',
+        'الاشتراكات': 'Subscriptions',
+        'أسعار الممرضين': 'Nurse prices',
+        '🔔 تنبيه الجرس مع صوت لكل طلب جديد ودفعة وتقييم — على الويب وسطح المكتب والموبايل.': '🔔 You get a bell popup + sound for every new request, payment and feedback — on web, desktop and mobile.',
+        '⚠️ حسابك قيد المراجعة — سنعلمك عند الموافقة.': '⚠️ Account under review — you will be notified on approval.',
+        '⚠️ الحساب قيد المراجعة.': '⚠️ Account under review.',
+        'الحساب': 'Profile',
+        'اكتملت الخدمة': 'Service completed',
+        'عند التفعيل، يجب على الممرض/المريض السماح به على الموبايل أو iOS أو الويب قبل استخدام التطبيق. الموقع = التتبع المباشر · المعرض = صور الخدمات · الاتصال = أزرار الاتصال · الإشعارات = تنبيهات الجرس.': 'When required, the nurse/patient must Allow it on mobile, iOS or web before using the app. Location = live tracking · Gallery = service images · Calling = call buttons · Notifications = bell alerts.',
+        'الصلاحية': 'Permission',
+        'مطلوب للمريض': 'Patient required',
+        'مطلوب للممرض': 'Nurse required',
+        'عنوان الإشعار القانوني': 'Legal notice title',
+        'نص الإشعار القانوني (يظهر في التطبيق)': 'Legal notice text (shown in app)',
+        'حفظ الكل': 'Save all',
+        'عرض الطلبات (صلاحية)': 'View orders',
+        'قبول الطلبات (صلاحية)': 'Accept orders',
+        'إرسال الأسعار (صلاحية)': 'Submit prices',
+        'بدء الخدمة (صلاحية)': 'Start service',
+        'إنهاء الخدمة (صلاحية)': 'End service',
+        'التتبع المباشر (صلاحية)': 'Live tracking',
+        'الاتصال بالمريض (صلاحية)': 'Call patient',
+        'الاتصال بالممرض (صلاحية)': 'Call nurse',
+        'تنبيهات الجرس (صلاحية)': 'Bell alerts',
+        'مشاركة الموقع (صلاحية)': 'Share location',
+        'رفع الصور (صلاحية)': 'Upload photos',
+        'سحب الأرباح (صلاحية)': 'Withdraw',
+        'الموقع': 'location',
+        'المعرض': 'gallery',
+        'المكالمات': 'calling',
+        'موقع': 'Location',
+        'معرض': 'Gallery',
+        'مكالمات': 'Calling',
+        'شروط': 'Terms',
+        'الشروط': 'terms',
+        'لا توجد اشتراكات': 'No subscriptions',
+        'يحتاج قرّب الموقع (التتبع المباشر)، والمعرض (صور الخدمات)، والاتصال (التواصل على الرقم المسجل) والإشعارات. على أندرويد وiOS سيطلب منك النظام السماح. مطلوب لعمل الخدمة بأمان وقانونية.': 'Qarrib needs location (live tracking), gallery (service images), calling (contact on the registered number) and notifications. On Android & iOS the system will ask you to Allow. Required for the service to work safely and legally.',
+        'أنت على iOS: اضغط سماح عند ظهور حوار النظام. يمكنك تغييرها لاحقاً من الإعدادات ← قرّب.': 'You are on iOS: tap Allow when the system dialog appears. You can change this later in Settings → Qarrib.',
+        'أنت على أندرويد: اضغط سماح عند ظهور حوار النظام. يمكنك تغييرها لاحقاً من الإعدادات ← التطبيقات ← قرّب ← الأذونات.': 'You are on Android: tap Allow when the system dialog appears. You can change this later in Settings → Apps → Qarrib → Permissions.',
+        'أنت على الويب: سيطلب منك المتصفح الموقع والإشعارات. المعرض والاتصال يُمنحان داخل التطبيق.': 'You are on web: your browser will ask for Location and Notifications. Gallery and Calling are granted inside the app.',
+        'التتبع المباشر: يرى المريض الممرض على الخريطة ويرى الممرض عنوان المريض. مطلوب للسلامة وتقدير الوصول.': 'Live tracking: patient sees the nurse on the map and the nurse sees the patient address. Required for safety and arrival estimates.',
+        'ارفع صور الخدمة ومستندات التوثيق (الهوية / ترخيص التمريض).': 'Upload service images and verification documents (ID / nursing license).',
+        'اتصل بالممرض / المريض على الرقم المسجل، أو أزرار الاتصال داخل التطبيق.': 'Call the nurse / patient on the registered number, or in-app call buttons.',
+        'تنبيهات جرس فورية عند طلب خدمة أو قبولها أو دفعها أو إتمامها.': 'Instant bell alerts when a service is requested, accepted, paid or completed.',
+        'أنت توافق على أن الموقع والصور ورقم الهاتف تُستخدم فقط لتقديم خدمة التمريض.': 'You accept that location, photos and phone number are used only to deliver the nursing service.',
+        '= كل شيء +': '= everything +',
+        '= مطابقة ذات أولوية، مكالمات غير محدودة، دعم ذو أولوية 8ص–12م، خصم 5% (نصف المميز).': '= priority matching, unlimited calls, priority support 8am–12am, 5% discount (half of premium).',
+        'نشطة': 'Active',
+        'الميزات:': 'Features:',
+        'ويب': 'Web',
+        'مطابقة ذات أولوية': 'Priority matching',
+        'مكالمات غير محدودة': 'Unlimited calling',
+        'دعم ذو أولوية': 'Priority support',
+        '(نصف المميز)': '(half of premium)',
+        'كل شيء في Pro': 'everything in Pro',
+        // --- Nurse-only plans (Free Nurse / VIP Nurse trusted), InstaPay flow, enforcement ---
+        'ممرض مميز': 'VIP Nurse',
+        'ممرض مجاني · ممرض مميز': 'Free Nurse · VIP Nurse',
+        'شارة الموثوق ✅ — المرضى يثقون بك أولاً، تتصدر دائماً، وتحصل على زيارات أكثر.': 'Trusted badge ✅ — patients trust you first, rank first, get more visits.',
+        'قبول الطلبات': 'Accept orders',
+        'عرض المحفظة': 'Wallet view',
+        '✅ شارة ممرض موثوق — المرضى يثقون بك أولاً': '✅ TRUSTED nurse badge — patients trust you first',
+        '🥇 الترتيب أولاً في قوائم الممرضين': '🥇 Rank first in nurse lists',
+        'أنت ممرض موثوق': 'You are a TRUSTED nurse',
+        'يرى المرضى شارة الموثوق على اسمك وتتصدر كل القوائم.': 'Patients see the trusted badge on your name and you rank first in every list.',
+        'كن ممرضاً موثوقاً VIP بـ 500 جنيه': 'Become VIP Trusted nurse 500 EGP →',
+        'مميز ✅ موثوق': 'VIP ✅ Trusted',
+        '✅ موثوق': '✅ Trusted',
+        'موثّق': 'Trusted',
+        'ادفع عبر انستا باي لهذا الرقم': 'Pay via InstaPay to this number',
+        'الخطوة 1 — حوّل سعر الخطة إلى رقم قرّب الرسمي. الخطوة 2 — أدخل مرجع العملية بالأسفل واضغط تحويل انستا باي. الخطوة 3 — تتحقق الإدارة وتفعّل خطتك (يصلك تنبيه جرس).': 'Step 1 — transfer the plan price to the official Qarrib number. Step 2 — enter the amount reference below and press InstaPay transfer. Step 3 — admin verifies and activates your plan (you get a bell alert).',
+        'تم نسخ الرقم: ': 'Number copied: ',
+        'أو ادفع فوراً من رصيد المحفظة بزر المحفظة على أي خطة. ألغِ في أي وقت — تعود للمجانية.': 'Or pay instantly from wallet balance with the wallet button on any plan. Cancel anytime — you drop back to Free.',
+        'سعر الممرض المميز': 'VIP Nurse price',
+        'فشل تحميل الخطط': 'Failed to load plans',
+        // --- Working cancel (nurse + patient), rated-state stars, denied-location help ---
+        'تم إلغاء الزيارة': 'Visit cancelled',
+        'تم إشعار الممرض والإدارة': 'The nurse and admin were notified',
+        'تم إشعار المريض والإدارة': 'Patient and admin were notified',
+        'فشل الإلغاء': 'Cancel failed',
+        'إلغاء الزيارة ❌': 'Cancel visit ❌',
+        'تقييمك': 'Your rating',
+        'جارٍ الإرسال…': 'Sending…',
+        'بانتظار إشارة GPS…': 'Waiting for GPS fix…',
+        'الموقع محظور لهذا الموقع.': 'Location is BLOCKED for this site.',
+        '⚠️ الموقع محظور — ': '⚠️ Location BLOCKED — ',
+        'تعليم كمقروء': 'Mark read',
+        // --- Admin full order control (cancel / remove / status, any state) ---
+        '🔧 تحكم الإدارة (أي حالة)': '🔧 Admin control (any state)',
+        'تغيير الحالة': 'Change status',
+        'إلغاء الطلب ⚠️': 'Cancel order ⚠️',
+        'إزالة نهائية 🗑️': 'Remove permanently 🗑️',
+        'تم تحديث الحالة': 'Status updated',
+        'فشل التحديث': 'Update failed',
+        'تم تحديث الطلب': 'Order updated',
+        'تغيرت الحالة إلى ': 'Status changed to ',
+        'تم إلغاء الطلب': 'Order cancelled',
+        'تم إشعار الطرفين': 'Both sides were notified',
+        'فشل الإلغاء': 'Cancel failed',
+        'تمت إزالة الطلب': 'Order removed',
+        'حُذف الطلب نهائياً': 'Order deleted permanently',
+        'فشلت الإزالة': 'Remove failed',
+        'تمت الإزالة': 'Removed',
+        'معيّن': 'Assigned',
+        'عروض مستلمة': 'Offers received',
+        'سعر مقترح': 'Suggested price',
+        'ملغي': 'Cancelled',
+        'مفتوح': 'Open',
+        'قيد مراجعة السعر': 'Price under review',
+        // --- JS-driven register/auth strings (so toggling language
+        // translates "everything in code" too, not just static HTML) ---
+        'جاري الإنشاء...': 'Creating...',
+        'إنشاء حساب ممرض': 'Create nurse account',
+        'إنشاء حساب مريض': 'Create patient account',
+        'اختر التخصص من فضلك': 'Please choose a specialty',
+        'حجم الملفات كبير — اختر صوراً أصغر (الحد 4MB لإجمالي الملفات)': 'Files are too large — please choose smaller images (4MB total limit)',
+        'حجم الملفات أكبر من المسموح (4MB) — صغّر الصور وحاول مجدداً': 'Files exceed the allowed size (4MB) — shrink the images and try again',
+        'رد غير صالح من السيرفر': 'Invalid response from the server',
+        'فشل إنشاء الحساب': 'Failed to create the account',
+        'تم إنشاء الحساب بنجاح!': 'Account created successfully!',
+        'فشل إنشاء الحساب بنجاح!': 'Account created successfully!',
+        'تعذر الاتصال بالسيرفر': 'Could not reach the server',
+        'البريد الإلكتروني مسجل مسبقاً': 'Email already registered',
+        'رقم الهاتف مسجل مسبقاً': 'Phone number already registered',
+        'الرقم القومي مسجل مسبقاً': 'National ID already registered',
+        'تم تسجيل الدخول بنجاح': 'Signed in successfully',
+        'البريد الإلكتروني أو كلمة المرور غير صحيحة': 'Incorrect email or password',
+        'يرجى إدخال البريد الإلكتروني وكلمة المرور': 'Please enter email and password',
+        'تم تسجيل الدخول بنجاح! جاري التحويل...': 'Signed in! Redirecting...',
     };
 
     var prefixes = [
@@ -281,9 +675,18 @@
     var language = 'ar';
     var button;
 
+    // Exact-match only on purpose: the old substring/prefix replacement
+    // used to mangle full backend sentences such as
+    // "البريد الإلكتروني مسجل مسبقاً" into mixed-language garbage
+    // ("Email address مسجل مسبقاً") every time the user toggled language,
+    // which looked like a false "account exists" error. Backend sentences
+    // are now translated via message/message_en instead.
     function translate(value, targetLanguage) {
+        if (value == null) return value;
+        var str = String(value);
+        if (!str.trim()) return value;
         var sourceLanguage = targetLanguage === 'en' ? 'ar' : 'en';
-        var trimmed = value.trim();
+        var trimmed = str.trim();
         var translated = sourceLanguage === 'ar' ? translations[trimmed] : reverseTranslations[trimmed];
 
         if (!translated) {
@@ -291,41 +694,61 @@
                 var from = sourceLanguage === 'ar' ? prefixes[i][0] : prefixes[i][1];
                 var to = sourceLanguage === 'ar' ? prefixes[i][1] : prefixes[i][0];
                 if (trimmed.indexOf(from) === 0) {
-                    translated = to + trimmed.slice(from.length);
-                    break;
+                    var rest = trimmed.slice(from.length);
+                    // Only keep the prefix behaviour for short "Label: value"
+                    // style strings, never for long backend sentences.
+                    if (rest.length <= 40) {
+                        translated = to + rest;
+                        break;
+                    }
                 }
             }
-        }
-
-        if (!translated) {
-            var sourceMap = sourceLanguage === 'ar' ? translations : reverseTranslations;
-            var sourcePhrases = Object.keys(sourceMap).sort(function (a, b) {
-                return b.length - a.length;
-            });
-            var replacedPhrase = false;
-            translated = trimmed;
-            for (var phraseIndex = 0; phraseIndex < sourcePhrases.length; phraseIndex += 1) {
-                var phrase = sourcePhrases[phraseIndex];
-                if (translated.indexOf(phrase) !== -1) {
-                    translated = translated.split(phrase).join(sourceMap[phrase]);
-                    replacedPhrase = true;
-                }
-            }
-            if (!replacedPhrase) translated = undefined;
         }
 
         if (!translated) return value;
-        var leading = value.match(/^\s*/)[0];
-        var trailing = value.match(/\s*$/)[0];
+        var leading = str.match(/^\s*/)[0];
+        var trailing = str.match(/\s*$/)[0];
         return leading + translated + trailing;
     }
 
     var reverseTranslations = {};
     Object.keys(translations).forEach(function (arabic) {
-        reverseTranslations[translations[arabic]] = arabic;
+        // First write wins: several Arabic strings share one English
+        // translation (e.g. متصل/متصلين -> Online). Keeping the first keeps
+        // toggling back to Arabic stable instead of flip-flopping.
+        if (reverseTranslations[translations[arabic]] === undefined) {
+            reverseTranslations[translations[arabic]] = arabic;
+        }
     });
 
+    // Never auto-translate these: live backend messages, code, form values.
+    function shouldSkipElement(element) {
+        if (!element || element.nodeType !== 1) return false;
+        var tag = (element.tagName || '').toUpperCase();
+        if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'CODE' || tag === 'PRE' || tag === 'TEXTAREA') return true;
+        if (element.hasAttribute && (element.hasAttribute('data-no-translate') || element.hasAttribute('data-i18n-lock') || element.hasAttribute('data-i18n'))) return true;
+        if (element.classList && (element.classList.contains('alert') || element.closest('.alert'))) return true;
+        if (element.id === 'qarrib-language-toggle' || element.id === 'langToggle') return true;
+        return false;
+    }
+
+    // Translate a backend payload to the active language.
+    // Backend now returns { message (ar), message_en }; old payloads only
+    // have message. This keeps every tab/register/login consistent.
+    function localizeMessage(payload, fallback) {
+        if (!payload) return fallback || '';
+        if (typeof payload === 'string') {
+            return translate(payload, language);
+        }
+        if (language === 'en') {
+            return payload.message_en || payload.message || fallback || '';
+        }
+        return payload.message || payload.message_en || fallback || '';
+    }
+
     function translateTextNode(node) {
+        var parent = node.parentElement || null;
+        if (parent && shouldSkipElement(parent)) return;
         var current = node.nodeValue;
         var original = textOriginals.get(node);
         var lastRendered = textRendered.get(node);
@@ -343,6 +766,7 @@
     }
 
     function translateAttributes(element) {
+        if (shouldSkipElement(element)) return;
         var names = ['placeholder', 'title', 'aria-label', 'alt'];
         var originals = attributeOriginals.get(element) || {};
         var rendered = attributeRendered.get(element) || {};
@@ -369,18 +793,32 @@
             return;
         }
         if (root.nodeType !== 1 && root.nodeType !== 9 && root.nodeType !== 11) return;
-        if (root.nodeType === 1) translateAttributes(root);
+        if (root.nodeType === 1) {
+            if (shouldSkipElement(root)) return;
+            translateAttributes(root);
+        }
 
         var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
         var node;
         while ((node = walker.nextNode())) translateTextNode(node);
         if (root.querySelectorAll) {
             var elements = root.querySelectorAll('*');
-            for (var i = 0; i < elements.length; i += 1) translateAttributes(elements[i]);
+            for (var i = 0; i < elements.length; i += 1) {
+                if (!shouldSkipElement(elements[i])) translateAttributes(elements[i]);
+            }
         }
     }
 
     function updateButton() {
+        if (!button) return;
+        // A page with its own toggle (e.g. login.html #langToggle) owns the
+        // label — just keep it in sync instead of fighting it.
+        if (button.id === 'langToggle') {
+            if (button.textContent !== (language === 'ar' ? 'English' : 'العربية')) {
+                button.textContent = language === 'ar' ? 'English' : 'العربية';
+            }
+            return;
+        }
         button.textContent = language === 'ar' ? 'English' : 'العربية';
         button.setAttribute('aria-label', language === 'ar' ? 'Switch to English' : 'التبديل إلى العربية');
         button.title = language === 'ar' ? 'Switch to English' : 'التبديل إلى العربية';
@@ -412,7 +850,8 @@
     }
 
     function initialize() {
-        if (document.getElementById('qarrib-language-toggle')) return;
+        if (window.__qarribLanguageInit) return;
+        window.__qarribLanguageInit = true;
 
         try {
             language = localStorage.getItem('qarrib-language') || document.documentElement.lang || 'ar';
@@ -420,15 +859,30 @@
             language = document.documentElement.lang || 'ar';
         }
         language = language === 'en' ? 'en' : 'ar';
+        window.qarribLanguage = language;
+        window.t = function (text) { return translate(text, language); };
+        window.localizeMessage = localizeMessage;
+        window.getQarribLanguage = function () { return language; };
+        window.setQarribLanguage = setLanguage;
 
-        button = document.createElement('button');
-        button.id = 'qarrib-language-toggle';
-        button.type = 'button';
-        button.style.cssText = 'position:fixed;top:16px;right:16px;z-index:2147483647;border:0;border-radius:999px;padding:10px 16px;background:#0f766e;color:#fff;font:600 14px/1.2 system-ui,sans-serif;box-shadow:0 4px 14px rgba(15,23,42,.22);cursor:pointer;';
-        button.addEventListener('click', function () {
-            setLanguage(language === 'ar' ? 'en' : 'ar');
-        });
-        document.body.appendChild(button);
+        // Pages like login.html ship their own toggle: reuse it so there is
+        // exactly one toggle and tabs/register never get double-translated.
+        var existingToggle = document.getElementById('langToggle');
+        if (existingToggle) {
+            button = existingToggle;
+        } else if (!document.getElementById('qarrib-language-toggle')) {
+            button = document.createElement('button');
+            button.id = 'qarrib-language-toggle';
+            button.type = 'button';
+            button.setAttribute('data-no-translate', 'true');
+            button.style.cssText = 'position:fixed;top:16px;right:16px;z-index:2147483647;border:0;border-radius:999px;padding:10px 16px;background:#0f766e;color:#fff;font:600 14px/1.2 system-ui,sans-serif;box-shadow:0 4px 14px rgba(15,23,42,.22);cursor:pointer;';
+            button.addEventListener('click', function () {
+                setLanguage(language === 'ar' ? 'en' : 'ar');
+            });
+            document.body.appendChild(button);
+        } else {
+            button = document.getElementById('qarrib-language-toggle');
+        }
 
         setLanguage(language);
         new MutationObserver(function (records) {

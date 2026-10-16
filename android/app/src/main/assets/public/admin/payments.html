@@ -2,8 +2,15 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>المدفوعات - أدمن</title>
+    <link rel="apple-touch-icon" href="../icon-180.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="../manifest.webmanifest">
+    <meta name="description" content="Qarrib Healthcare - nursing care at your door.">
+    <meta name="theme-color" content="#0B5F5A">
     <link rel="stylesheet" href="../css/main.css">
     <style>
         .page-header {
@@ -47,6 +54,7 @@
         <div class="page-header">
             <button class="back-btn" onclick="history.back()">→</button>
             <div class="page-title">المدفوعات</div>
+            <button onclick="location.href='assistants.html'" style="margin-inline-start:auto;background:rgba(255,255,255,0.2);border:none;color:white;border-radius:10px;padding:8px 14px;cursor:pointer;font-size:13px;font-weight:700;">🎧 المساعدون</button>
         </div>
 
         <div class="payments-summary" id="paymentsSummary">
@@ -76,6 +84,13 @@
         </div>
 
         <div class="transactions-list">
+            <h3 style="margin-bottom: 12px; padding: 0 4px;">💰 تحويلات الطلبات المعلقة (انستا باي / فودافون كاش — اقبل لتفعيل الخدمة)</h3>
+            <div id="orderPaymentsList">
+                <div class="loading"><div class="spinner"></div></div>
+            </div>
+        </div>
+
+        <div class="transactions-list">
             <h3 style="margin-bottom: 12px; padding: 0 4px;">طلبات السحب من الممرضين (حوّل لرقم حسابه)</h3>
             <div id="withdrawalsList">
                 <div class="loading"><div class="spinner"></div></div>
@@ -90,10 +105,11 @@
         </div>
     </div>
 
-    <script>window.QARRAB_API_URL = "https://qarrib.onrender.com";</script>
-    <script src="../js/api.js"></script>
-    <script src="../js/auth.js"></script>
+    <script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
+    <script src="../js/api.js?v=9"></script>
+    <script src="../js/auth.js?v=8"></script>
     <script src="../js/notifications.js"></script>
+    <script src="../js/notify-popup.js?v=1"></script>
     <script>
         if (!requireRole('admin')) redirectToLogin();
 
@@ -163,6 +179,41 @@
             }
         }
 
+        async function loadOrderPayments() {
+            try {
+                const result = await api.getAdminOrderPayments();
+                const container = document.getElementById('orderPaymentsList');
+                if (result.success && result.data.length > 0) {
+                    container.innerHTML = result.data.map(t => `
+                        <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 16px; margin-bottom: 8px;">
+                            <div style="font-weight: 700;">${t.user ? t.user.name : ''} — ${t.amount} ج.م عبر ${t.paymentMethod === 'vodafone_cash' ? '📱 فودافون كاش' : '💳 InstaPay'}</div>
+                            <div style="font-size: 13px; color: #64748b;">طلب #${t.order ? t.order.orderNumber : '—'} | ${t.user ? t.user.phone : ''} | مرجع: ${t.reference || '—'} | ${formatDate(t.createdAt)}</div>
+                            <div style="font-size: 13px; color: #0B4A46;">💰 سعر الطلب: <b>${t.order && t.order.patientBid != null ? t.order.patientBid + ' ج.م' : '—'}</b> | حالة الطلب: ${t.order ? t.order.status : '—'}${t.order && t.order.status === 'under_review' ? ' — القبول يفتح الطلب للممرضين 🟢' : ''}</div>
+                            <div style="display: flex; gap: 8px; margin-top: 10px;">
+                                <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="reviewOrderPayment('${t.id}', 'approved')">✅ قبول (تفعيل الخدمة)</button>
+                                <button class="btn btn-danger btn-sm" style="flex:1;" onclick="reviewOrderPayment('${t.id}', 'rejected')">❌ رفض</button>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">✅</div><p>لا توجد تحويلات معلقة</p></div>`;
+                }
+            } catch (error) {
+                showAlert('فشل تحميل تحويلات الطلبات', 'error');
+            }
+        }
+
+        async function reviewOrderPayment(id, action) {
+            try {
+                const r = await api.reviewOrderPayment(id, action);
+                showAlert((r && r.message) || (action === 'approved' ? 'تم القبول وتفعيل الخدمة' : 'تم الرفض'));
+                loadOrderPayments();
+                loadPayments();
+            } catch (error) {
+                showAlert('فشلت العملية', 'error');
+            }
+        }
+
         async function loadWithdrawals() {
             try {
                 const result = await api.getAdminWithdrawals();
@@ -170,7 +221,7 @@
                 if (result.success && result.data.length > 0) {
                     container.innerHTML = result.data.map(t => `
                         <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; padding: 16px; margin-bottom: 8px;">
-                            <div style="font-weight: 700;">${t.user ? t.user.name : ''} — ${t.amount} ج.م</div>
+                            <div style="font-weight: 700;">${t.user && t.user.isVipNurse ? '👑 ' : ''}${t.user ? t.user.name : ''} — ${t.amount} ج.م${t.user && t.user.isVipNurse ? ' <span style="font-size:11px;background:#DCFCE7;color:#166534;border-radius:10px;padding:2px 8px;">VIP</span>' : ''}</div>
                             <div style="font-size: 13px; color: #64748b;">هاتف: ${t.user ? t.user.phone : ''} | طريقة: ${t.paymentMethod} | ${formatDate(t.createdAt)}</div>
                             <div style="font-size: 14px; margin-top:6px;">💳 حوّل إلى: <b style="direction:ltr;">${t.user && t.user.payoutAccount ? t.user.payoutAccount : '— لم يضف رقمه بعد —'}</b> (${t.user && t.user.payoutMethod ? t.user.payoutMethod : ''})</div>
                             <div style="font-size:12px;color:#94a3b8;">${t.description || ''}</div>
@@ -195,8 +246,10 @@
         }
 
         loadTopups();
+        loadOrderPayments();
         loadWithdrawals();
         loadPayments();
     </script>
+<script src="../js/install.js?v=6"></script>
 </body>
 </html>

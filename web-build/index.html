@@ -211,16 +211,14 @@
 
         <footer class="footer">
             <div class="logo" style="margin-bottom: 16px;">قرّب</div>
-            <p id="appVersion">جميع الحقوق محفوظة © 2026</p>
-            <p id="appMode" style="font-size: 12px; color: #94a3b8; margin-top: 4px;"></p>
+            <p id="appVersion">جميع الحقوق محفوظة © 2026 — من إنشاء ZIyad Mahmoud</p>
         </footer>
     </div>
 
     <script>
         window.QARRAB_API_URL = 'https://qarrib1.vercel.app';
-        var ver = (window.desktopAPI && window.desktopAPI.getVersion) ? 'Desktop App' : 'Web App';
-        var modeEl = document.getElementById('appMode');
-        if (modeEl) modeEl.textContent = 'Running as: ' + ver;
+        var versionEl = document.getElementById('appVersion');
+        if (versionEl) versionEl.textContent = 'جميع الحقوق محفوظة © 2026 — من إنشاء ZIyad Mahmoud';
     </script>
     <script src="js/api.js?v=6"></script>
     <script src="js/auth.js?v=6"></script>

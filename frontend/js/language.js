@@ -248,6 +248,7 @@
         '⚠️ رمز الوصول غير صحيح': '⚠️ Incorrect access code',
         '❌ إلغاء': '❌ Cancel',
         'جميع الحقوق محفوظة © 2026': 'All rights reserved © 2026',
+        'جميع الحقوق محفوظة © 2026 — من إنشاء ZIyad Mahmoud': 'All rights reserved © 2026 — Created by ZIyad Mahmoud',
         'ℹ️ معلومات النسخة': 'ℹ️ Version information',
         'تمريض أطفال': 'Pediatric nursing',
         'تمريض عام': 'General nursing',

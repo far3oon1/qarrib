@@ -115,8 +115,10 @@ app.use('/api/calls', callSignalRoutes);
 
 // Static frontend (same origin, avoids CORS in production — Render/desktop only.
 // On Vercel the frontend is served as static output, so these simply never match.)
-const frontendDir = path.join(__dirname, '..', '..', 'frontend');
-app.use(express.static(frontendDir));
+if (!process.env.VERCEL) {
+  const frontendDir = path.join(__dirname, '..', '..', 'frontend');
+  app.use(express.static(frontendDir));
+}
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
 // 404 handler (API only — frontend SPA falls through to index)

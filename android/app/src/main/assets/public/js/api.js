@@ -10,6 +10,18 @@ var API_BASE_URL = (function () {
     var currentOrigin = window.location && window.location.origin ? window.location.origin : '';
     var protocol = String(window.location && window.location.protocol ? window.location.protocol : '');
 
+    // Capacitor native apps (Play Store / App Store builds) run from
+    // capacitor://localhost, so same-origin would be dead — always use the
+    // live Vercel API online.
+    try {
+        if (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) {
+            return configuredUrl ? configuredUrl.replace(/\/$/, '') + '/api' : 'https://qarrib1.vercel.app/api';
+        }
+    } catch (e) {}
+    if (currentHost === 'localhost' && protocol.indexOf('capacitor') === 0) {
+        return 'https://qarrib1.vercel.app/api';
+    }
+
     // Prefer same-origin requests whenever the frontend is served by the backend itself.
     if (IS_DESKTOP) {
         return '/api';
@@ -18,10 +30,17 @@ var API_BASE_URL = (function () {
         return currentOrigin ? currentOrigin + '/api' : 'http://localhost:5000/api';
     }
     if (currentHost.endsWith('.github.io')) {
-        return 'https://qarrib.onrender.com/api';
+        return 'https://qarrib1.vercel.app/api';
     }
     if (currentHost === 'qarrib.onrender.com' || currentHost.endsWith('.onrender.com')) {
         return currentOrigin ? currentOrigin + '/api' : 'https://qarrib.onrender.com/api';
+    }
+    if (currentHost.endsWith('.vercel.app')) {
+        // Frontend + API are served from the SAME Vercel deployment
+        return currentOrigin ? currentOrigin + '/api' : 'https://qarrib1.vercel.app/api';
+    }
+    if (configuredUrl) {
+        return configuredUrl.replace(/\/$/, '') + '/api';
     }
     if (protocol.indexOf('http') === 0) {
         var port = String(window.location.port || '');
@@ -30,9 +49,6 @@ var API_BASE_URL = (function () {
         }
         var host = window.location.hostname || 'localhost';
         return protocol + '//' + host + ':5000/api';
-    }
-    if (configuredUrl) {
-        return configuredUrl.replace(/\/$/, '') + '/api';
     }
     return 'http://localhost:5000/api';
 })();
@@ -45,6 +61,39 @@ function safeSetToken(t) {
 }
 function safeRemoveToken() {
     try { localStorage.removeItem('token'); } catch (e) {}
+}
+// Device tracking (the "MAC replacement").
+// Browsers never expose a real MAC address, so we generate one stable UUID
+// per browser (localStorage `qarrib_device_id`) and send it on EVERY request
+// as X-Device-Id + X-Device-Platform. The backend records it at
+// register/login and the admin can block/unblock it from the Devices page.
+function getQarribDeviceId() {
+    try {
+        var id = localStorage.getItem('qarrib_device_id');
+        if (!id) {
+            id = 'dev-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+            localStorage.setItem('qarrib_device_id', id);
+        }
+        return id;
+    } catch (e) {
+        return 'dev-anon-' + Math.random().toString(36).slice(2, 10);
+    }
+}
+function getQarribPlatform() {
+    try {
+        if (window.Capacitor && window.Capacitor.getPlatform) return 'capacitor-' + window.Capacitor.getPlatform();
+    } catch (e) {}
+    return (navigator && navigator.platform ? navigator.platform : 'web').slice(0, 60);
+}
+
+function getQarribLanguage() {
+    try {
+        return window.qarribLanguage || window.getQarribLanguage?.() || localStorage.getItem('qarrib-language') || document.documentElement.lang || 'ar';
+    } catch (e) { return (document.documentElement && document.documentElement.lang) || 'ar'; }
+}
+function qarribLangHeaders() {
+    var lang = (getQarribLanguage() === 'en') ? 'en' : 'ar';
+    return { 'Accept-Language': lang, 'X-Lang': lang };
 }
 
 function API() {
@@ -64,6 +113,13 @@ API.prototype.clearToken = function () {
 
 API.prototype.getHeaders = function () {
     var headers = { 'Content-Type': 'application/json' };
+    var langHeaders = qarribLangHeaders();
+    headers['Accept-Language'] = langHeaders['Accept-Language'];
+    headers['X-Lang'] = langHeaders['X-Lang'];
+    try {
+        headers['X-Device-Id'] = getQarribDeviceId();
+        headers['X-Device-Platform'] = getQarribPlatform();
+    } catch (e) {}
     if (this.token) {
         headers['Authorization'] = 'Bearer ' + this.token;
     }
@@ -74,8 +130,27 @@ API.prototype.request = function (method, endpoint, data, isFormData) {
     var self = this;
     var url = self.baseURL + endpoint;
     var headers = isFormData ? {} : self.getHeaders();
+    var langHeaders = qarribLangHeaders();
+    headers['Accept-Language'] = langHeaders['Accept-Language'];
+    headers['X-Lang'] = langHeaders['X-Lang'];
+    try {
+        headers['X-Device-Id'] = getQarribDeviceId();
+        headers['X-Device-Platform'] = getQarribPlatform();
+    } catch (e) {}
     if (isFormData && self.token) {
         headers['Authorization'] = 'Bearer ' + self.token;
+    }
+    // For FormData (register with photos) also append device fields into the body
+    if (data && isFormData && typeof FormData !== 'undefined' && data instanceof FormData) {
+        try {
+            if (!data.has('deviceId')) data.append('deviceId', getQarribDeviceId());
+            if (!data.has('devicePlatform')) data.append('devicePlatform', getQarribPlatform());
+        } catch (e) {}
+    } else if (data && !isFormData && typeof data === 'object') {
+        // For JSON auth calls make sure deviceId travels in the body too
+        if (!data.deviceId) {
+            try { data.deviceId = getQarribDeviceId(); } catch (e) {}
+        }
     }
     var options = { method: method, headers: headers };
     if (data && !isFormData) {
@@ -137,6 +212,15 @@ API.prototype.adminRegister = function (data) {
 API.prototype.adminResetPassword = function (data) {
     return this.request('POST', '/auth/admin/reset-password', data);
 };
+API.prototype.assistantLogin = function (data) {
+    var self = this;
+    return this.request('POST', '/auth/assistant/login', data).then(function (result) {
+        if (result.success && result.data && result.data.token) {
+            self.setToken(result.data.token);
+        }
+        return result;
+    });
+};
 API.prototype.logout = function () {
     var self = this;
     return this.request('POST', '/auth/logout').then(function (r) {
@@ -150,8 +234,18 @@ API.prototype.logout = function () {
 API.prototype.getMe = function () {
     return this.request('GET', '/auth/me');
 };
+API.prototype.getAdminContact = function () {
+    return this.request('GET', '/auth/admin/contact');
+};
 API.prototype.uploadDocuments = function (formData) {
     return this.request('POST', '/auth/upload-documents', formData, true);
+};
+// Liability waiver (bilingual helper-only terms): public text + acceptance
+API.prototype.getTerms = function () {
+    return this.request('GET', '/auth/terms');
+};
+API.prototype.acceptTerms = function () {
+    return this.request('POST', '/auth/accept-terms', { accept: true });
 };
 
 // Patient
@@ -163,6 +257,9 @@ API.prototype.updatePatientProfile = function (data) {
 };
 API.prototype.updateLocation = function (lat, lng) {
     return this.request('POST', '/patients/location', { lat: lat, lng: lng });
+};
+API.prototype.updateNurseLocation = function (lat, lng, orderId) {
+    return this.request('POST', '/nurses/location', { lat: lat, lng: lng, orderId: orderId });
 };
 API.prototype.getPatientOrders = function () {
     return this.request('GET', '/patients/orders');
@@ -188,8 +285,9 @@ API.prototype.getNurseDashboard = function () {
 API.prototype.updateNurseProfile = function (data) {
     return this.request('PUT', '/nurses/profile', data);
 };
-API.prototype.getAvailableRequests = function () {
-    return this.request('GET', '/nurses/requests');
+API.prototype.getAvailableRequests = function (lat, lng) {
+    var q = (lat != null && lng != null) ? '?lat=' + encodeURIComponent(lat) + '&lng=' + encodeURIComponent(lng) : '';
+    return this.request('GET', '/nurses/requests' + q);
 };
 API.prototype.getNurseOrders = function () {
     return this.request('GET', '/nurses/orders');
@@ -229,6 +327,45 @@ API.prototype.submitOffer = function (orderId, price, notes) {
 API.prototype.approveOffer = function (orderId, offerId) {
     return this.request('POST', '/orders/' + orderId + '/approve-offer', { offerId: offerId });
 };
+API.prototype.rejectOffer = function (orderId, offerId) {
+    return this.request('POST', '/orders/' + orderId + '/reject-offer', { offerId: offerId });
+};
+// Uber/inDrive shortlist: 3-4 matched nurses with ratings + feedback + prices
+API.prototype.getMatches = function (orderId) {
+    return this.request('GET', '/orders/' + orderId + '/matches');
+};
+API.prototype.refreshMatches = function (orderId) {
+    return this.request('POST', '/orders/' + orderId + '/matches/refresh', {});
+};
+API.prototype.chooseNurse = function (orderId, nurseId) {
+    return this.request('POST', '/orders/' + orderId + '/choose', { nurseId: nurseId });
+};
+API.prototype.acceptSuggestedPrice = function (orderId) {
+    return this.request('POST', '/orders/' + orderId + '/accept-price');
+};
+// Nurse taps "I arrived" -> patient gets bell + live banner
+API.prototype.arriveOrder = function (orderId) {
+    return this.request('POST', '/orders/' + orderId + '/arrive', {});
+};
+// Nurse visit report (what was done) -> shown to admin on Feedbacks
+API.prototype.submitVisitReport = function (orderId, summary) {
+    return this.request('POST', '/orders/' + orderId + '/report', { summary: summary });
+};
+// In-app call with plan priority (Free: 3/order, subscribers: unlimited)
+API.prototype.logCall = function (orderId) {
+    return this.request('POST', '/orders/' + orderId + '/call', {});
+};
+API.prototype.getCallQuota = function (orderId) {
+    return this.request('GET', '/orders/' + orderId + '/call-quota');
+};
+// Audit log (admin panel only)
+API.prototype.getAuditLog = function (query) {
+    if (query === undefined) query = '';
+    return this.request('GET', '/admin/audit-log' + query);
+};
+API.prototype.respondToAssignment = function (orderId, accept) {
+    return this.request('POST', '/orders/' + orderId + '/respond', { accept: accept });
+};
 API.prototype.payManual = function (orderId, data) {
     return this.request('POST', '/orders/' + orderId + '/pay', data);
 };
@@ -243,6 +380,12 @@ API.prototype.getAdminTopups = function () {
 };
 API.prototype.reviewTopup = function (id, action) {
     return this.request('POST', '/admin/topups/' + id, { action: action });
+};
+API.prototype.getAdminOrderPayments = function () {
+    return this.request('GET', '/admin/order-payments');
+};
+API.prototype.reviewOrderPayment = function (id, action) {
+    return this.request('POST', '/admin/order-payments/' + id, { action: action });
 };
 
 // Payments
@@ -277,6 +420,15 @@ API.prototype.getChatMessages = function (orderId) {
 API.prototype.getMyChats = function () {
     return this.request('GET', '/chat/my-chats');
 };
+API.prototype.getDirectContacts = function () {
+    return this.request('GET', '/chat/direct/contacts');
+};
+API.prototype.getDirectMessages = function (userId) {
+    return this.request('GET', '/chat/direct/' + userId);
+};
+API.prototype.sendDirectMessage = function (userId, content) {
+    return this.request('POST', '/chat/direct/' + userId + '/send', { content: content });
+};
 API.prototype.sendMessage = function (orderId, content, type) {
     if (type === undefined) type = 'text';
     return this.request('POST', '/chat/' + orderId + '/send', { content: content, type: type });
@@ -288,6 +440,10 @@ API.prototype.sendLocation = function (orderId, lat, lng) {
 // Admin
 API.prototype.getPrices = function () {
     return this.request('GET', '/admin/prices');
+};
+API.prototype.getServicePrices = function () {
+    // baseURL already ends in /api, so the path must not repeat it
+    return this.request('GET', '/services');
 };
 API.prototype.setPrice = function (data) {
     return this.request('POST', '/admin/set-price', {
@@ -320,6 +476,10 @@ API.prototype.reviewWithdrawal = function (id, action) {
 API.prototype.adminApproveOffer = function (orderId, offerId) {
     return this.request('POST', '/admin/orders/' + orderId + '/approve-offer', { offerId: offerId });
 };
+// Admin passes a nurse price to the patient (without assigning) — patient then picks
+API.prototype.passOfferToPatient = function (orderId, offerId) {
+    return this.request('POST', '/admin/orders/' + orderId + '/pass-offer', { offerId: offerId });
+};
 API.prototype.getAdminEarnings = function () {
     return this.request('GET', '/admin/earnings');
 };
@@ -335,6 +495,105 @@ API.prototype.getAdminUser = function (id) {
 };
 API.prototype.updateAdminUser = function (id, data) {
     return this.request('PUT', '/admin/users/' + id, data);
+};
+API.prototype.adminCreateUser = function (data) {
+    return this.request('POST', '/admin/users', data);
+};
+API.prototype.adminDeleteUser = function (id) {
+    return this.request('DELETE', '/admin/users/' + id);
+};
+// Admin vault: full credentials + registration info (decrypted, admin panel only)
+API.prototype.getUserCredentials = function (id) {
+    return this.request('GET', '/admin/users/' + id + '/credentials');
+};
+// Admin online edit of ANY account field
+API.prototype.updateUserFull = function (id, data) {
+    return this.request('PUT', '/admin/users/' + id + '/full', data);
+};
+// Helper / assistant accounts (admin creates with ticked policies)
+API.prototype.getAssistants = function () {
+    return this.request('GET', '/admin/assistants');
+};
+API.prototype.createAssistant = function (data) {
+    return this.request('POST', '/admin/assistants', data);
+};
+API.prototype.updateAssistant = function (id, data) {
+    return this.request('PUT', '/admin/assistants/' + id, data);
+};
+API.prototype.deleteAssistant = function (id) {
+    return this.request('DELETE', '/admin/assistants/' + id);
+};
+// Admin accounts (admin panel only: add / remove / enable-disable)
+API.prototype.getAdmins = function () {
+    return this.request('GET', '/admin/admins');
+};
+API.prototype.createAdmin = function (data) {
+    return this.request('POST', '/admin/admins', data);
+};
+API.prototype.deleteAdmin = function (id) {
+    return this.request('DELETE', '/admin/admins/' + id);
+};
+API.prototype.toggleAdminStatus = function (id) {
+    return this.request('PATCH', '/admin/admins/' + id + '/status', {});
+};
+// Devices (admin panel only: track at register/login, block/unblock by deviceId/IP)
+API.prototype.getDevices = function (query) {
+    if (query === undefined) query = '';
+    return this.request('GET', '/admin/devices' + query);
+};
+API.prototype.getUserDevices = function (userId) {
+    return this.request('GET', '/admin/users/' + userId + '/devices');
+};
+API.prototype.blockDevice = function (data) {
+    return this.request('POST', '/admin/devices/block', data);
+};
+API.prototype.unblockDevice = function (data) {
+    return this.request('POST', '/admin/devices/unblock', data);
+};
+API.prototype.deleteDevice = function (id) {
+    return this.request('DELETE', '/admin/devices/' + id);
+};
+// Assistant workspace (masked — never returns registration secrets)
+API.prototype.getAssistantMe = function () {
+    return this.request('GET', '/assistant/me');
+};
+API.prototype.getAssistantUsers = function (query) {
+    if (query === undefined) query = '';
+    return this.request('GET', '/assistant/users' + query);
+};
+API.prototype.assistantToggleUser = function (id, isActive) {
+    return this.request('PATCH', '/assistant/users/' + id + '/status', { isActive: isActive });
+};
+API.prototype.getAssistantOrders = function (query) {
+    if (query === undefined) query = '';
+    return this.request('GET', '/assistant/orders' + query);
+};
+API.prototype.getAssistantContacts = function () {
+    return this.request('GET', '/assistant/chats/contacts');
+};
+API.prototype.getAssistantMessages = function (userId) {
+    return this.request('GET', '/assistant/chats/' + userId);
+};
+API.prototype.sendAssistantMessage = function (userId, content) {
+    return this.request('POST', '/assistant/chats/' + userId + '/send', { content: content });
+};
+// Assistant price-review queue (masked) — backup when no admin is around
+API.prototype.getAssistantOffers = function (query) {
+    if (query === undefined) query = '';
+    return this.request('GET', '/assistant/offers' + query);
+};
+API.prototype.assistantPassOffer = function (orderId, offerId) {
+    return this.request('POST', '/assistant/offers/' + orderId + '/pass', { offerId: offerId });
+};
+API.prototype.assistantRejectOffer = function (orderId, offerId, notes) {
+    return this.request('POST', '/assistant/offers/' + orderId + '/reject', { offerId: offerId, notes: notes });
+};
+// Assistant transfer queue (masked) — approve upfront payments when no admin is around
+API.prototype.getAssistantOrderPayments = function () {
+    return this.request('GET', '/assistant/order-payments');
+};
+API.prototype.reviewAssistantOrderPayment = function (paymentId, action) {
+    return this.request('POST', '/assistant/order-payments/' + paymentId, { action: action });
 };
 API.prototype.getPendingVerifications = function () {
     return this.request('GET', '/admin/verifications');
@@ -352,22 +611,158 @@ API.prototype.getAdminPayments = function () {
 API.prototype.completeOrderAdmin = function (id) {
     return this.request('POST', '/admin/orders/' + id + '/complete');
 };
+API.prototype.setOrderPrice = function (orderId, price) {
+    return this.request('POST', '/admin/orders/' + orderId + '/set-price', { price: price });
+};
+API.prototype.suggestOrderPrice = function (orderId, price) {
+    return this.request('POST', '/admin/orders/' + orderId + '/suggest-price', { price: price });
+};
+API.prototype.approveService = function (orderId) {
+    return this.request('POST', '/admin/orders/' + orderId + '/approve-service');
+};
+API.prototype.getAdminFeedbacks = function (query) {
+    if (query === undefined) query = '';
+    return this.request('GET', '/admin/feedbacks' + query);
+};
+API.prototype.getNurseReports = function (query) {
+    if (query === undefined) query = '';
+    return this.request('GET', '/admin/nurse-reports' + query);
+};
+API.prototype.toggleServiceApproval = function (serviceId, requireApproval) {
+    return this.request('PATCH', '/admin/services/' + serviceId, { requireApproval: requireApproval });
+};
+API.prototype.getAllOffers = function (query) {
+    if (query === undefined) query = '';
+    return this.request('GET', '/admin/offers' + query);
+};
+API.prototype.rejectOffer = function (orderId, offerId, notes) {
+    return this.request('POST', '/admin/orders/' + orderId + '/reject-offer', { offerId: offerId, notes: notes });
+};
+// Admin full order control: cancel / remove / change status (any state)
+API.prototype.adminCancelOrder = function (orderId, reason) {
+    return this.request('POST', '/orders/' + orderId + '/cancel', { reason: reason || 'Cancelled by admin' });
+};
+API.prototype.adminDeleteOrder = function (orderId) {
+    return this.request('DELETE', '/admin/orders/' + orderId);
+};
+API.prototype.adminUpdateOrderStatus = function (orderId, status, notes) {
+    return this.request('PATCH', '/admin/orders/' + orderId + '/status', { status: status, notes: notes });
+};
 API.prototype.getVersion = function () {
     return this.request('GET', '/health');
+};
+// Nurse ends visit on cash received (balance handed over)
+API.prototype.completeCash = function (orderId, amount) {
+    return this.request('POST', '/orders/' + orderId + '/complete-cash', { cashReceived: true, amount: amount });
+};
+// Device/legal consents + online location-sharing permission
+API.prototype.getPermissionState = function () {
+    return this.request('GET', '/permissions/required');
+};
+API.prototype.saveConsents = function (data) {
+    return this.request('POST', '/permissions/consent', data);
+};
+API.prototype.getPermSettings = function () {
+    return this.request('GET', '/permissions/admin/settings');
+};
+API.prototype.savePermSettings = function (data) {
+    return this.request('PUT', '/permissions/admin/settings', data);
+};
+API.prototype.getUserPermissions = function (query) {
+    if (query === undefined) query = '';
+    return this.request('GET', '/permissions/admin/users' + query);
+};
+API.prototype.saveUserPermissions = function (id, data) {
+    return this.request('PUT', '/permissions/admin/users/' + id, data);
+};
+// Subscriptions: Free / Pro (250) / VIP (500)
+API.prototype.getPlans = function () {
+    return this.request('GET', '/subscriptions/plans');
+};
+API.prototype.getMySubscription = function () {
+    return this.request('GET', '/subscriptions/me');
+};
+API.prototype.subscribePlan = function (plan, method, reference, billing) {
+    return this.request('POST', '/subscriptions/subscribe', { plan: plan, method: method, reference: reference, billing: billing || 'monthly' });
+};
+API.prototype.removeSubscription = function (userId) {
+    return this.request('POST', '/subscriptions/admin/user/' + userId + '/remove', {});
+};
+API.prototype.cancelSubscription = function () {
+    return this.request('POST', '/subscriptions/cancel', {});
+};
+API.prototype.getAllSubscriptions = function (query) {
+    if (query === undefined) query = '';
+    return this.request('GET', '/subscriptions/admin/all' + query);
+};
+API.prototype.reviewSubscription = function (id, action) {
+    return this.request('POST', '/subscriptions/admin/' + id, { action: action });
+};
+API.prototype.savePlanPrices = function (data) {
+    return this.request('PUT', '/subscriptions/admin/prices', data);
 };
 
 var api = new API();
 if (typeof window !== 'undefined') {
     window.api = api;
+    window.getQarribDeviceId = getQarribDeviceId;
+    window.getQarribPlatform = getQarribPlatform;
+    window.getQarribLanguage = getQarribLanguage;
+    window.qarribLangHeaders = qarribLangHeaders;
+    // Pick the right language string from a backend payload:
+    // backend returns { message (ar), message_en } on success AND errors.
+    window.pickLocalizedMessage = function (payload, fallback) {
+        if (typeof window.localizeMessage === 'function') return window.localizeMessage(payload, fallback);
+        if (!payload) return fallback || '';
+        if (typeof payload === 'string') return payload;
+        var lang = getQarribLanguage();
+        if (lang === 'en') return payload.message_en || payload.message || fallback || '';
+        return payload.message || payload.message_en || fallback || '';
+    };
     window.API_BASE_URL = API_BASE_URL;
 
     if (typeof document !== 'undefined' && document.createElement) {
         var apiScript = document.currentScript;
         var languageScript = document.createElement('script');
-        languageScript.src = apiScript && apiScript.src
-            ? apiScript.src.replace(/api\.js(?:\?.*)?$/, 'language.js?v=3')
-            : 'js/language.js?v=3';
+                languageScript.src = apiScript && apiScript.src
+                    ? apiScript.src.replace(/api\.js(?:\?.*)?$/, 'language.js?v=4')
+                    : 'js/language.js?v=4';
         document.head.appendChild(languageScript);
+
+        // Autofit v1: same responsive/platform behaviour on web, desktop & mobile installs
+        (function loadAutofit() {
+            function base() {
+                if (apiScript && apiScript.src) {
+                    if (/autofit\.js/.test(apiScript.src)) return null; // already loaded explicitly
+                    var m = apiScript.src.replace(/api\.js(?:\?.*)?$/, 'autofit.js?v=1');
+                    if (m !== apiScript.src) return m;
+                }
+                var path = window.location.pathname || '/';
+                var depth = (path.match(/\//g) || []).length - 1;
+                return (depth >= 1 ? '../'.repeat(depth) : '') + 'js/autofit.js?v=1';
+            }
+            var src = base();
+            if (src && !document.querySelector('script[src*="autofit.js"]')) {
+                var s = document.createElement('script');
+                s.src = src;
+                s.defer = true;
+                document.head.appendChild(s);
+            }
+            if (!document.querySelector('link[href*="autofit.css"]')) {
+                var cssSrc = src ? src.replace(/js\/autofit\.js.*$/, 'css/autofit.css?v=1') : 'css/autofit.css?v=1';
+                var l = document.createElement('link');
+                l.rel = 'stylesheet';
+                l.href = cssSrc;
+                document.head.appendChild(l);
+            }
+            // viewport-fit=cover upgrade for installed notch devices (no-op if already set)
+            try {
+                var vp = document.querySelector('meta[name="viewport"]');
+                if (vp && vp.content.indexOf('viewport-fit') === -1) {
+                    vp.content = vp.content.replace(/,\s*$/, '') + ', viewport-fit=cover';
+                }
+            } catch (e) {}
+        })();
 
         if (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) {
             var nativeBridgeScript = document.createElement('script');
@@ -385,7 +780,7 @@ if (typeof window !== 'undefined') {
         if (!document.querySelector('meta[name="theme-color"]')) {
             var themeColor = document.createElement('meta');
             themeColor.name = 'theme-color';
-            themeColor.content = '#2563eb';
+            themeColor.content = '#0B5F5A';
             document.head.appendChild(themeColor);
         }
 

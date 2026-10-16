@@ -2,8 +2,15 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>محادثة - قرّب</title>
+    <link rel="apple-touch-icon" href="../icon-180.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="../manifest.webmanifest">
+    <meta name="description" content="Qarrib Healthcare - nursing care at your door.">
+    <meta name="theme-color" content="#0B5F5A">
     <link rel="stylesheet" href="../css/main.css">
     <style>
         .chat-header {
@@ -153,10 +160,12 @@
         </div>
     </div>
 
-    <script>window.QARRAB_API_URL = "https://qarrib.onrender.com";</script>
+    <script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
     <script src="/socket.io/socket.io.js"></script>
-    <script src="../js/api.js"></script>
-    <script src="../js/auth.js"></script>
+    <script src="../js/api.js?v=6"></script>
+    <script src="../js/auth.js?v=8"></script>
+    <script src="../js/notifications.js"></script>
+    <script src="../js/notify-popup.js?v=1"></script>
     <script>
         if (!requireRole('nurse')) redirectToLogin();
 
@@ -245,32 +254,55 @@
             if (e.key === 'Enter') sendMessage();
         });
 
-        // Initialize Socket.IO
+        // Initialize Socket.IO (realtime). On serverless hosting (Vercel)
+        // websockets are unavailable, so fall back to REST polling.
+        var chatPollStarted = false;
+        function startChatPolling() {
+            if (chatPollStarted) return;
+            chatPollStarted = true;
+            setInterval(loadMessages, 5000);
+        }
         function initSocket() {
-            socket = io({
-                auth: { token: localStorage.getItem('token') }
-            });
+            if (typeof io === 'undefined') {
+                startChatPolling();
+                return;
+            }
+            try {
+                socket = io({
+                    auth: { token: localStorage.getItem('token') }
+                });
 
-            socket.on('connect', () => {
-                socket.emit('join_chat', { orderId });
-            });
+                socket.on('connect', () => {
+                    socket.emit('join_chat', { orderId });
+                });
 
-            socket.on('new_message', (message) => {
-                loadMessages();
-            });
+                socket.on('new_message', (message) => {
+                    loadMessages();
+                });
 
-            socket.on('typing', (data) => {
-                const indicator = document.getElementById('typingIndicator');
-                if (data.isTyping) {
-                    indicator.textContent = 'يكتب الآن...';
-                } else {
-                    indicator.textContent = '';
-                }
-            });
+                socket.on('connect_error', () => {
+                    try { socket.disconnect(); } catch (e) {}
+                    socket = null;
+                    startChatPolling();
+                });
+
+                socket.on('typing', (data) => {
+                    const indicator = document.getElementById('typingIndicator');
+                    if (data.isTyping) {
+                        indicator.textContent = 'يكتب الآن...';
+                    } else {
+                        indicator.textContent = '';
+                    }
+                });
+            } catch (e) {
+                socket = null;
+                startChatPolling();
+            }
         }
 
         loadMessages();
         initSocket();
     </script>
+<script src="../js/install.js?v=6"></script>
 </body>
 </html>

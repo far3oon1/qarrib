@@ -1,228 +1,573 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>قرّب - خدمات التمريض المنزلية</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Qarrib - Nursing care, at your door</title>
+    <link rel="apple-touch-icon" href="icon-180.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="description" content="Qarrib Healthcare - nursing care at your door.">
+    <meta name="theme-color" content="#0B5F5A">
     <link rel="stylesheet" href="css/main.css">
     <style>
-        .hero {
-            background: linear-gradient(135deg, #2563eb, #1d4ed8);
-            color: white;
-            padding: 60px 20px;
-            text-align: center;
+        body { background: #F6F3EC; }
+        .landing { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+        .topbar { display: flex; justify-content: space-between; align-items: center; padding: 24px 0; }
+        .logo { font-family: Fraunces, Georgia, serif; font-size: 30px; font-weight: 600; color: #0B5F5A; }
+        .hero { display: grid; grid-template-columns: 1.1fr .9fr; gap: 40px; align-items: center; padding: 40px 0 56px; }
+        .hero h1 { font-size: 56px; line-height: 1.05; color: #14302E; }
+        .hero p { font-size: 18px; color: #4A605E; margin-top: 16px; max-width: 520px; }
+        .hero-cta { display: flex; gap: 12px; margin-top: 28px; flex-wrap: wrap; }
+        .hero-card { background: #0B5F5A; color: #fff; border-radius: 20px; padding: 32px; }
+        .hero-card h2 { font-size: 28px; margin-bottom: 12px; }
+        .hero-card ul { list-style: none; padding: 0; margin: 20px 0 0; display: flex; flex-direction: column; gap: 12px; color: #D5EAE7; font-size: 16px; }
+        .hero-card li { display: flex; gap: 10px; align-items: center; }
+        .grid3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 20px; margin: 16px 0 48px; }
+        .feat { background: #fff; border: 1px solid #D9D3C5; border-radius: 20px; padding: 28px; }
+        .feat h3 { font-family: Fraunces, Georgia, serif; font-size: 22px; margin: 14px 0 8px; }
+        .feat p { color: #4A605E; font-size: 16px; margin: 0; }
+        .steps { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; margin-bottom: 48px; }
+        .step { background: #fff; border: 1px solid #D9D3C5; border-radius: 20px; padding: 24px; }
+        .step-n { width: 44px; height: 44px; border-radius: 50%; background: #DDEBE8; color: #0B4A46; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px; margin-bottom: 12px; }
+        .footer { text-align: center; color: #4A605E; padding: 32px 0 48px; font-size: 14px; }
+        @media (max-width: 900px) {
+            .hero { grid-template-columns: 1fr; }
+            .hero h1 { font-size: 38px; }
+            .grid3, .steps { grid-template-columns: 1fr; }
         }
-        .hero h1 {
-            font-size: 48px;
-            margin-bottom: 16px;
-        }
-        .hero p {
-            font-size: 18px;
-            opacity: 0.9;
-            margin-bottom: 32px;
-        }
-        .features {
-            padding: 40px 20px;
-        }
-        .feature-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 24px;
-            margin-top: 24px;
-        }
-        .feature-card {
-            background: white;
-            padding: 24px;
-            border-radius: 16px;
-            text-align: center;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        .feature-icon {
-            font-size: 48px;
-            margin-bottom: 16px;
-        }
-        .feature-card h3 {
-            margin-bottom: 8px;
-            color: #1e293b;
-        }
-        .feature-card p {
-            color: #64748b;
-        }
-        .cta-section {
-            background: #f1f5f9;
-            padding: 60px 20px;
-            text-align: center;
-        }
-        .cta-buttons {
-            display: flex;
-            gap: 16px;
-            justify-content: center;
-            margin-top: 24px;
-            flex-wrap: wrap;
-        }
-        .cta-buttons .btn {
-            width: auto;
-            min-width: 200px;
-        }
-        .how-it-works {
-            padding: 40px 20px;
-        }
-        .steps {
-            display: flex;
-            flex-direction: column;
-            gap: 24px;
-            margin-top: 24px;
-        }
-        .step {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            background: white;
-            padding: 24px;
-            border-radius: 16px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .step-number {
-            width: 50px;
-            height: 50px;
-            background: #2563eb;
-            color: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            font-weight: 800;
-            flex-shrink: 0;
-        }
-        .step-content h3 {
-            margin-bottom: 4px;
-        }
-        .step-content p {
-            color: #64748b;
-        }
-        .footer {
-            background: #1e293b;
-            color: white;
-            padding: 40px 20px;
-            text-align: center;
-        }
-        @media (min-width: 768px) {
-            .feature-grid {
-                grid-template-columns: repeat(3, 1fr);
-            }
-            .steps {
-                flex-direction: row;
-                flex-wrap: wrap;
-            }
-            .step {
-                flex: 1;
-                min-width: 300px;
-                flex-direction: column;
-                text-align: center;
-            }
+
+        /* Multi-Platform Install Section Styles */
+        .install-section { margin: 60px 0 48px; }
+        .install-header { text-align: center; max-width: 680px; margin: 0 auto 32px; }
+        .install-badge { display: inline-block; background: #DDEBE8; color: #0B4A46; font-size: 13px; font-weight: 700; padding: 4px 14px; border-radius: 999px; margin-bottom: 12px; letter-spacing: 0.5px; }
+        .install-header h2 { font-size: 36px; color: #14302E; margin: 0 0 12px; font-family: Fraunces, Georgia, serif; }
+        .install-tabs { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 24px; }
+        .tab-btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 999px; border: 1px solid #D9D3C5; background: #fff; color: #4A605E; font-size: 15px; font-weight: 600; cursor: pointer; transition: all .2s ease; font-family: inherit; position: relative; }
+        .tab-btn:hover { background: #F6F3EC; color: #14302E; border-color: #0B5F5A; }
+        .tab-btn.active { background: #0B5F5A; color: #fff; border-color: #0B5F5A; box-shadow: 0 4px 14px rgba(11,95,90,.25); }
+        .tab-btn svg { flex-shrink: 0; }
+        .detected-tag { font-size: 11px; font-weight: 700; background: #DDEBE8; color: #0B4A46; padding: 2px 7px; border-radius: 999px; margin-inline-start: 4px; }
+        .tab-btn.active .detected-tag { background: #fff; color: #0B5F5A; }
+        .install-content-wrapper { background: #fff; border: 1px solid #D9D3C5; border-radius: 24px; padding: 36px; box-shadow: 0 8px 30px rgba(20,48,46,0.04); }
+        .panel-grid { display: grid; grid-template-columns: 1.4fr .8fr; gap: 36px; align-items: center; }
+        .platform-title-row { display: flex; gap: 16px; align-items: flex-start; margin-bottom: 24px; }
+        .platform-icon { width: 52px; height: 52px; border-radius: 14px; background: #DDEBE8; color: #0B5F5A; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .platform-title-row h3 { font-family: Fraunces, Georgia, serif; font-size: 24px; color: #14302E; margin: 0 0 6px; }
+        .download-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 28px; }
+        .download-btn { min-height: 48px; padding: 12px 22px; font-size: 15px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; text-decoration: none; border-radius: 12px; }
+        .specs-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding-top: 20px; border-top: 1px solid #EEE9DD; font-size: 14px; color: #4A605E; }
+        .spec-label { color: #8C9E9C; margin-inline-end: 4px; }
+        .side-card { background: #F8F6F0; border: 1px solid #E6E0D2; border-radius: 16px; padding: 24px; }
+        .side-card-badge { display: inline-block; background: #0B5F5A; color: #fff; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; margin-bottom: 12px; }
+        .qr-card { text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .qr-svg { border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,.06); }
+        .ios-steps-box { display: flex; flex-direction: column; gap: 14px; margin: 18px 0; }
+        .ios-step-item { display: flex; gap: 12px; align-items: flex-start; }
+        .ios-step-num { width: 28px; height: 28px; border-radius: 50%; background: #0B5F5A; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex-shrink: 0; }
+        @media (max-width: 900px) {
+            .panel-grid { grid-template-columns: 1fr; }
+            .install-content-wrapper { padding: 24px; }
+            .install-header h2 { font-size: 28px; }
+            .specs-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 <body>
-    <div class="app-container">
-        <nav class="header">
-            <div class="header-content container">
-                <div class="logo">قرّب</div>
-                <div>
-                    <a href="login.html" class="btn btn-outline" style="width:auto; padding: 8px 20px;">تسجيل الدخول</a>
-                </div>
+    <div class="landing">
+        <nav class="topbar">
+            <div class="logo">Qarrib</div>
+            <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+                <a href="#install" class="q-btn q-btn-secondary q-btn-sm" style="text-decoration:none;" data-i18n="navInstall">Install App</a>
+                <button id="langToggle" type="button" class="q-btn q-btn-secondary q-btn-sm">العربية</button>
+                <a href="login-patient.html" class="q-btn q-btn-secondary q-btn-sm" style="text-decoration:none;" data-i18n="signin">Sign in</a>
+                <a href="register.html?role=patient" class="q-btn q-btn-sm" style="text-decoration:none;" data-i18n="getcare">Get care</a>
             </div>
         </nav>
 
         <section class="hero">
-            <h1>قرّب</h1>
-            <p>أقرب ممرض لك في أي وقت وفي أي مكان</p>
-            <p style="font-size: 16px; margin-top: 16px;">اطلب خدمة تمريض منزلية واحصل على رعاية طبية احترافية بضغطة زر</p>
-            <div class="cta-buttons" style="margin-top: 32px;">
-                <a href="register.html?role=patient" class="btn btn-secondary">أنا مريض</a>
-                <a href="register.html?role=nurse" class="btn" style="background: white; color: #2563eb;">أنا ممرض</a>
+            <div>
+                <h1 data-i18n="h1">Nursing care, at your door.</h1>
+                <p data-i18n="sub">Request a licensed nurse in Egypt, compare clear offers, and follow every visit live — all from Qarrib.</p>
+                <div class="hero-cta">
+                    <a href="register.html?role=patient" class="q-btn" style="text-decoration:none;" data-i18n="req">Request a nurse</a>
+                    <a href="register.html?role=nurse" class="q-btn q-btn-secondary" style="text-decoration:none;" data-i18n="join">Join as a nurse</a>
+                </div>
+                <div style="display:flex;gap:16px;margin-top:24px;color:#4A605E;font-size:15px;">
+                    <span data-i18n="t1">Licensed &amp; verified</span><span>·</span><span data-i18n="t2">Live tracking</span><span>·</span><span data-i18n="t3">Secure wallet</span>
+                </div>
+            </div>
+            <div class="hero-card">
+                <h2 data-i18n="card">The nearest nurse, whenever you need one.</h2>
+                <ul>
+                    <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D5EAE7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6 6 10a6 6 0 01-12 0c0-4 6-10 6-10z"/></svg><span data-i18n="c1">Licensed, verified nurses</span></li>
+                    <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D5EAE7" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><span data-i18n="c2">Clear offers from nurses near you</span></li>
+                    <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D5EAE7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-6 4 12 2-6h6"/></svg><span data-i18n="c3">Follow every visit live</span></li>
+                </ul>
             </div>
         </section>
 
-        <section class="features container">
-            <h2 style="text-align: center; font-size: 32px; color: #1e293b;">لماذا قرّب؟</h2>
-            <div class="feature-grid">
-                <div class="feature-card">
-                    <div class="feature-icon">⚡</div>
-                    <h3>سرعة الوصول</h3>
-                    <p>أقرب ممرض متاح يصلك في دقائق معدودة</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🔒</div>
-                    <h3>أمان تام</h3>
-                    <p>جميع الممرضين موثقين ومعتمدين من الوزارة</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">💳</div>
-                    <h3>دفع آمن</h3>
-                    <p>ادفع بفيزا، فودافون كاش، أو انستا باي</p>
-                </div>
+        <section class="grid3">
+            <div class="feat">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0B5F5A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></svg>
+                <h3 data-i18n="f1t">Fast access</h3><p data-i18n="f1p">The nearest available nurse reaches you in minutes.</p>
+            </div>
+            <div class="feat">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0B5F5A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3.5 8-7 9-3.5-1-7-4-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg>
+                <h3 data-i18n="f2t">Verified safety</h3><p data-i18n="f2p">Every nurse is licensed and identity-verified.</p>
+            </div>
+            <div class="feat">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0B5F5A" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg>
+                <h3 data-i18n="f3t">Secure payment</h3><p data-i18n="f3p">Wallet, card and InstaPay with escrow protection.</p>
             </div>
         </section>
 
-        <section class="how-it-works container">
-            <h2 style="text-align: center; font-size: 32px; color: #1e293b;">كيف يعمل؟</h2>
-            <div class="steps">
-                <div class="step">
-                    <div class="step-number">1</div>
-                    <div class="step-content">
-                        <h3>اطلب الخدمة</h3>
-                        <p>اختر نوع الخدمة وحدد موقعك</p>
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">2</div>
-                    <div class="step-content">
-                        <h3>قبول الطلب</h3>
-                        <p>أقرب ممرض يقبل طلبك فوراً</p>
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">3</div>
-                    <div class="step-content">
-                        <h3>تتبع الموقع</h3>
-                        <p>تابع مكان الممرض لحظة بلحظة</p>
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">4</div>
-                    <div class="step-content">
-                        <h3>الدفع الآمن</h3>
-                        <p>ادفع بعد التأكد من إتمام الخدمة</p>
-                    </div>
-                </div>
-            </div>
+        <h2 style="font-size:32px;margin-bottom:16px;" data-i18n="how">How it works</h2>
+        <section class="steps">
+            <div class="step"><div class="step-n">1</div><strong data-i18n="s1t">Request</strong><p class="q-muted" style="margin:6px 0 0;" data-i18n="s1p">Choose a service and your location.</p></div>
+            <div class="step"><div class="step-n">2</div><strong data-i18n="s2t">Compare offers</strong><p class="q-muted" style="margin:6px 0 0;" data-i18n="s2p">Nurses near you send clear prices.</p></div>
+            <div class="step"><div class="step-n">3</div><strong data-i18n="s3t">Track live</strong><p class="q-muted" style="margin:6px 0 0;" data-i18n="s3p">Watch your nurse arrive on the map.</p></div>
+            <div class="step"><div class="step-n">4</div><strong data-i18n="s4t">Pay safely</strong><p class="q-muted" style="margin:6px 0 0;" data-i18n="s4p">Release payment after the visit report.</p></div>
         </section>
 
-        <section class="cta-section">
-            <h2 style="font-size: 32px; color: #1e293b; margin-bottom: 16px;">ابدأ الآن</h2>
-            <p style="color: #64748b; font-size: 18px;">سجل مجاناً واستمتع بخدماتنا</p>
-            <div class="cta-buttons">
-                <a href="register.html?role=patient" class="btn btn-primary">سجل كمريض</a>
-                <a href="register.html?role=nurse" class="btn btn-secondary">سجل كممرض</a>
+
+        <!-- MULTI-PLATFORM INSTALL SECTION -->
+        <section id="install" class="install-section">
+            <div class="install-header">
+                <span class="install-badge" data-i18n="installBadge">Cross-Platform Support</span>
+                <h2 data-i18n="installTitle">Install Qarrib on Any Device</h2>
+                <p class="q-muted" data-i18n="installSub">Available as a native desktop application, mobile app, or instant cloud web app with offline capabilities.</p>
+            </div>
+
+            <!-- TAB CONTROLS -->
+            <div class="install-tabs" role="tablist" aria-label="Platforms">
+                <button type="button" class="tab-btn active" data-target="tab-windows" role="tab" aria-selected="true">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.401H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg>
+                    <span>Windows</span>
+                    <span class="detected-tag" id="tag-win" style="display:none;" data-i18n="detectedBadge">Your Device</span>
+                </button>
+                <button type="button" class="tab-btn" data-target="tab-mac" role="tab" aria-selected="false">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.62-.75 1.04-1.8 0.93-2.85-.9.04-1.99.6-2.64 1.36-.56.65-1.06 1.71-.93 2.73 1.01.08 2.03-.5 2.64-1.24z"/></svg>
+                    <span>macOS</span>
+                    <span class="detected-tag" id="tag-mac" style="display:none;" data-i18n="detectedBadge">Your Device</span>
+                </button>
+                <button type="button" class="tab-btn" data-target="tab-linux" role="tab" aria-selected="false">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                    <span>Linux</span>
+                    <span class="detected-tag" id="tag-linux" style="display:none;" data-i18n="detectedBadge">Your Device</span>
+                </button>
+                <button type="button" class="tab-btn" data-target="tab-android" role="tab" aria-selected="false">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9993.4482.9993.9993.0001.5511-.4483.9997-.9993.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993 0 .5511-.4482.9997-.9993.9997m11.4045-6.02l1.9973-3.4592a.416.416 0 00-.1521-.5676.416.416 0 00-.5676.1521l-2.0223 3.503C15.5898 8.4026 13.8565 8.1 12 8.1s-3.5898.3026-5.1368.8497L4.8409 5.4467a.4161.4161 0 00-.5677-.1521.4157.4157 0 00-.1521.5676l1.9973 3.4592C2.6889 11.1867.3432 14.6589 0 18.761h24c-.3432-4.1021-2.6889-7.5743-6.1185-9.4396"/></svg>
+                    <span>Android</span>
+                    <span class="detected-tag" id="tag-android" style="display:none;" data-i18n="detectedBadge">Your Device</span>
+                </button>
+                <button type="button" class="tab-btn" data-target="tab-ios" role="tab" aria-selected="false">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="3" ry="3"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
+                    <span>iOS</span>
+                    <span class="detected-tag" id="tag-ios" style="display:none;" data-i18n="detectedBadge">Your Device</span>
+                </button>
+                <button type="button" class="tab-btn" data-target="tab-web" role="tab" aria-selected="false">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                    <span>Web &amp; PWA</span>
+                    <span class="detected-tag" id="tag-web" style="display:none;" data-i18n="detectedBadge">Your Device</span>
+                </button>
+            </div>
+
+            <!-- PANELS -->
+            <div class="install-content-wrapper">
+                <!-- Windows Tab Content -->
+                <div id="tab-windows" class="tab-panel">
+                    <div class="panel-grid">
+                        <div class="panel-main">
+                            <div class="platform-title-row">
+                                <div class="platform-icon win-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.401H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg></div>
+                                <div>
+                                    <h3 data-i18n="winTitle">Qarrib Desktop for Windows</h3>
+                                    <p class="q-muted" data-i18n="winDesc">Full desktop client with local offline database fallback, desktop notifications, and instant order tracking.</p>
+                                </div>
+                            </div>
+                            <div class="download-actions">
+                                <a href="../dist/Qarrab Healthcare Setup 1.1.0.exe" download class="q-btn download-btn">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                    <span data-i18n="winDownload">Download Setup (64-bit .exe)</span>
+                                </a>
+                                <a href="../dist/Qarrab Healthcare 1.1.0.exe" download class="q-btn q-btn-secondary download-btn">
+                                    <span data-i18n="winPortable">Portable Edition (No install)</span>
+                                </a>
+                            </div>
+                            <div class="specs-grid">
+                                <div><span class="spec-label" data-i18n="version">Version:</span> <strong>1.1.0</strong></div>
+                                <div><span class="spec-label" data-i18n="fileSize">Size:</span> <strong>~82 MB</strong></div>
+                                <div><span class="spec-label" data-i18n="osReq">OS:</span> <strong>Windows 10 / 11 (64-bit)</strong></div>
+                                <div><span class="spec-label" data-i18n="updates">Updates:</span> <strong>Automatic</strong></div>
+                            </div>
+                        </div>
+                        <div class="panel-side">
+                            <div class="side-card">
+                                <div class="side-card-badge" data-i18n="featureOffline">Offline-First Capable</div>
+                                <p style="margin:0;color:#4A605E;font-size:14px;line-height:1.6;" data-i18n="winOfflineDesc">Runs even if connection is unstable. Automatically connects to cloud API when online.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- macOS Tab Content -->
+                <div id="tab-mac" class="tab-panel" style="display:none;">
+                    <div class="panel-grid">
+                        <div class="panel-main">
+                            <div class="platform-title-row">
+                                <div class="platform-icon mac-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.62-.75 1.04-1.8 0.93-2.85-.9.04-1.99.6-2.64 1.36-.56.65-1.06 1.71-.93 2.73 1.01.08 2.03-.5 2.64-1.24z"/></svg></div>
+                                <div>
+                                    <h3 data-i18n="macTitle">Qarrib Desktop for macOS</h3>
+                                    <p class="q-muted" data-i18n="macDesc">Optimized for Apple Silicon (M1/M2/M3/M4) and Intel Macs with native notification center support.</p>
+                                </div>
+                            </div>
+                            <div class="download-actions">
+                                <button type="button" onclick="alert(currentLang==='ar'?'جاري تجهيز حزمة macOS...':'macOS DMG build is being bundled...');" class="q-btn download-btn">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                    <span data-i18n="macDownload">Download Universal (.dmg)</span>
+                                </button>
+                            </div>
+                            <div class="specs-grid">
+                                <div><span class="spec-label" data-i18n="version">Version:</span> <strong>1.1.0</strong></div>
+                                <div><span class="spec-label" data-i18n="architecture">Chip:</span> <strong>Apple Silicon &amp; Intel</strong></div>
+                                <div><span class="spec-label" data-i18n="osReq">OS:</span> <strong>macOS 11.0 Big Sur or later</strong></div>
+                                <div><span class="spec-label" data-i18n="security">Security:</span> <strong>Gatekeeper Ready</strong></div>
+                            </div>
+                        </div>
+                        <div class="panel-side">
+                            <div class="side-card">
+                                <h4 style="margin:0 0 8px;font-size:16px;" data-i18n="howToInstall">How to install:</h4>
+                                <ol style="padding-inline-start:18px;margin:0;font-size:14px;color:#4A605E;line-height:1.6;">
+                                    <li data-i18n="macStep1">Open the downloaded .dmg file.</li>
+                                    <li data-i18n="macStep2">Drag Qarrib icon into Applications folder.</li>
+                                    <li data-i18n="macStep3">Launch from Launchpad or Spotlight.</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Linux Tab Content -->
+                <div id="tab-linux" class="tab-panel" style="display:none;">
+                    <div class="panel-grid">
+                        <div class="panel-main">
+                            <div class="platform-title-row">
+                                <div class="platform-icon linux-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg></div>
+                                <div>
+                                    <h3 data-i18n="linuxTitle">Qarrib Desktop for Linux</h3>
+                                    <p class="q-muted" data-i18n="linuxDesc">Universal AppImage and Debian package for clinical workstations and Linux distributions.</p>
+                                </div>
+                            </div>
+                            <div class="download-actions">
+                                <button type="button" onclick="alert(currentLang==='ar'?'جاري تجهيز حزمة Linux AppImage...':'Linux AppImage is being bundled...');" class="q-btn download-btn">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                    <span data-i18n="linuxAppImage">Download AppImage (x86_64)</span>
+                                </button>
+                                <button type="button" onclick="alert(currentLang==='ar'?'جاري تجهيز حزمة Debian .deb...':'Linux .deb package is being bundled...');" class="q-btn q-btn-secondary download-btn">
+                                    <span data-i18n="linuxDeb">Debian / Ubuntu (.deb)</span>
+                                </button>
+                            </div>
+                            <div class="specs-grid">
+                                <div><span class="spec-label" data-i18n="version">Version:</span> <strong>1.1.0</strong></div>
+                                <div><span class="spec-label" data-i18n="architecture">Arch:</span> <strong>x86_64 / amd64</strong></div>
+                                <div><span class="spec-label" data-i18n="distros">Distros:</span> <strong>Ubuntu, Debian, Fedora, Arch</strong></div>
+                            </div>
+                        </div>
+                        <div class="panel-side">
+                            <div class="side-card">
+                                <h4 style="margin:0 0 8px;font-size:16px;" data-i18n="quickStart">Terminal Run:</h4>
+                                <code style="display:block;background:#EBF2F0;padding:10px;border-radius:8px;font-size:12px;color:#0B4A46;overflow-x:auto;">chmod +x Qarrib-1.1.0.AppImage<br>./Qarrib-1.1.0.AppImage</code>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Android Tab Content -->
+                <div id="tab-android" class="tab-panel" style="display:none;">
+                    <div class="panel-grid">
+                        <div class="panel-main">
+                            <div class="platform-title-row">
+                                <div class="platform-icon android-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9993.4482.9993.9993.0001.5511-.4483.9997-.9993.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993 0 .5511-.4482.9997-.9993.9997m11.4045-6.02l1.9973-3.4592a.416.416 0 00-.1521-.5676.416.416 0 00-.5676.1521l-2.0223 3.503C15.5898 8.4026 13.8565 8.1 12 8.1s-3.5898.3026-5.1368.8497L4.8409 5.4467a.4161.4161 0 00-.5677-.1521.4157.4157 0 00-.1521.5676l1.9973 3.4592C2.6889 11.1867.3432 14.6589 0 18.761h24c-.3432-4.1021-2.6889-7.5743-6.1185-9.4396"/></svg></div>
+                                <div>
+                                    <h3 data-i18n="androidTitle">Qarrib Mobile for Android</h3>
+                                    <p class="q-muted" data-i18n="androidDesc">Live GPS tracking of your nurse on Google Maps, push notifications, and quick biometric sign-in.</p>
+                                </div>
+                            </div>
+                            <div class="download-actions">
+                                <a href="manifest.webmanifest" class="q-btn download-btn">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                    <span data-i18n="androidApk">Download Android Package (.apk)</span>
+                                </a>
+                                <button type="button" id="btnAndroidPwa" class="q-btn q-btn-secondary download-btn">
+                                    <span data-i18n="installDirectPwa">Add to Home Screen (Instant)</span>
+                                </button>
+                            </div>
+                            <div class="specs-grid">
+                                <div><span class="spec-label" data-i18n="version">Version:</span> <strong>1.1.0</strong></div>
+                                <div><span class="spec-label" data-i18n="fileSize">Size:</span> <strong>~18 MB</strong></div>
+                                <div><span class="spec-label" data-i18n="osReq">Android:</span> <strong>8.0 (Oreo) or later</strong></div>
+                                <div><span class="spec-label" data-i18n="location">GPS:</span> <strong>Live Background Tracking</strong></div>
+                            </div>
+                        </div>
+                        <div class="panel-side">
+                            <div class="side-card qr-card">
+                                <svg class="qr-svg" width="120" height="120" viewBox="0 0 100 100" fill="#0B5F5A"><rect width="100" height="100" fill="#fff" rx="8"/><path d="M10 10h30v30h-30zM15 15v20h20v-20zM22 22h6v6h-6zM60 10h30v30h-30zM65 15v20h20v-20zM72 22h6v6h-6zM10 60h30v30h-30zM15 65v20h20v-20zM22 72h6v6h-6zM48 10h4v15h-4zM54 20h12v4h-12zM48 35h15v4h-15zM48 45h8v8h-8zM60 45h10v5h-10zM75 45h15v6h-15zM48 60h6v12h-6zM60 60h12v6h-12zM78 60h12v12h-12zM54 78h18v4h-18zM78 78h12v12h-12z"/></svg>
+                                <p style="margin:8px 0 0;font-size:13px;color:#4A605E;text-align:center;" data-i18n="qrScan">Scan with your phone to open &amp; install directly</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- iOS Tab Content -->
+                <div id="tab-ios" class="tab-panel" style="display:none;">
+                    <div class="panel-grid">
+                        <div class="panel-main">
+                            <div class="platform-title-row">
+                                <div class="platform-icon ios-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="3"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg></div>
+                                <div>
+                                    <h3 data-i18n="iosTitle">Qarrib for iPhone &amp; iPad</h3>
+                                    <p class="q-muted" data-i18n="iosDesc">Zero waiting time. Install Qarrib directly to your home screen using Safari for a full native app experience.</p>
+                                </div>
+                            </div>
+                            <div class="ios-steps-box">
+                                <div class="ios-step-item">
+                                    <div class="ios-step-num">1</div>
+                                    <div><strong data-i18n="iosStep1Title">Open in Safari</strong><p class="q-muted" style="margin:2px 0 0;font-size:14px;" data-i18n="iosStep1Desc">Visit this website on your iPhone or iPad using Safari.</p></div>
+                                </div>
+                                <div class="ios-step-item">
+                                    <div class="ios-step-num">2</div>
+                                    <div><strong data-i18n="iosStep2Title">Tap Share</strong><p class="q-muted" style="margin:2px 0 0;font-size:14px;" data-i18n="iosStep2Desc">Tap the Share icon at the bottom of the Safari bar.</p></div>
+                                </div>
+                                <div class="ios-step-item">
+                                    <div class="ios-step-num">3</div>
+                                    <div><strong data-i18n="iosStep3Title">Add to Home Screen</strong><p class="q-muted" style="margin:2px 0 0;font-size:14px;" data-i18n="iosStep3Desc">Select 'Add to Home Screen' to launch Qarrib anytime in full screen.</p></div>
+                                </div>
+                            </div>
+                            <div class="download-actions" style="margin-top:20px;">
+                                <a href="login-patient.html" class="q-btn download-btn">
+                                    <span data-i18n="openSafariNow">Open Qarrib App Now</span>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="panel-side">
+                            <div class="side-card qr-card">
+                                <svg class="qr-svg" width="120" height="120" viewBox="0 0 100 100" fill="#0B5F5A"><rect width="100" height="100" fill="#fff" rx="8"/><path d="M10 10h30v30h-30zM15 15v20h20v-20zM22 22h6v6h-6zM60 10h30v30h-30zM65 15v20h20v-20zM72 22h6v6h-6zM10 60h30v30h-30zM15 65v20h20v-20zM22 72h6v6h-6zM48 10h4v15h-4zM54 20h12v4h-12zM48 35h15v4h-15zM48 45h8v8h-8zM60 45h10v5h-10zM75 45h15v6h-15zM48 60h6v12h-6zM60 60h12v6h-12zM78 60h12v12h-12zM54 78h18v4h-18zM78 78h12v12h-12z"/></svg>
+                                <p style="margin:8px 0 0;font-size:13px;color:#4A605E;text-align:center;" data-i18n="qrScanIos">Scan with iPhone camera to open directly</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Web & PWA Tab Content -->
+                <div id="tab-web" class="tab-panel" style="display:none;">
+                    <div class="panel-grid">
+                        <div class="panel-main">
+                            <div class="platform-title-row">
+                                <div class="platform-icon web-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg></div>
+                                <div>
+                                    <h3 data-i18n="webTitle">Instant Web App &amp; PWA</h3>
+                                    <p class="q-muted" data-i18n="webDesc">Zero download required. Access Qarrib securely from any modern web browser on PC, tablet, or phone.</p>
+                                </div>
+                            </div>
+                            <div class="download-actions">
+                                <a href="login-patient.html" class="q-btn download-btn">
+                                    <span data-i18n="launchWeb">Launch Qarrib in Browser</span>
+                                </a>
+                                <button type="button" id="btnWebPwaTrigger" class="q-btn q-btn-secondary download-btn">
+                                    <span data-i18n="pwaInstallBtn">Install Web App Locally</span>
+                                </button>
+                            </div>
+                            <div class="specs-grid">
+                                <div><span class="spec-label" data-i18n="browserSupport">Browsers:</span> <strong>Chrome, Edge, Safari, Firefox</strong></div>
+                                <div><span class="spec-label" data-i18n="storage">Storage:</span> <strong>&lt; 5 MB cached</strong></div>
+                                <div><span class="spec-label" data-i18n="sync">Sync:</span> <strong>Real-time Cloud Sync</strong></div>
+                            </div>
+                        </div>
+                        <div class="panel-side">
+                            <div class="side-card">
+                                <div class="side-card-badge" data-i18n="featurePwa">PWA Enabled</div>
+                                <p style="margin:0;color:#4A605E;font-size:14px;line-height:1.6;" data-i18n="pwaDesc">Powered by Service Worker offline caching and fast background sync.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </section>
 
         <footer class="footer">
-            <div class="logo" style="margin-bottom: 16px;">قرّب</div>
-            <p id="appVersion">جميع الحقوق محفوظة © 2026</p>
-            <p id="appMode" style="font-size: 12px; color: #94a3b8; margin-top: 4px;"></p>
+            <div class="logo" style="margin-bottom:8px;">Qarrib</div>
+            <div id="appVersion">All rights reserved © 2026</div>
+            <div id="appMode" style="font-size:12px;margin-top:4px;"></div>
         </footer>
     </div>
-
     <script>
-        window.QARRAB_API_URL = 'https://qarrib.onrender.com';
+        window.QARRAB_API_URL = 'https://qarrib1.vercel.app';
         var ver = (window.desktopAPI && window.desktopAPI.getVersion) ? 'Desktop App' : 'Web App';
         var modeEl = document.getElementById('appMode');
-        if (modeEl) modeEl.textContent = 'Running as: ' + ver;
+        function paintMode(lang) {
+            if (!modeEl) return;
+            modeEl.textContent = (lang === 'ar' ? 'يعمل كـ: ' : 'Running as: ') + (lang === 'ar' ? (ver === 'Desktop App' ? 'تطبيق سطح المكتب' : 'تطبيق الويب') : ver);
+        }
+        var currentLang = 'en';
+        var AR = {
+            signin: 'تسجيل الدخول', getcare: 'احصل على الرعاية',
+            h1: 'رعاية تمريضية حتى باب منزلك.',
+            sub: 'اطلب ممرضاً مرخّصاً في مصر، وقارن العروض الواضحة، وتابع كل زيارة لحظة بلحظة — كل ذلك من قرّب.',
+            req: 'اطلب ممرضاً', join: 'انضم كممرض',
+            t1: 'مرخّص وموثّق', t2: 'تتبع مباشر', t3: 'محفظة آمنة',
+            card: 'أقرب ممرض لك، وقت ما تحتاجه.',
+            c1: 'ممرضون مرخّصون وموثّقون', c2: 'عروض واضحة من ممرضين قريبين منك', c3: 'تابع كل زيارة لحظة بلحظة',
+            f1t: 'وصول سريع', f1p: 'أقرب ممرض متاح يصلك في دقائق.',
+            f2t: 'أمان موثّق', f2p: 'كل ممرض مرخّص وموثّق الهوية.',
+            f3t: 'دفع آمن', f3p: 'محفظة وكارت وانستا باي بحماية الضمان.',
+            how: 'كيف يعمل؟',
+            s1t: 'اطلب', s1p: 'اختر الخدمة وحدد موقعك.',
+            s2t: 'قارن العروض', s2p: 'ممرضون قريبون منك يرسلون أسعاراً واضحة.',
+            s3t: 'تتبع مباشر', s3p: 'شاهد ممرضك وهو يصل على الخريطة.',
+            s4t: 'ادفع بأمان', s4p: 'ادفع بعد تقرير إتمام الزيارة.',
+            navInstall: 'تثبيت التطبيق',
+            installBadge: 'توافق شامل مع جميع المنصات',
+            installTitle: 'حمّل تطبيق قرّب على جميع أجهزتك',
+            installSub: 'متوفر كتطبيق لسطح المكتب، والهواتف الذكية، أو تطبيق ويب فوري متزامن سحابياً ومجهز للعمل أوفلاين.',
+            detectedBadge: 'جهازك الحالي',
+            winTitle: 'قرّب لسطح المكتب — نظام ويندوز',
+            winDesc: 'برنامج متكامل لسطح المكتب يدعم حفظ البيانات أوفلاين، والتنبيهات المباشرة، وتتبع مسار التمريض لحظياً.',
+            winDownload: 'تحميل برنامج التثبيت (64-bit .exe)',
+            winPortable: 'النسخة المحمولة بدون تثبيت (.exe)',
+            version: 'الإصدار:', fileSize: 'الحجم:', osReq: 'النظام:', updates: 'التحديثات:',
+            featureOffline: 'جاهز للعمل بدون إنترنت',
+            winOfflineDesc: 'يعمل بكفاءة حتى لو كان الاتصال غير مستقر، ويتصل بالسحابة تلقائياً عند عودة الشبكة.',
+            macTitle: 'قرّب لسطح المكتب — نظام ماك',
+            macDesc: 'أداء فائق متوافق مع معالجات آبل سيليكون (M1/M2/M3/M4) ومعالجات إنتل.',
+            macDownload: 'تحميل حزمة ماك (.dmg)',
+            architecture: 'المعالج:', security: 'الأمان:',
+            howToInstall: 'طريقة التثبيت:',
+            macStep1: 'افتح ملف الـ .dmg بعد تنزيله.',
+            macStep2: 'اسحب أيقونة قرّب إلى مجلد التطبيقات Applications.',
+            macStep3: 'شغّل التطبيق من Launchpad أو Spotlight.',
+            linuxTitle: 'قرّب لسطح المكتب — نظام لينكس',
+            linuxDesc: 'حزمة AppImage شاملة وحزمة دبيان لأجهزة العيادات ومحطات العمل التي تعمل بلينكس.',
+            linuxAppImage: 'تحميل AppImage (x86_64)',
+            linuxDeb: 'حزمة دبيان / أوبونتو (.deb)',
+            distros: 'التوزيعات:', quickStart: 'التشغيل عبر التيرمينال:',
+            androidTitle: 'تطبيق قرّب للهواتف — أندرويد',
+            androidDesc: 'تتبع مباشر للممرض عبر خرائط جوجل بنظام GPS، وإشعارات فورية، ودخول سريع بالبصمة.',
+            androidApk: 'تحميل ملف التثبيت المباشر (.apk)',
+            installDirectPwa: 'إضافة للشاشة الرئيسية فوراً',
+            location: 'الموقع:', qrScan: 'وجّه كاميرا هاتفك لتحميل التطبيق مباشرة',
+            iosTitle: 'قرّب لهواتف آيفون وآيباد — iOS',
+            iosDesc: 'بدون انتظار للمتجر، ثبّت تطبيق قرّب كـ تطبيق أصلي مباشرة عبر متصفح سفاري.',
+            iosStep1Title: 'افتح عبر سفاري', iosStep1Desc: 'افتح هذه الصفحة على هاتفك الآيفون باستخدام Safari.',
+            iosStep2Title: 'اضغط على زر المشاركة', iosStep2Desc: 'اضغط على أيقونة المشاركة (Share) أسفل الشاشة.',
+            iosStep3Title: 'إضافة إلى الصفحة الرئيسية', iosStep3Desc: 'اختر Add to Home Screen لفتح التطبيق بملء الشاشة في أي وقت.',
+            openSafariNow: 'افتح تطبيق قرّب الآن', qrScanIos: 'وجّه كاميرا آيفون لفتح التطبيق مباشرة',
+            webTitle: 'تطبيق الويب السحابي الفوري و PWA',
+            webDesc: 'بدون الحاجة لأي تحميل. ادخل فوراً على سجلاتك وعروض التمريض من أي متصفح حديث.',
+            launchWeb: 'فتح تطبيق قرّب في المتصفح', pwaInstallBtn: 'تثبيت تطبيق الويب على الجهاز',
+            browserSupport: 'المتصفحات:', storage: 'المساحة:', sync: 'المزامنة:',
+            featurePwa: 'يدعم تقنية PWA',
+            pwaDesc: 'مدعوم بمخزن الخدمة المؤقت Service Worker للعمل السريع والمزامنة الخلفية.',
+
+        };
+        var EN = {};
+        document.querySelectorAll('[data-i18n]').forEach(function (el) { var k = el.getAttribute('data-i18n'); if (!EN[k]) EN[k] = el.textContent; });
+        function applyLandingLang(lang) {
+            currentLang = lang === 'ar' ? 'ar' : 'en';
+            var dict = currentLang === 'ar' ? AR : EN;
+            document.documentElement.lang = currentLang;
+            document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+            try { localStorage.setItem('qarrib-language', currentLang); } catch (e) {}
+            window.qarribLanguage = currentLang;
+            document.querySelectorAll('[data-i18n]').forEach(function (el) { var k = el.getAttribute('data-i18n'); if (dict[k] != null) el.textContent = dict[k]; });
+            var t = document.getElementById('langToggle');
+            if (t) t.textContent = currentLang === 'ar' ? 'English' : 'العربية';
+            paintMode(currentLang);
+        }
+        try {
+            var saved = localStorage.getItem('qarrib-language');
+            if (saved === 'ar' || saved === 'en') applyLandingLang(saved);
+            else paintMode('en');
+        } catch (e) { paintMode('en'); }
+        
+        // Tab switching and OS detection
+        function setupPlatformTabs() {
+            var tabs = document.querySelectorAll('.install-tabs .tab-btn');
+            var panels = document.querySelectorAll('.install-content-wrapper .tab-panel');
+            
+            function switchTab(targetId) {
+                tabs.forEach(function (btn) {
+                    var isTarget = btn.getAttribute('data-target') === targetId;
+                    btn.classList.toggle('active', isTarget);
+                    btn.setAttribute('aria-selected', isTarget ? 'true' : 'false');
+                });
+                panels.forEach(function (panel) {
+                    panel.style.display = panel.id === targetId ? 'block' : 'none';
+                });
+            }
+
+            tabs.forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var targetId = btn.getAttribute('data-target');
+                    if (targetId) switchTab(targetId);
+                });
+            });
+
+            // Smart OS Auto-detection
+            function detectUserOS() {
+                var ua = navigator.userAgent || '';
+                var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+                if (/android/i.test(ua)) return 'android';
+                if (/iphone|ipad|ipod/i.test(ua) || (p === 'MacIntel' && navigator.maxTouchPoints > 1)) return 'ios';
+                if (/win/i.test(p) || /windows/i.test(ua)) return 'windows';
+                if (/mac/i.test(p) || /macintosh/i.test(ua)) return 'mac';
+                if (/linux/i.test(p) || /linux/i.test(ua)) return 'linux';
+                return 'web';
+            }
+
+            var detected = detectUserOS();
+            var targetMap = {
+                windows: { tab: 'tab-windows', pill: 'tag-win' },
+                mac: { tab: 'tab-mac', pill: 'tag-mac' },
+                linux: { tab: 'tab-linux', pill: 'tag-linux' },
+                android: { tab: 'tab-android', pill: 'tag-android' },
+                ios: { tab: 'tab-ios', pill: 'tag-ios' },
+                web: { tab: 'tab-web', pill: 'tag-web' }
+            };
+
+            var match = targetMap[detected];
+            if (match) {
+                var pillEl = document.getElementById(match.pill);
+                if (pillEl) pillEl.style.display = 'inline-block';
+                switchTab(match.tab);
+            }
+
+            // PWA install trigger hookups
+            var triggerButtons = [document.getElementById('btnWebPwaTrigger'), document.getElementById('btnAndroidPwa')];
+            triggerButtons.forEach(function (btn) {
+                if (!btn) return;
+                btn.addEventListener('click', function () {
+                    var installBtn = document.getElementById('qarribInstallButton');
+                    if (installBtn) {
+                        installBtn.click();
+                    } else {
+                        alert(currentLang === 'ar' ? 'افتح قائمة المتصفح واختر «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية».' : 'Open your browser menu and choose "Install app" or "Add to Home screen".');
+                    }
+                });
+            });
+        }
+        setupPlatformTabs();
+
+        document.getElementById('langToggle').addEventListener('click', function () {
+            var next = currentLang === 'en' ? 'ar' : 'en';
+            applyLandingLang(next);
+            if (typeof window.setQarribLanguage === 'function') { window.setQarribLanguage(next); }
+        });
     </script>
-    <script src="js/api.js"></script>
-    <script src="js/auth.js"></script>
+    <script src="js/api.js?v=6"></script>
+    <script src="js/auth.js?v=8"></script>
+<script src="js/install.js?v=6"></script>
 </body>
 </html>

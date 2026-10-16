@@ -2,238 +2,387 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة التحكم - مريض</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Dashboard - Qarrib</title>
+    <link rel="apple-touch-icon" href="../icon-180.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="../manifest.webmanifest">
+    <meta name="description" content="Qarrib Healthcare - nursing care at your door.">
+    <meta name="theme-color" content="#1E4E8C">
     <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/patient-home.css?v=1">
     <style>
-        .welcome-header {
-            background: linear-gradient(135deg, #2563eb, #1d4ed8);
-            color: white;
-            padding: 24px 20px;
-            border-radius: 0 0 24px 24px;
+        body { background: #F6F3EC; }
+        .web-dash { min-height: 100vh; display: flex; background: #F6F3EC; }
+        .dash-main { flex: 1; box-sizing: border-box; padding: 36px 44px; display: flex; flex-direction: column; gap: 28px; min-width: 0; }
+        .dash-top { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+        .dash-top h1 { font-size: 36px; }
+        .stats { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 20px; }
+        .stat { padding: 24px; border-radius: 20px; }
+        .stat.brand { background: #0B5F5A; color: #fff; border: 0; }
+        .stat.plain { background: #fff; border: 1px solid #D9D3C5; }
+        .stat .lbl { font-size: 15px; }
+        .stat.brand .lbl { color: #D5EAE7; }
+        .stat.plain .lbl { color: #4A605E; }
+        .stat .val { margin-top: 8px; font-size: 34px; font-weight: 700; }
+        .panels { display: grid; grid-template-columns: 1.6fr 1fr; gap: 20px; }
+        .panel { padding: 28px; border-radius: 20px; background: #fff; border: 1px solid #D9D3C5; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+        .order-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+        .offer-row { display: flex; gap: 12px; align-items: center; padding: 14px; border-radius: 14px; background: #F6F3EC; }
+        /* Panel shell — shown only under 900px; the web dashboard above keeps
+           the cream/teal design from files/qarrib-design-spec.md. */
+        .p-shell { display: none; }
+        .p-search {
+            display: flex; align-items: center; gap: 8px;
+            height: 48px; padding: 0 14px;
+            background: #fff; border: 1px solid #E1E7F0; border-radius: 12px;
         }
-        .welcome-text {
-            font-size: 14px;
-            opacity: 0.9;
+        .p-search input {
+            border: 0; outline: 0; background: transparent; flex: 1; min-width: 0;
+            font-family: inherit; font-size: 15px; color: #14233A;
         }
-        .welcome-name {
-            font-size: 24px;
-            font-weight: 800;
-            margin-top: 4px;
+        .p-search input::placeholder { color: #5B6B82; }
+        .p-cta {
+            min-height: 54px; padding: 0 20px; border: 0;
+            border-radius: 12px; background: #1E4E8C; color: #fff;
+            font-family: inherit; font-size: 16px; font-weight: 700;
+            cursor: pointer; text-decoration: none;
+            display: inline-flex; align-items: center; justify-content: center;
         }
-        .quick-actions {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
-            padding: 20px;
-        }
-        .header-actions {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-        }
-        .header-actions button {
-            background: rgba(255,255,255,0.2);
-            border: none;
-            color: white;
-            padding: 8px 12px;
-            border-radius: 999px;
-            cursor: pointer;
-        }
-        .quick-action {
-            background: white;
-            border-radius: 16px;
-            padding: 20px;
-            text-align: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            text-decoration: none;
-            color: #1e293b;
-            transition: all 0.3s;
-        }
-        .quick-action:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
-        .quick-action-icon {
-            font-size: 32px;
-            margin-bottom: 8px;
-        }
-        .quick-action-title {
-            font-weight: 700;
-            font-size: 14px;
-        }
-        .section {
-            padding: 0 20px 20px;
-        }
-        .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-        }
-        .section-title {
-            font-size: 18px;
-            font-weight: 700;
-        }
-        .order-item {
-            background: white;
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 12px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            border-right: 4px solid #e2e8f0;
-        }
-        .order-item.pending { border-right-color: #f59e0b; }
-        .order-item.accepted { border-right-color: #3b82f6; }
-        .order-item.in_progress { border-right-color: #10b981; }
-        .order-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-        }
-        .order-service {
-            font-weight: 700;
-        }
-        .order-meta {
-            display: flex;
-            gap: 16px;
-            font-size: 13px;
-            color: #64748b;
+        @media (max-width: 900px) {
+            .web-dash { display: none; }
+            .p-shell { display: flex; }
         }
     </style>
 </head>
 <body>
-    <div class="app-container">
-        <div class="welcome-header">
-            <div class="header-actions">
-                <div class="welcome-text">مرحباً بك</div>
-                <button type="button" onclick="logout()">خروج</button>
-            </div>
-            <div class="welcome-name" id="userName">...</div>
-            <div style="margin-top: 12px; font-size: 14px; opacity: 0.9;">
-                الرصيد: <span id="walletBalance">0</span> جنيه
-            </div>
+<div class="web-dash">
+    <nav class="q-sidebar">
+        <div class="q-logo" style="font-size:30px;padding:0 12px 24px;">Qarrib</div>
+        <a href="dashboard.html" class="active">Home</a>
+        <a href="request-service.html">Request a nurse</a>
+        <a href="offers.html">Nurse offers</a>
+        <a href="track-nurse.html">Track nurse</a>
+        <a href="chat.html">Chat</a>
+        <a href="../call.html">📞 Call</a>
+        <a href="wallet.html">Wallet</a>
+        <a href="../plans.html">Plans <span id="planBadge" class="q-badge" style="margin-inline-start:6px;">Free</span></a>
+        <a href="#" class="logout" onclick="logout();return false;">Log out</a>
+    </nav>
+
+    <!-- Web dashboard (desktop) — cream/teal, per files/qarrib-design-spec.md -->
+    <main class="dash-main">
+        <div class="dash-top">
+            <div><div style="font-size:15px;color:#4A605E;">Welcome back</div><h1 id="userNameWeb">...</h1></div>
+            <a href="request-service.html" class="q-btn" style="text-decoration:none;">Request a nurse</a>
+        </div>
+        <div class="stats">
+            <div class="stat brand"><div class="lbl">Wallet balance</div><div class="val"><span id="walletBalance">0</span> EGP</div></div>
+            <div class="stat plain"><div class="lbl">Active orders</div><div class="val" id="statActive">–</div></div>
+            <div class="stat plain"><div class="lbl">New nurse offers</div><div class="val" id="statOffers">–</div></div>
+        </div>
+        <div id="supportCard" style="display:none;background:#0B5F5A;color:#fff;border-radius:18px;padding:16px 20px;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div style="flex:1;min-width:200px;"><div style="font-weight:800;font-size:16px;" id="supportTitle">🎧 Direct admin support</div><div style="font-size:13px;opacity:.85;" id="supportSub">Message the admin anytime — priority answers for subscribers.</div></div>
+            <a href="support-chat.html" class="q-btn q-btn-secondary q-btn-sm" style="text-decoration:none;">Open support chat</a>
+        </div>
+        <div class="panels">
+            <section class="panel">
+                <div style="display:flex;justify-content:space-between;align-items:center;"><h2 style="font-size:20px;">Active orders</h2><a href="track-nurse.html" style="font-size:15px;font-weight:600;color:#0B5F5A;">View all</a></div>
+                <div id="activeOrders"><div class="loading"><div class="spinner"></div></div></div>
+                <div id="activeProgress" style="display:none;">
+                    <div class="q-progress"><i class="done"></i><i class="done"></i><i></i><i></i></div>
+                    <div style="display:flex;justify-content:space-between;font-size:14px;color:#4A605E;margin-top:8px;"><span>Accepted</span><span>On the way</span><span>Arrived</span><span>Completed</span></div>
+                </div>
+                <div style="display:flex;gap:12px;margin-top:auto;flex-wrap:wrap;">
+                    <a href="track-nurse.html" class="q-btn q-btn-sm" style="text-decoration:none;" id="trackBtn">Track nurse</a>
+                    <a href="chat.html" class="q-btn q-btn-secondary q-btn-sm" style="text-decoration:none;">Chat</a>
+                </div>
+            </section>
+            <section class="panel">
+                <h2 style="font-size:20px;">Nurse offers</h2>
+                <div id="offersPreview" style="display:flex;flex-direction:column;gap:12px;"><div class="q-muted">Loading offers…</div></div>
+                <a href="offers.html" class="q-btn q-btn-secondary q-btn-sm" style="text-decoration:none;text-align:center;">View all offers</a>
+            </section>
+        </div>
+    </main>
+</div>
+
+<!-- ===================== Patient panel (files(1) mockup) ===================== -->
+<main class="p-shell">
+    <header class="p-top">
+        <button class="p-bell" aria-label="Notifications" onclick="location.href='../notifications.html'">
+            <svg class="p-ico" aria-hidden="true"><use href="../assets/icons.svg#i-bell"></use></svg>
+            <i id="bellDot" hidden></i>
+        </button>
+
+        <div class="p-logo" aria-label="Qarrib">
+            <svg class="p-ico" aria-hidden="true"><use href="../assets/icons.svg#i-plus"></use></svg>Qarrib
         </div>
 
-        <div class="quick-actions">
-            <a href="dashboard.html" class="quick-action">
-                <div class="quick-action-icon">🏠</div>
-                <div class="quick-action-title">الرئيسية</div>
-            </a>
-            <a href="offers.html" class="quick-action">
-                <div class="quick-action-icon">💰</div>
-                <div class="quick-action-title">عروض الممرضات</div>
-            </a>
-            <a href="request-service.html" class="quick-action">
-                <div class="quick-action-icon">➕</div>
-                <div class="quick-action-title">طلب</div>
-            </a>
-            <a href="wallet.html" class="quick-action">
-                <div class="quick-action-icon">💳</div>
-                <div class="quick-action-title">المحفظة</div>
-            </a>
-            <a href="track-nurse.html" class="quick-action">
-                <div class="quick-action-icon">📍</div>
-                <div class="quick-action-title">تتبع الممرض</div>
-            </a>
-            <a href="chat.html" class="quick-action">
-                <div class="quick-action-icon">💬</div>
-                <div class="quick-action-title">الشات</div>
-            </a>
-        </div>
-
-        <div class="section">
-            <div class="section-header">
-                <div class="section-title">الطلبات النشطة</div>
-                <a href="#" style="color: #2563eb; font-size: 14px;">الكل</a>
-            </div>
-            <div id="activeOrders">
-                <div class="loading"><div class="spinner"></div></div>
+        <div class="p-top-user">
+            <span id="userAvatar"></span>
+            <div class="p-top-user-text">
+                <strong id="userName"></strong>
+                <small><span id="userGreeting"></span> <span id="userGreetingName"></span></small>
             </div>
         </div>
+    </header>
 
-        <nav class="bottom-nav">
-            <a href="dashboard.html" class="nav-item active">
-                <span class="nav-icon">🏠</span>
-                <span>الرئيسية</span>
-            </a>
-            <a href="request-service.html" class="nav-item">
-                <span class="nav-icon">➕</span>
-                <span>طلب</span>
-            </a>
-            <a href="wallet.html" class="nav-item">
-                <span class="nav-icon">💳</span>
-                <span>المحفظة</span>
-            </a>
-            <a href="chat.html" class="nav-item">
-                <span class="nav-icon">💬</span>
-                <span>الشات</span>
-            </a>
-        </nav>
-    </div>
+    <section class="p-wallet">
+        <h2>Qarrib wallet</h2>
+        <p class="p-wallet-amount">Balance: <span class="p-amount" id="balance">–</span></p>
+        <div class="p-wallet-row">
+            <a href="wallet.html#topup" class="p-btn-white">Top up</a>
+            <a href="wallet.html" class="p-btn-white">History</a>
+        </div>
+    </section>
 
-    <script>window.QARRAB_API_URL = "https://qarrib.onrender.com";</script>
-    <script src="../js/api.js"></script>
-    <script src="../js/auth.js"></script>
+    <a class="p-sos" href="request-service.html?type=emergency">
+        <svg class="p-ico" aria-hidden="true"><use href="../assets/icons.svg#i-siren"></use></svg>
+        <div class="p-sos-text">
+            <!-- Kept as separate text nodes so js/language.js can translate each
+                 fragment independently (it never rewrites a whole sentence). -->
+            <strong>Book an emergency - arrival within <b id="sosEta">45</b> minutes</strong>
+            <span>Increase <b id="sosFee">25</b>%</span>
+        </div>
+    </a>
+
+    <section class="p-sec">
+        <h2 class="p-sec-title">Core services</h2>
+        <label class="p-search">
+            <svg class="p-ico" style="width:18px;height:18px;color:#5B6B82;" aria-hidden="true"><use href="../assets/icons.svg#i-search"></use></svg>
+            <input id="serviceSearch" type="search" placeholder="Search a service">
+        </label>
+        <div class="p-rail" id="services" style="margin-top:12px;"></div>
+        <a class="p-viewall" href="request-service.html">View all services<svg class="p-ico" aria-hidden="true"><use href="../assets/icons.svg#i-chev"></use></svg></a>
+    </section>
+
+    <section class="p-sec">
+        <h2 class="p-sec-title">Top rated nurses</h2>
+        <div class="p-rail" id="nurses"></div>
+    </section>
+
+    <section class="p-sec">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;">
+            <h2 class="p-sec-title">Active orders</h2>
+            <a class="p-viewall" href="track-nurse.html" style="margin-top:0;">View all<svg class="p-ico" aria-hidden="true"><use href="../assets/icons.svg#i-chev"></use></svg></a>
+        </div>
+        <div id="activeOrdersMobile"><div class="p-empty">Loading...</div></div>
+    </section>
+
+    <a href="request-service.html" class="p-cta">Request a nurse</a>
+</main>
+
+<nav class="p-tabbar" id="tabbar" aria-label="Main navigation"></nav>
+
+<script>window.QARRAB_API_URL = 'https://qarrib1.vercel.app';</script>
+    <script src="../js/api.js?v=9"></script>
+    <script src="../js/auth.js?v=8"></script>
+<script src="../js/install.js?v=6"></script>
+    <script src="../js/qarrib.js?v=1"></script>
+    <script src="../js/notifications.js"></script>
+    <script src="../js/notify-popup.js?v=1"></script>
+    <script src="../js/permissions.js?v=1"></script>
     <script>
-        if (!requireRole('patient')) {
-            redirectToLogin();
+    if (!requireRole('patient')) { redirectToLogin(); }
+
+    /* Emergency promise shown on the panel. Both numbers come from config in
+       production; kept here so the copy stays in one place. */
+    var EMERGENCY = { etaMinutes: 45, feePercent: 25 };
+
+    function getStatusText(s){ var m={pending:'Pending',open:'Open',under_review:'Under review',price_approved:'Price suggested',accepted:'Accepted',in_progress:'In progress',completed:'Completed',cancelled:'Cancelled',offers_received:'Offers received',assigned:'Assigned'}; return m[s]||s; }
+
+    function escapeHtml(v){ return String(v==null?'':v).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+    function orderCard(o){
+        var acceptBtn = o.status === 'price_approved'
+            ? '<button class="p-btn-outline" style="margin-top:8px;width:100%;" data-accept="' + escapeHtml(o.id) + '">Accept ' + escapeHtml(o.amount || 0) + ' EGP &amp; open to nurses</button>' : '';
+        // unicode-bidi:plaintext keeps "200 EGP - Cairo, Nasr City" in reading
+        // order inside the RTL page; without it the two LTR runs swap places.
+        return '<div style="background:#fff;border:1px solid #E1E7F0;border-radius:14px;padding:14px;margin-bottom:10px;">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">' +
+          '<div style="min-width:0;"><div style="font-weight:700;font-size:15px;">' + escapeHtml(o.serviceType || 'Service') + '</div>' +
+          '<div style="font-size:13px;color:#5B6B82;unicode-bidi:plaintext;">' + escapeHtml(o.amount || 0) + ' EGP · ' + escapeHtml(o.address || '') + '</div></div>' +
+          '<span style="flex-shrink:0;font-size:12px;font-weight:700;color:#1E4E8C;background:#E9EEF6;border-radius:999px;padding:4px 10px;">' + escapeHtml(getStatusText(o.status)) + '</span>' +
+          '</div>' + acceptBtn + '</div>';
+    }
+
+    async function acceptPrice(orderId){
+        if (!confirm('Accept the suggested price?')) return;
+        try { var r = await api.acceptSuggestedPrice(orderId); if (r.success) { loadDashboard(); } }
+        catch (e) { alert(e.message || 'Failed'); }
+    }
+
+    // Delegated so order ids never have to be inlined into an onclick string.
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest ? e.target.closest('[data-accept]') : null;
+        if (btn) acceptPrice(btn.getAttribute('data-accept'));
+    });
+
+    function greeting(){
+        // Only two buckets on purpose: Arabic maps one English phrase to one
+        // Arabic phrase, so a third ("Good afternoon") would never translate.
+        // Returned on its own so the name stays a separate, untranslated node.
+        try { return new Date().getHours() < 12 ? 'Good morning' : 'Good evening'; }
+        catch (e) { return ''; }
+    }
+
+    async function loadServices(){
+        try {
+            var result = await api.getServicePrices();
+            var list = (result && result.data && result.data.services) || [];
+            Qarrib.renderServices({ services: Qarrib.normalizeServices(list) });
+        } catch (e) {
+            var rail = document.getElementById('services');
+            if (rail) rail.innerHTML = '<div class="p-empty">Services are unavailable right now.</div>';
         }
+    }
 
-        async function loadDashboard() {
+    async function loadNurses(){
+        try {
+            var result = await api.getPatientNurses();
+            var list = (result && result.data) || [];
+            Qarrib.renderNurses({
+                nurses: list.slice(0, 8).map(function (n) {
+                    return { id: n.id, name: n.name || n.fullName, rating: n.rating };
+                })
+            });
+        } catch (e) {
+            var rail = document.getElementById('nurses');
+            if (rail) rail.innerHTML = '<div class="p-empty">No nurses are available right now.</div>';
+        }
+    }
+
+    async function loadDashboard() {
+        try {
+            var result = await api.getPatientDashboard();
+            if (!result.success) return;
+            var data = result.data;
+            var name = (data.user && (data.user.name || data.user.fullName)) || '';
+
+            document.getElementById('userNameWeb').textContent = name;
+            document.getElementById('walletBalance').textContent = data.user.walletBalance;
+
+            var panelData = {
+                user: { name: name, greeting: greeting(), greetingName: name },
+                wallet: { balance: data.user.walletBalance || 0 },
+                emergency: EMERGENCY,
+                unreadNotifications: false
+            };
+            // Services/nurses load on their own endpoints, so only the
+            // header + wallet are rendered here (render() would blank them).
+            Qarrib.renderHeader(panelData);
+            Qarrib.renderWallet(panelData);
+
+            var orders = data.activeOrders || [];
+            document.getElementById('statActive').textContent = orders.length;
+
+            var box = document.getElementById('activeOrders');
+            var boxM = document.getElementById('activeOrdersMobile');
+            var cards = orders.slice(0,3).map(orderCard).join('');
+            box.innerHTML = cards || '<div class="q-muted">No active orders. <a href="request-service.html" style="color:#0B5F5A;font-weight:600;">Request now</a></div>';
+            boxM.innerHTML = cards || '<div class="p-empty">No active orders.</div>';
+
+            if (orders.length) {
+                document.getElementById('activeProgress').style.display = 'block';
+                if (orders[0] && orders[0].id) document.getElementById('trackBtn').href = 'track-nurse.html?order=' + encodeURIComponent(orders[0].id);
+            }
+
+            // offers preview
             try {
-                const result = await api.getPatientDashboard();
-                if (result.success) {
-                    const data = result.data;
-                    document.getElementById('userName').textContent = data.user.name;
-                    document.getElementById('walletBalance').textContent = data.user.walletBalance;
+                var off = await api.getOrdersWithOffers();
+                var list = (off.data || []).filter(function(o){ return o.status === 'offers_received' || o.status === 'assigned'; });
+                var count = 0; list.forEach(function(o){ (o.offers||[]).forEach(function(x){ if (x.status === 'pending_review') count++; }); });
+                document.getElementById('statOffers').textContent = count;
+                var prev = document.getElementById('offersPreview');
+                if (!list.length) { prev.innerHTML = '<div class="q-muted">No offers yet.</div>'; }
+                else {
+                    var rows = [];
+                    list.slice(0,2).forEach(function(o){ (o.offers||[]).slice(0,2).forEach(function(x){
+                        var nm = (x.nurse&&x.nurse.name)||'Nurse';
+                        var trust = (x.nurse&&x.nurse.isTrusted) ? ' ✅' : '';
+                        rows.push('<div class="offer-row"><div class="q-avatar" style="width:44px;height:44px;">'+escapeHtml(nm.charAt(0))+'</div><div style="flex:1"><div style="font-weight:600;">'+escapeHtml(nm)+trust+'</div><div style="font-size:14px;color:#4A605E;">★ ' + escapeHtml((x.nurse&&x.nurse.rating)||'New') + '</div></div><div style="font-weight:700;color:#0B5F5A;">'+escapeHtml(x.price)+' EGP</div></div>');
+                    }); });
+                    prev.innerHTML = rows.join('') || '<div class="q-muted">Waiting for nurse offers…</div>';
+                }
+            } catch (e) { document.getElementById('statOffers').textContent = '0'; }
+        } catch (e) { /* silent */ }
+    }
 
-                    const ordersContainer = document.getElementById('activeOrders');
-                    if (data.activeOrders.length === 0) {
-                        ordersContainer.innerHTML = `
-                            <div class="empty-state">
-                                <div class="empty-state-icon">📋</div>
-                                <p>لا توجد طلبات نشطة</p>
-                                <a href="request-service.html" class="btn btn-primary btn-sm" style="width: auto; margin-top: 12px;">اطلب الآن</a>
-                            </div>
-                        `;
-                    } else {
-                        ordersContainer.innerHTML = data.activeOrders.map(order => `
-                            <div class="order-item ${order.status}">
-                                <div class="order-header">
-                                    <span class="order-service">${order.serviceType}</span>
-                                    <span class="badge badge-${order.status}">${getStatusText(order.status)}</span>
-                                </div>
-                                <div class="order-meta">
-                                    <span>💰 ${order.amount} جنيه</span>
-                                    <span>📅 ${formatDate(order.createdAt)}</span>
-                                </div>
-                                <div style="margin-top: 8px; font-size: 13px; color: #64748b;">
-                                    📍 ${order.address}
-                                </div>
-                            </div>
-                        `).join('');
+    async function loadUnread(){
+        try {
+            var result = await api.getNotifications('?limit=5');
+            var list = (result && result.data && (result.data.notifications || result.data)) || [];
+            var dot = document.getElementById('bellDot');
+            if (dot) dot.hidden = !(list || []).some(function(n){ return !n.isRead; });
+        } catch (e) {}
+    }
+
+    Qarrib.renderTabbar([
+        { icon: 'i-home',    label: 'Home',      href: 'dashboard.html', active: true },
+        { icon: 'i-cal',     label: 'Visits',    href: 'track-nurse.html' },
+        { icon: 'i-tag',    label: 'Offers',    href: 'offers.html' },
+        { icon: 'i-headset', label: 'Support',   href: 'support-chat.html' },
+        { icon: 'i-user',    label: 'Profile',   href: 'wallet.html' }
+    ]);
+
+    Qarrib.showSkeletons();
+    loadDashboard();
+    loadServices();
+    loadNurses();
+    loadUnread();
+
+    // filter the services rail as the patient types
+    document.getElementById('serviceSearch').addEventListener('input', function (e) {
+        var q = e.target.value.trim().toLowerCase();
+        var rail = document.getElementById('services');
+        if (!rail) return;
+        Array.prototype.forEach.call(rail.children, function (card) {
+            var text = (card.textContent || '').toLowerCase();
+            card.style.display = !q || text.indexOf(q) !== -1 ? '' : 'none';
+        });
+    });
+
+    try { if (window.QarribPerms) { document.addEventListener('DOMContentLoaded', function(){ QarribPerms.requireGate('patient'); }); } } catch(e){}
+
+    // Plan badge + VIP hotline banner
+    (async function planBadge(){
+        try {
+            var r = await api.getMySubscription();
+            if (r.success) {
+                var pl = (r.data && r.data.plan) || 'free';
+                var b = document.getElementById('planBadge');
+                if (b) b.textContent = pl.toUpperCase();
+                if (pl === 'vip') {
+                    var t = document.createElement('a'); t.href = '../plans.html';
+                    t.className = 'q-btn q-btn-sm'; t.style.cssText = 'text-decoration:none;margin-top:8px;';
+                    t.textContent = '👑 VIP · Call admin 24/7';
+                    document.querySelector('.dash-top').appendChild(t);
+                } else {
+                    var u = document.createElement('a'); u.href = '../plans.html';
+                    u.style.cssText = 'font-size:13px;font-weight:700;color:#0B5F5A;';
+                    u.textContent = 'Upgrade to Pro 250 / VIP 500 →';
+                    document.querySelector('.dash-top').appendChild(u);
+                }
+                // Direct admin support card: Pro/VIP only — Free sees nothing
+                if (pl === 'pro' || pl === 'vip') {
+                    var sc = document.getElementById('supportCard');
+                    if (sc) {
+                        sc.style.display = 'flex';
+                        if (pl === 'vip') {
+                            document.getElementById('supportTitle').textContent = '👑 VIP · Your dedicated manager chat';
+                            document.getElementById('supportSub').textContent = 'Message the admin anytime, day or night — VIP answers first.';
+                        } else {
+                            document.getElementById('supportTitle').textContent = '🎧 Priority admin support chat';
+                            document.getElementById('supportSub').textContent = 'Message the admin directly — priority answers for Pro members.';
+                        }
                     }
                 }
-            } catch (error) {
-                showAlert('فشل تحميل البيانات', 'error');
             }
-        }
-
-        function getStatusText(status) {
-            const statusMap = {
-                'pending': 'قيد الانتظار',
-                'accepted': 'مقبول',
-                'in_progress': 'جاري التنفيذ',
-                'completed': 'مكتمل',
-                'cancelled': 'ملغي'
-            };
-            return statusMap[status] || status;
-        }
-
-        loadDashboard();
+        } catch(e){}
+    })();
     </script>
 </body>
 </html>
