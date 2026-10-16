@@ -55,8 +55,13 @@ jobs:
       - name: Set up Android SDK
         run: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
-          yes | sdkmanager --licenses > /dev/null 2>&1 || true
-          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          # sdkmanager is not on PATH on the runner image; locate it.
+          SDKMANAGER="$(find "$ANDROID_SDK_ROOT/cmdline-tools" -name sdkmanager -type f 2>/dev/null | head -n1)"
+          echo "using sdkmanager: ${SDKMANAGER:-<none found>}"
+          echo "$(dirname "$SDKMANAGER")" >> "$GITHUB_PATH"
+          export PATH="$(dirname "$SDKMANAGER"):$PATH"
+          yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
+          "$SDKMANAGER" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
       - name: Install dependencies
         run: npm ci
