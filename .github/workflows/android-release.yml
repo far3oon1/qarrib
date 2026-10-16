@@ -49,7 +49,14 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - uses: android-actions/setup-android@v3
+      # android-actions/setup-android@v3 fails on current runners because it
+      # still tries to install the obsolete 'tools' package. GitHub runners
+      # already ship the Android SDK, so configure it directly.
+      - name: Set up Android SDK
+        run: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
       - name: Install dependencies
         run: npm ci
@@ -100,7 +107,7 @@ jobs:
       - name: Verify signature and reject debuggable builds
         run: |
           set -euo pipefail
-          bt="$ANDROID_SDK_ROOT/build-tools/34.0.0"
+          bt="$ANDROID_SDK_ROOT/build-tools/35.0.0"
           apk="${{ steps.apk.outputs.path }}"
           "$bt/aapt2" dump badging "$apk" | grep -E "^package:|application-debuggable" || true
           if "$bt/aapt2" dump xmltree --file AndroidManifest.xml "$apk" | grep -q 'debuggable.*0xffffffff'; then
