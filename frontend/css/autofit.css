@@ -177,10 +177,14 @@ input, select, textarea, button { max-width: 100%; font-size: 16px; /* stops iOS
   .web-dash .dash-main { display: flex !important; }
 }
 
-/* bottom nav: full-width on phones, centred pill on wide desktop installs */
+/* bottom nav: full-width on phones, centred pill on wide desktop installs.
+   Centred with auto margins, NOT translateX(-50%): the dashboards set an inline
+   position:fixed; left:0; right:0, so a -50% transform shifted the whole bar
+   half off-screen and pushed half its tabs out of view. */
 .bottom-nav, .q-bottomnav {
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
+  margin-inline: auto;
   /* flex children must be allowed to shrink or long labels push items off-screen */
   overflow: hidden;
   width: 100%;
@@ -191,6 +195,14 @@ input, select, textarea, button { max-width: 100%; font-size: 16px; /* stops iOS
 }
 @media (min-width: 901px) {
   .q-bottomnav { display: none; }
+}
+/* bars that grew to six items (nurse: Home/Requests/Call/Wallet/Plan/Log out)
+   need tighter labels so every tab still fits one row on a 360px phone */
+.q-bottomnav:has(> a:nth-child(6)) { height: 66px; }
+.q-bottomnav:has(> a:nth-child(6)) > a {
+  font-size: 11px;
+  padding: 0 2px;
+  min-height: 44px;
 }
 body.is-wide .bottom-nav { max-width: 960px; border-radius: 16px 16px 0 0; }
 .bottom-nav a, .q-bottomnav a { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
