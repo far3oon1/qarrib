@@ -123,7 +123,10 @@ input, select, textarea, button { max-width: 100%; font-size: 16px; /* stops iOS
   .web-login { flex-direction: column !important; }
   .brand-panel { width: 100% !important; padding: 28px 22px !important; }
   .brand-panel h1 { font-size: clamp(26px, 7vw, 32px) !important; }
-  .web-dash .dash-main { display: none; }
+  /* Only swap .dash-main for .mobile-home when the page actually ships a
+     .mobile-home. Otherwise the whole dashboard body stayed display:none on
+     phones and the page rendered blank. */
+  .web-dash:has(.mobile-home) .dash-main { display: none; }
   .web-dash .mobile-home { display: flex !important; }
 }
 /* phones: split login stacks full-width, form gets the whole screen, and the
@@ -178,6 +181,8 @@ input, select, textarea, button { max-width: 100%; font-size: 16px; /* stops iOS
 .bottom-nav, .q-bottomnav {
   left: 50%;
   transform: translateX(-50%);
+  /* flex children must be allowed to shrink or long labels push items off-screen */
+  overflow: hidden;
   width: 100%;
   max-width: 640px;
   padding-bottom: calc(8px + var(--safe-b));
@@ -188,6 +193,7 @@ input, select, textarea, button { max-width: 100%; font-size: 16px; /* stops iOS
   .q-bottomnav { display: none; }
 }
 body.is-wide .bottom-nav { max-width: 960px; border-radius: 16px 16px 0 0; }
+.bottom-nav a, .q-bottomnav a { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ---------- injected fixed overlays (language toggle / install / notify) ----------
    js/language.js, js/install.js and js/notify-popup.js all inject

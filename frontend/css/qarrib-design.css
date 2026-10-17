@@ -178,6 +178,40 @@ button { font-family: inherit; }
   .q-bottomnav { display: none; }
 }
 
+/* Safety net: the sidebar is hidden on phones, so a page that ships a sidebar
+   but forgot its bottom nav would end up with NO navigation at all. Keep the
+   sidebar in that case, as a horizontal scrollable bar. */
+@media (max-width: 900px) {
+  .web-dash:not(:has(.q-bottomnav, nav.p-tabbar, .bottom-nav)) .q-sidebar {
+    display: flex !important;
+    position: sticky;
+    top: 0;
+    z-index: 90;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 10px 12px;
+    padding-top: calc(10px + env(safe-area-inset-top, 0px));
+  }
+  .web-dash:not(:has(.q-bottomnav, nav.p-tabbar, .bottom-nav)) .q-sidebar .q-logo {
+    padding: 0 10px 0 0 !important;
+    font-size: 15px !important;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .web-dash:not(:has(.q-bottomnav, nav.p-tabbar, .bottom-nav)) .q-sidebar > a {
+    white-space: nowrap;
+    flex-shrink: 0;
+    padding: 8px 12px;
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+  }
+}
+
 /* RTL: logical properties are used above (inline-end etc.)
    so Arabic only needs dir="rtl" + font fallback. */
 [dir="rtl"] body, [dir="rtl"] h1 { letter-spacing: 0; }
