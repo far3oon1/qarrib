@@ -764,6 +764,24 @@ if (typeof window !== 'undefined') {
             } catch (e) {}
         })();
 
+        // Global nav: one menu for every screen, so no page can end up without
+        // navigation on a phone. Loaded here because api.js is on every page.
+        (function loadNav() {
+            try {
+                if (document.querySelector('script[src*="nav.js"]')) return;
+                var apiScript = document.querySelector('script[src*="api.js"]');
+                var src = 'js/nav.js?v=1';
+                if (apiScript && apiScript.src) {
+                    var m = apiScript.src.replace(/api\.js(?:\?.*)?$/, 'nav.js?v=1');
+                    if (m !== apiScript.src) src = m;
+                }
+                var s = document.createElement('script');
+                s.src = src;
+                s.defer = true;
+                document.head.appendChild(s);
+            } catch (e) {}
+        })();
+
         if (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) {
             var nativeBridgeScript = document.createElement('script');
             nativeBridgeScript.src = '/js/native-bridge.js?v=1';

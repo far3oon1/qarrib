@@ -360,6 +360,107 @@ body.is-desktop-app a, body.is-desktop-app button { -webkit-app-region: no-drag;
   min-height: 40px;
   cursor: pointer;
 }
+/* ---------- global nav (js/nav.js) ----------
+   One menu button plus a full-screen drawer listing every section, so all the
+   desktop tabs are reachable on a phone without any page hand-rolling a nav. */
+#qarrib-menu-btn {
+  position: fixed;
+  top: calc(10px + env(safe-area-inset-top, 0px));
+  inset-inline-start: 10px;
+  z-index: 2147483000;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 12px;
+  background: rgba(11, 95, 90, .92);
+  color: #fff;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(11, 95, 90, .3);
+}
+#qarrib-menu {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483001;
+  background: rgba(20, 48, 46, .55);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+#qarrib-menu[hidden] { display: none; }
+html.qarrib-menu-open,
+html.qarrib-menu-open body { overflow: hidden; }
+.qarrib-menu-panel {
+  background: #fff;
+  min-height: 100%;
+  padding: calc(14px + env(safe-area-inset-top, 0px)) 16px
+           calc(20px + env(safe-area-inset-bottom, 0px));
+}
+.qarrib-menu-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border, #D9D3C5);
+}
+.qarrib-menu-brand {
+  font-family: Fraunces, Georgia, serif;
+  font-size: 24px;
+  font-weight: 600;
+  color: #0B5F5A;
+}
+.qarrib-menu-close {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: #F6F3EC;
+  color: #14302E;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+}
+.qarrib-menu-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+  gap: 8px;
+}
+.qarrib-menu-list a {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 1px solid var(--border, #D9D3C5);
+  border-radius: 14px;
+  background: #F6F3EC;
+  color: #14302E;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.qarrib-menu-list a.active {
+  background: #0B5F5A;
+  border-color: #0B5F5A;
+  color: #fff;
+}
+.qarrib-menu-logout {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 14px;
+  border: 0;
+  border-radius: 14px;
+  background: #B42318;
+  color: #fff;
+  font: 700 15px inherit;
+  cursor: pointer;
+}
+/* on a wide screen the real sidebar is already visible, so hide the button */
+@media (min-width: 901px) {
+  body:has(.q-sidebar) #qarrib-menu-btn { display: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }

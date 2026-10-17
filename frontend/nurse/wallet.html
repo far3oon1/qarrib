@@ -35,6 +35,18 @@
             font-size: 20px;
             font-weight: 700;
         }
+        .logout-btn {
+            margin-inline-start: auto;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            min-height: 40px;
+            padding: 0 16px;
+            border-radius: 999px;
+            font: 700 14px inherit;
+            cursor: pointer;
+        }
+        .logout-btn:active { background: rgba(255,255,255,0.32); }
         .wallet-section {
             padding: 20px;
         }
@@ -90,6 +102,7 @@
         <div class="page-header">
             <button class="back-btn" onclick="history.back()">→</button>
             <div class="page-title">المحفظة</div>
+            <button class="logout-btn" type="button" onclick="logout();return false;">تسجيل الخروج</button>
         </div>
 
         <div class="wallet-section">
