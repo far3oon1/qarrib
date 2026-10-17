@@ -109,6 +109,12 @@
     }
 
     function createInstallButton() {
+        // a cached older api.js may still inject its own floating button;
+        // this file owns the single install button, so drop the duplicate.
+        ['qarrib-install-button'].forEach(function (id) {
+            var stale = document.getElementById(id);
+            if (stale && stale.parentNode) stale.parentNode.removeChild(stale);
+        });
         if (document.getElementById('qarribInstallButton')) {
             installButton = document.getElementById('qarribInstallButton');
             updateButton();

@@ -30,6 +30,8 @@
             font-size: 16px; font-weight: 600; color: #14302E; cursor: pointer;
         }
         .form-box { width: 420px; max-width: 100%; display: flex; flex-direction: column; gap: 20px; }
+        .form-title { margin: 0; font-family: Fraunces, Georgia, serif; font-size: 32px; }
+        .form-fields { display: flex; flex-direction: column; gap: 16px; margin-top: 20px; }
         .role-tag { align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; background: #DDEBE8; color: #0B4A46; border: 1px solid #0B5F5A; border-radius: 999px; padding: 8px 16px; font-size: 14px; font-weight: 700; }
         .other-roles { font-size: 14px; color: #4A605E; text-align: center; }
         .other-roles a { color: #0B5F5A; font-weight: 600; }
@@ -64,9 +66,9 @@
             <div class="form-box">
                 <div id="blockedBanner" style="display:none;background:#FDECEA;border:2px solid #B42318;border-radius:12px;padding:14px 16px;font-size:15px;font-weight:700;color:#7f1d1d;text-align:center;">⛔ <span id="blockedBannerText">تم حظرك لمخالفة قواعد التطبيق / You have been blocked for breaking the rules of the app</span></div>
                 <span class="role-tag" id="roleTag">Patient</span>
-                <h2 style="margin:0;font-family:Fraunces,Georgia,serif;font-size:32px;" data-i18n="ptitle">Patient sign in</h2>
+                <h2 class="form-title" data-i18n="ptitle">Patient sign in</h2>
                 <div style="margin-top:6px;font-size:16px;color:#4A605E;" data-i18n="psub">Get nursing care at home</div>
-                <div style="display:flex;flex-direction:column;gap:16px;margin-top:20px;">
+                <div class="form-fields">
                     <div class="alert alert-error" id="alert-patient"></div>
                     <label class="q-label"><span data-i18n="email">Email address</span><input id="email-patient" type="email" class="q-input" placeholder="example@email.com"></label>
                     <label class="q-label"><span data-i18n="pass">Password</span><input id="password-patient" type="password" class="q-input" placeholder="Password"></label>

@@ -799,31 +799,20 @@ if (typeof window !== 'undefined') {
             });
         }
 
+        // install.js owns the one and only install button. api.js used to build a
+        // second floating button here, which produced two overlapping fixed
+        // buttons on every page and covered content on phones. Keep the prompt
+        // reference only, so no duplicate UI is ever injected.
         var installPrompt = null;
         window.addEventListener('beforeinstallprompt', function (event) {
             event.preventDefault();
             installPrompt = event;
-            if (document.getElementById('qarrib-install-button')) return;
-
-            var installButton = document.createElement('button');
-            installButton.id = 'qarrib-install-button';
-            installButton.type = 'button';
-            installButton.textContent = document.documentElement.lang === 'en' ? 'Install Qarrib' : 'تثبيت قرّب';
-            installButton.style.cssText = 'position:fixed;left:16px;bottom:calc(76px + env(safe-area-inset-bottom, 0px));z-index:1000;border:0;border-radius:999px;padding:12px 16px;background:#0f766e;color:#fff;font:600 14px/1.2 system-ui,sans-serif;box-shadow:0 4px 14px rgba(15,23,42,.22);cursor:pointer;';
-            installButton.addEventListener('click', function () {
-                if (!installPrompt) return;
-                installPrompt.prompt();
-                installPrompt.userChoice.finally(function () {
-                    installPrompt = null;
-                    installButton.remove();
-                });
-            });
-            document.body.appendChild(installButton);
+            window.__qarribInstallPrompt = event;
         });
 
         window.addEventListener('appinstalled', function () {
-            var installButton = document.getElementById('qarrib-install-button');
-            if (installButton) installButton.remove();
+            installPrompt = null;
+            window.__qarribInstallPrompt = null;
         });
     }
 }

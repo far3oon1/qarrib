@@ -15,7 +15,9 @@
     <style>
         body { background: #F6F3EC; }
         .landing { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
-        .topbar { display: flex; justify-content: space-between; align-items: center; padding: 24px 0; }
+        .topbar { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding: 24px 0; }
+        .topbar-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+        .hero-trust { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 24px; color: #4A605E; font-size: 15px; }
         .logo { font-family: Fraunces, Georgia, serif; font-size: 30px; font-weight: 600; color: #0B5F5A; }
         .hero { display: grid; grid-template-columns: 1.1fr .9fr; gap: 40px; align-items: center; padding: 40px 0 56px; }
         .hero h1 { font-size: 56px; line-height: 1.05; color: #14302E; }
@@ -37,6 +39,22 @@
             .hero { grid-template-columns: 1fr; }
             .hero h1 { font-size: 38px; }
             .grid3, .steps { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 640px) {
+            .landing { padding: 0 16px; }
+            .topbar { flex-direction: column; align-items: stretch; gap: 14px; padding: 18px 0; }
+            .logo { text-align: center; font-size: 26px; }
+            .topbar-actions { justify-content: center; gap: 8px; }
+            .topbar-actions .q-btn { flex: 1 1 calc(50% - 8px); min-width: 0; text-align: center; }
+            .hero { padding: 24px 0 36px; }
+            .hero h1 { font-size: clamp(30px, 8.4vw, 38px); }
+            .hero-cta { flex-direction: column; align-items: stretch; }
+            .hero-card { padding: 24px 20px; }
+            .hero-trust { flex-direction: column; gap: 6px; font-size: 14px; }
+            .hero-trust > span:not([data-i18n]) { display: none; }
+        }
+        @media (max-width: 360px) {
+            .topbar-actions .q-btn { flex: 1 1 100%; }
         }
 
         /* Multi-Platform Install Section Styles */
@@ -79,7 +97,7 @@
     <div class="landing">
         <nav class="topbar">
             <div class="logo">Qarrib</div>
-            <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+            <div class="topbar-actions">
                 <a href="#install" class="q-btn q-btn-secondary q-btn-sm" style="text-decoration:none;" data-i18n="navInstall">Install App</a>
                 <button id="langToggle" type="button" class="q-btn q-btn-secondary q-btn-sm">العربية</button>
                 <a href="login-patient.html" class="q-btn q-btn-secondary q-btn-sm" style="text-decoration:none;" data-i18n="signin">Sign in</a>
@@ -95,7 +113,7 @@
                     <a href="register.html?role=patient" class="q-btn" style="text-decoration:none;" data-i18n="req">Request a nurse</a>
                     <a href="register.html?role=nurse" class="q-btn q-btn-secondary" style="text-decoration:none;" data-i18n="join">Join as a nurse</a>
                 </div>
-                <div style="display:flex;gap:16px;margin-top:24px;color:#4A605E;font-size:15px;">
+                <div class="hero-trust">
                     <span data-i18n="t1">Licensed &amp; verified</span><span>·</span><span data-i18n="t2">Live tracking</span><span>·</span><span data-i18n="t3">Secure wallet</span>
                 </div>
             </div>

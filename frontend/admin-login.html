@@ -16,7 +16,9 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            /* !important: css/qarrib-design.css forces a light body theme with
+               !important, which turned this dark screen into white-on-cream. */
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e) !important;
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -170,6 +172,25 @@
             color: rgba(255,255,255,0.25);
             font-size: 11px;
             margin-top: 8px;
+        }
+        /* phones: shrink the chrome so the access-code, email and password fields
+           plus the login button all fit one screen without scrolling. */
+        @media (max-width: 640px) {
+            body { padding: 14px !important; align-items: flex-start !important; }
+            .admin-wrapper { max-width: 100% !important; }
+            .brand { margin-bottom: 18px !important; }
+            .brand-logo { font-size: 38px !important; }
+            .admin-card { padding: 20px 16px !important; border-radius: 18px !important; }
+            .locked-badge { padding: 8px 16px !important; margin-bottom: 16px !important; font-size: 12px !important; }
+            .locked-badge span { font-size: 18px !important; display: inline !important; margin: 0 6px 0 0 !important; }
+            .admin-card h2 { font-size: 18px !important; }
+            .admin-card p { margin-bottom: 16px !important; font-size: 12px !important; }
+            .input-group { margin-bottom: 12px !important; }
+            .input-field { padding: 11px 14px !important; font-size: 16px !important; }
+            .btn-admin-access { padding: 13px !important; margin-top: 4px !important; }
+            .footer-text { margin-top: 12px !important; }
+            /* the floating install pill would sit on the login button */
+            #qarribInstallButton, #qarrib-install-button { display: none !important; }
         }
     </style>
 </head>
